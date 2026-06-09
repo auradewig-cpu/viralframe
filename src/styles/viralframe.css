@@ -1,0 +1,71 @@
+/* ViralFrame Studio — Design System */
+:root {
+  --vf-bg-primary:    #08080E;
+  --vf-bg-secondary:  #0F0F1A;
+  --vf-bg-elevated:   #16162A;
+  --vf-border:        #252540;
+  --vf-border-active: #4040A0;
+
+  --vf-accent-primary:   #6366F1;
+  --vf-accent-secondary: #22D3EE;
+  --vf-accent-success:   #10B981;
+  --vf-accent-warning:   #F59E0B;
+  --vf-accent-danger:    #EF4444;
+  --vf-accent-cta:       #8B5CF6;
+
+  --vf-text-primary:   #F1F5F9;
+  --vf-text-secondary: #94A3B8;
+  --vf-text-muted:     #475569;
+
+  font-family: 'Plus Jakarta Sans', 'DM Sans', system-ui, sans-serif;
+}
+
+/* Light mode overrides */
+html:not(.dark) {
+  --vf-bg-primary:    #FAFAFA;
+  --vf-bg-secondary:  #FFFFFF;
+  --vf-bg-elevated:   #F1F5F9;
+  --vf-border:        #E2E8F0;
+  --vf-border-active: #6366F1;
+
+  --vf-accent-primary:   #4F46E5;
+  --vf-accent-secondary: #0891B2;
+  --vf-accent-success:   #059669;
+  --vf-accent-warning:   #D97706;
+  --vf-accent-danger:    #DC2626;
+  --vf-accent-cta:       #7C3AED;
+
+  --vf-text-primary:   #0F172A;
+  --vf-text-secondary: #475569;
+  --vf-text-muted:     #94A3B8;
+}
+
+/* Apply dark background by default */
+html.dark body,
+html.dark {
+  background-color: var(--vf-bg-primary);
+  color: var(--vf-text-primary);
+}
+
+html:not(.dark) body,
+html:not(.dark) {
+  background-color: var(--vf-bg-primary);
+  color: var(--vf-text-primary);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--vf-bg-secondary); }
+::-webkit-scrollbar-thumb { background: var(--vf-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--vf-border-active); }
+
+/* Select option styling */
+select option {
+  background-color: var(--vf-bg-secondary);
+  color: var(--vf-text-primary);
+}
+
+/* Mono font class */
+.font-mono {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace !important;
+}
