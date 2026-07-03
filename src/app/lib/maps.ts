@@ -180,8 +180,8 @@ export const NICHE_DATA: Record<string, { psikografis: string; painPoint: string
 };
 
 export const AI_TOOL_FORMAT: Record<string, string> = {
-  google_flow: 'Descriptive prompt: [Scene setting]. [Character description]. [Action]. [Camera angle+movement]. [Lighting]. [Mood]. English.',
-  veo3: 'WAJIB mulai dengan CHARACTER ANCHOR — deskripsi fisik karakter LENGKAP dan IDENTIK di setiap scene (copy persis dari character_sheet.description). Format: \'[Deskripsi fisik karakter lengkap] — [aksi scene ini]. [Camera movement]. [Environment dan lighting]. [Mood]. [Xs, 9:16 vertical frame]\' Maksimal 500 karakter. English only. KRITIS: Tanpa character anchor yang identik di setiap scene, Veo3 akan menghasilkan karakter yang berbeda-beda di setiap generate.',
+  google_flow: 'Natural descriptive prompt in English: [Scene setting]. [Character appearance + action]. [Camera angle + movement]. [Lighting]. [Mood]. Wajib policy-safe: gunakan bahasa netral, hindari klaim absolut, medis, atau testimonial. Hanya deskripsi visual — tanpa ajakan, tanpa klaim produk.',
+  veo3: 'Mulai dengan CHARACTER ANCHOR (salin persis dari character_sheet.description). Format: \'[Character anchor] — [scene action]. [Camera movement]. [Environment, lighting]. [Mood]. [Xs, 9:16 vertical frame]\' English only. Policy-safe: hanya deskripsi visual netral, tanpa klaim produk/medis/testimonial. Tanpa character anchor identik, karakter akan berbeda di setiap scene.',
   kling_ai: 'Subject description. Action/motion. Camera movement. Environment. Lighting. Style/mood. English.',
   minimax_hailuo: "'Character: [desc]. Action: [desc]. Scene: [desc]. Mood: [desc].' English.",
   runway_gen4: 'Action-first. Camera keyword. Environment. Style. [X]s. English.',

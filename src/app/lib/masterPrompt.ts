@@ -80,9 +80,11 @@ export function compileMasterPrompt(form: FormData): string {
   const hasRefPhotos = form.referencePhotos.length > 0;
   const hasLocation = !!form.locationDescription;
 
-  let bilingual = '';
-  if (form.language === 'id_en') bilingual = 'script_narration dalam Bahasa Indonesia, script_subtitle dalam English';
-  if (form.language === 'en_id') bilingual = 'script_narration dalam English, script_subtitle dalam Bahasa Indonesia';
+  let langInstruction = '';
+  if (form.language === 'id') langInstruction = 'BAHASA: script_narration HARUS dalam Bahasa Indonesia. script_subtitle = null.';
+  if (form.language === 'en') langInstruction = 'BAHASA: script_narration HARUS dalam English. script_subtitle = null.';
+  if (form.language === 'id_en') langInstruction = 'BAHASA: script_narration dalam Bahasa Indonesia, script_subtitle dalam English.';
+  if (form.language === 'en_id') langInstruction = 'BAHASA: script_narration dalam English, script_subtitle dalam Bahasa Indonesia.';
 
   let advancedBlocks = '';
   if (form.requiredKeywords.length > 0) advancedBlocks += `KATA KUNCI WAJIB: ${form.requiredKeywords.join(', ')}\n`;
@@ -123,9 +125,10 @@ scarcity, authority, reciprocity, commitment. Setiap kata dipilih
 dengan tujuan.
 
 PERAN 4 — AI VIDEO PROMPT ENGINEER untuk ${form.aiTool}:
-Menulis ai_ready_prompt dalam format yang optimal untuk ${form.aiTool}.
-Batas karakter: ${charLimit} per scene.
-Format: ${toolFormat}
+  Menulis ai_ready_prompt sebagai deskripsi scene yang natural, netral, dan policy-safe untuk ${form.aiTool}.
+  Batas karakter: ${charLimit} per scene.
+  Format: ${toolFormat}
+  KRITIS: ai_ready_prompt HANYA berisi deskripsi scene. JANGAN sertakan instruksi meta (seperti "WAJIB", "KRITIS", "JANGAN LUPA") di dalamnya. JANGAN sertakan klaim pemasaran, testimonial, atau ajakan bertindak di ai_ready_prompt — itu semua masuk ke script_narration, BUKAN ai_ready_prompt.
 
 ---
 
@@ -139,7 +142,7 @@ PSIKOGRAFIS: ${nicheData.psikografis}
 PAIN POINT: ${nicheData.painPoint}
 PLATFORM PRIMER: ${platformPrimer}
 BAHASA: ${form.language}
-${bilingual}
+  ${langInstruction}
 ${advancedBlocks}
 ---
 
@@ -186,8 +189,27 @@ KONSISTENSI WAJIB:
 - Eskalasi: Hook (pancing) → Body (bangun) → CTA (ledakkan)
 - Transisi: whip pan / zoom punch / hard cut + audio cue
 
-POLICY COMPLIANCE:
-- Gunakan kata/frasa/kalimat yang tidak melanggar kebijakan Google Flow atau Veo3. Hindari klaim berlebihan (misal: "sembuh total", "jamin 100%"), konten dewasa/kekerasan, atau klaim medis tanpa dasar. Prioritaskan bahasa yang aman, edukatif, dan sesuai pedoman konten Google.
+POLICY COMPLIANCE — WAJIB untuk Google Flow & Veo3:
+Setiap ai_ready_prompt dan script_narration harus lolos filter kebijakan berikut:
+
+FORBIDDEN PATTERNS — JANGAN pernah gunakan:
+✗ Klaim absolut: "terbaik", "nomor 1", "paling xxx", "jamin 100%", "dijamin", "pasti"
+✗ Klaim medis/kesehatan: "sembuh total", "menyembuhkan", "terbukti klinis", "efek samping", "obat", "terapi"
+✗ Before/After transformasi hasil: "sebelum pakai X → setelah pakai X jadi Y" (terutama fisik/kesehatan)
+✗ Testimonial fiktif yang terlihat seperti nyata: "saya pakai dan langsung..."
+✗ Klaim performa tanpa bukti: "meningkatkan X dalam Y hari", "instant results"
+✗ Kata kasar, konten dewasa, kekerasan, diskriminasi
+✗ Ajakan berbahaya: "coba sendiri", "berbahaya jika tidak dibeli"
+
+WAJIB rewrite klaim jadi observasi netral:
+- BUKAN: "Krim ini menghilangkan kerutan dalam 3 hari"
+- TAPI: "Krim ini diformulasikan untuk merawat kulit"
+- BUKAN: "Produk terlaris nomor 1 di Indonesia"
+- TAPI: "Produk yang banyak dipilih konsumen Indonesia"
+- BUKAN: "Jamin uang kembali 100%"
+- TAPI: "Kebijakan retur tersedia untuk kenyamanan belanja"
+
+REWRITE TEST: Sebelum menulis ai_ready_prompt, tanyakan: "Apakah prompt ini akan ditolak Google Flow?" Jika ya, rewrite.
 
 ---
 
@@ -244,11 +266,11 @@ OUTPUT JSON SCHEMA:
       "duration_seconds": ${durations[0]},
       "max_words": ${getLipsyncSpec(durations[0]).maxWords},
       "speech_pace": "${getLipsyncSpec(durations[0]).pace}",
-      "script_narration": "MAKS ${getLipsyncSpec(durations[0]).maxWords} kata",
+      "script_narration": "Teks narasi (maks ${getLipsyncSpec(durations[0]).maxWords} kata) — bahasa HARUS sesuai [BLOK 2: BAHASA]",
       "script_subtitle": null,
       "script_word_count": 0,
       "script_fit_confirmation": "X kata, muat Y detik pace Z",
-      "visual_description": "string Bahasa Indonesia",
+      "visual_description": "deskripsi visual scene dalam Bahasa Indonesia",
       "camera_direction": "shot + movement + angle",
       "character_action": "string",
       "character_expression": "string",
@@ -257,7 +279,7 @@ OUTPUT JSON SCHEMA:
       "transition_to_next": "string",
       "viral_element_in_scene": "string",
       "cliffhanger_to_next": "string",
-      "ai_ready_prompt": "WAJIB dimulai dengan [CHARACTER ANCHOR: {character_sheet.description copy verbatim}] lalu [SCENE ACTION: {aksi spesifik scene ini}] [CAMERA: {shot type dan movement}] [ENVIRONMENT: {setting dan lighting${hasLocation ? ` — WAJIB match deskripsi lokasi ini: ${form.locationDescription}` : ''}${hasRefPhotos ? ` — WAJIB match visual dari foto referensi yang diupload user, jangan invent generic environments` : ''}}] [MOOD: {suasana dan ekspresi}] [{durasi}s, {rasio} vertical frame]. Maks ${charLimit} chars. KRITIS: Tanpa character anchor yang identik, AI video tools seperti Veo3 akan menghasilkan karakter berbeda di setiap scene — scripts_narration, script_subtitle, dll tetap diisi sesuai format yang sudah ditentukan."
+      "ai_ready_prompt": "[CHARACTER ANCHOR: {character_sheet.description copy verbatim}] [SCENE: {aksi spesifik scene ini}] [CAMERA: {shot type, movement, angle}] [ENVIRONMENT: {setting, lighting${hasLocation ? ` — ${form.locationDescription}` : ''}${hasRefPhotos ? ` — match visual dari foto referensi yang diupload user` : ''}}] [MOOD: {suasana, ekspresi karakter}] [{durasi}s, {rasio} vertical frame]. Hanya deskripsi scene natural — TANPA klaim, testimonial, atau ajakan."
     }
     // ... repeat for all ${form.sceneCount} scenes. Scene terakhir scene_type: "cta"
   ],
