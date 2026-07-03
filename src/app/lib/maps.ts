@@ -37,6 +37,7 @@ export const PLATFORMS = [
 ];
 
 export const AI_TOOLS: { value: string; label: string; charLimit: number; supportsRef: boolean }[] = [
+  { value: 'google_flow', label: 'Google Flow', charLimit: 500, supportsRef: false },
   { value: 'veo3', label: 'Google Veo 3', charLimit: 500, supportsRef: false },
   { value: 'kling_ai', label: 'Kling AI 2.0', charLimit: 400, supportsRef: true },
   { value: 'minimax_hailuo', label: 'Minimax Video / Hailuo', charLimit: 350, supportsRef: true },
@@ -179,6 +180,7 @@ export const NICHE_DATA: Record<string, { psikografis: string; painPoint: string
 };
 
 export const AI_TOOL_FORMAT: Record<string, string> = {
+  google_flow: 'Descriptive prompt: [Scene setting]. [Character description]. [Action]. [Camera angle+movement]. [Lighting]. [Mood]. English.',
   veo3: 'WAJIB mulai dengan CHARACTER ANCHOR — deskripsi fisik karakter LENGKAP dan IDENTIK di setiap scene (copy persis dari character_sheet.description). Format: \'[Deskripsi fisik karakter lengkap] — [aksi scene ini]. [Camera movement]. [Environment dan lighting]. [Mood]. [Xs, 9:16 vertical frame]\' Maksimal 500 karakter. English only. KRITIS: Tanpa character anchor yang identik di setiap scene, Veo3 akan menghasilkan karakter yang berbeda-beda di setiap generate.',
   kling_ai: 'Subject description. Action/motion. Camera movement. Environment. Lighting. Style/mood. English.',
   minimax_hailuo: "'Character: [desc]. Action: [desc]. Scene: [desc]. Mood: [desc].' English.",

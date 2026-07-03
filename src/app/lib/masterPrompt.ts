@@ -186,6 +186,9 @@ KONSISTENSI WAJIB:
 - Eskalasi: Hook (pancing) → Body (bangun) → CTA (ledakkan)
 - Transisi: whip pan / zoom punch / hard cut + audio cue
 
+POLICY COMPLIANCE:
+- Gunakan kata/frasa/kalimat yang tidak melanggar kebijakan Google Flow atau Veo3. Hindari klaim berlebihan (misal: "sembuh total", "jamin 100%"), konten dewasa/kekerasan, atau klaim medis tanpa dasar. Prioritaskan bahasa yang aman, edukatif, dan sesuai pedoman konten Google.
+
 ---
 
 [BLOK 5: OUTPUT JSON SCHEMA + VIRAL SCORE FORMULA + GUARDRAIL]

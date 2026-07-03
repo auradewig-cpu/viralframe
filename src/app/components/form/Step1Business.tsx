@@ -151,7 +151,24 @@ export function Step1Business() {
       <FormCard title="🎯 Target & Distribusi">
         <div>
           <FieldLabel>Target Audiens</FieldLabel>
-          <div className="flex flex-wrap gap-2 mt-2">
+          <div className="flex items-center gap-2 mt-2 mb-2">
+            <button
+              type="button"
+              onClick={() => {
+                const allSelected = TARGET_AUDIENCES.every(a => formData.targetAudience.includes(a.value));
+                setFormData({ targetAudience: allSelected ? [] : TARGET_AUDIENCES.map(a => a.value) });
+              }}
+              className="text-xs px-2.5 py-1 rounded transition-all"
+              style={{
+                background: TARGET_AUDIENCES.every(a => formData.targetAudience.includes(a.value)) ? 'var(--vf-accent-primary)' : 'var(--vf-bg-elevated)',
+                color: TARGET_AUDIENCES.every(a => formData.targetAudience.includes(a.value)) ? 'white' : 'var(--vf-text-secondary)',
+                border: '1px solid var(--vf-border)',
+              }}
+            >
+              {TARGET_AUDIENCES.every(a => formData.targetAudience.includes(a.value)) ? '☑ Pilih Semua' : '☐ Pilih Semua'}
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
             {TARGET_AUDIENCES.map(({ value, label }) => (
               <button
                 key={value}
@@ -173,6 +190,23 @@ export function Step1Business() {
         <div>
           <FieldLabel>Platform Distribusi Video *</FieldLabel>
           <p className="text-xs mb-2" style={{ color: 'var(--vf-text-muted)' }}>Platform pertama yang dipilih = platform PRIMER</p>
+          <div className="flex items-center gap-2 mb-2">
+            <button
+              type="button"
+              onClick={() => {
+                const allSelected = PLATFORMS.every(p => formData.platforms.includes(p.value));
+                setFormData({ platforms: allSelected ? [] : PLATFORMS.map(p => p.value) });
+              }}
+              className="text-xs px-2.5 py-1 rounded transition-all"
+              style={{
+                background: PLATFORMS.every(p => formData.platforms.includes(p.value)) ? 'var(--vf-accent-primary)' : 'var(--vf-bg-elevated)',
+                color: PLATFORMS.every(p => formData.platforms.includes(p.value)) ? 'white' : 'var(--vf-text-secondary)',
+                border: '1px solid var(--vf-border)',
+              }}
+            >
+              {PLATFORMS.every(p => formData.platforms.includes(p.value)) ? '☑ Pilih Semua' : '☐ Pilih Semua'}
+            </button>
+          </div>
           <div className="space-y-2">
             {PLATFORMS.map(({ value, label, ratio, duration }) => {
               const checked = formData.platforms.includes(value);
