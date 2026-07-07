@@ -293,7 +293,7 @@ export function Home() {
             </div>
           </div>
         )}
-        {!isGenerating && formData.mode === 'direct' && outputJSON && (
+        {!isGenerating && !generateError && formData.mode === 'direct' && outputJSON && (
           <DirectPanel json={outputJSON} onRegenerate={handleRegenerate} onEdit={handleEdit} referencePhotos={formData.referencePhotos} />
         )}
 
