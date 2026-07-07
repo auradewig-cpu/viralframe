@@ -46,6 +46,13 @@ const ETHNICITY_FEATURES: Record<string, string> = {
   'Mixed': 'Mixed features',
 };
 
+const BAHASA_LABEL: Record<string, string> = {
+  id: 'Bahasa Indonesia',
+  en: 'English',
+  id_en: 'Bahasa Indonesia',
+  en_id: 'English',
+};
+
 function buildCharacterAnchor(form: FormData): string {
   if (!form.useCharacter) return '';
   const features = ETHNICITY_FEATURES[form.characterEthnicity] || form.characterEthnicity;
@@ -64,6 +71,7 @@ export function compileMasterPrompt(form: FormData): string {
   const toolData = AI_TOOLS.find(t => t.value === form.aiTool);
   const charLimit = toolData?.charLimit || 400;
   const toolFormat = AI_TOOL_FORMAT[form.aiTool] || '';
+  const spokenLanguageLabel = BAHASA_LABEL[form.language] || 'Bahasa Indonesia';
 
   const platformList = form.platforms.join(', ');
   const platformPrimer = form.platforms[0] || '-';
@@ -129,6 +137,7 @@ PERAN 4 — AI VIDEO PROMPT ENGINEER untuk ${form.aiTool}:
   Batas karakter: ${charLimit} per scene.
   Format: ${toolFormat}
   KRITIS: ai_ready_prompt HANYA berisi deskripsi scene. JANGAN sertakan instruksi meta (seperti "WAJIB", "KRITIS", "JANGAN LUPA") di dalamnya. JANGAN sertakan klaim pemasaran, testimonial, atau ajakan bertindak di ai_ready_prompt — itu semua masuk ke script_narration, BUKAN ai_ready_prompt.
+  AUDIO/DIALOG: Instruksi teknis (kamera, lighting, environment, mood) tetap ditulis dalam English seperti biasa. NAMUN jika ${form.aiTool} mendukung native audio/speech generation dan karakter di scene terlihat berbicara, WAJIB tambahkan satu directive singkat di akhir ai_ready_prompt dengan format persis: "[DIALOGUE: Character speaks in ${spokenLanguageLabel}]". JANGAN menerjemahkan seluruh ai_ready_prompt ke ${spokenLanguageLabel} — hanya directive dialog ini saja yang menyesuaikan bahasa. Jika ${form.aiTool} adalah tool silent/tanpa audio native (seperti Kling AI, Runway, Luma, Pika, Wan 2.1), directive ini boleh diabaikan/dihilangkan karena tidak relevan.
 
 ---
 
