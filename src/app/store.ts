@@ -18,11 +18,13 @@ interface AppState {
   isGenerating: boolean;
   generateProgress: string;
   generateError: string;
+  generateWarnings: string;
   setOutputJSON: (json: VideoJSON | null) => void;
   setMasterPrompt: (prompt: string) => void;
   setIsGenerating: (v: boolean) => void;
   setGenerateProgress: (msg: string) => void;
   setGenerateError: (err: string) => void;
+  setGenerateWarnings: (w: string) => void;
 
   // Settings
   settings: AppSettings;
@@ -48,7 +50,7 @@ export const useAppStore = create<AppState>()(
       currentStep: 0,
       setFormData: (data) => set((s) => ({ formData: { ...s.formData, ...data } })),
       setCurrentStep: (step) => set({ currentStep: step }),
-      resetForm: () => set({ formData: { ...DEFAULT_FORM }, currentStep: 0, outputJSON: null, masterPrompt: '', generateError: '' }),
+      resetForm: () => set({ formData: { ...DEFAULT_FORM }, currentStep: 0, outputJSON: null, masterPrompt: '', generateError: '', generateWarnings: '' }),
       loadFormData: (data) => set({ formData: data, currentStep: 0, outputJSON: null, masterPrompt: '' }),
 
       outputJSON: null,
@@ -56,11 +58,13 @@ export const useAppStore = create<AppState>()(
       isGenerating: false,
       generateProgress: '',
       generateError: '',
+      generateWarnings: '',
       setOutputJSON: (json) => set({ outputJSON: json }),
       setMasterPrompt: (prompt) => set({ masterPrompt: prompt }),
       setIsGenerating: (v) => set({ isGenerating: v }),
       setGenerateProgress: (msg) => set({ generateProgress: msg }),
       setGenerateError: (err) => set({ generateError: err }),
+      setGenerateWarnings: (w) => set({ generateWarnings: w }),
 
       settings: { ...DEFAULT_SETTINGS },
       setSettings: (s) => set((prev) => ({ settings: { ...prev.settings, ...s } })),

@@ -137,7 +137,7 @@ PERAN 4 — AI VIDEO PROMPT ENGINEER untuk ${form.aiTool}:
   Batas karakter: ${charLimit} per scene.
   Format: ${toolFormat}
   KRITIS: ai_ready_prompt HANYA berisi deskripsi scene. JANGAN sertakan instruksi meta (seperti "WAJIB", "KRITIS", "JANGAN LUPA") di dalamnya. JANGAN sertakan klaim pemasaran, testimonial, atau ajakan bertindak di ai_ready_prompt — itu semua masuk ke script_narration, BUKAN ai_ready_prompt.
-  AUDIO/DIALOG: Instruksi teknis (kamera, lighting, environment, mood) tetap ditulis dalam English seperti biasa. NAMUN jika ${form.aiTool} mendukung native audio/speech generation dan karakter di scene terlihat berbicara, WAJIB tambahkan satu directive singkat di akhir ai_ready_prompt dengan format persis: "[DIALOGUE: Character speaks in ${spokenLanguageLabel}]". JANGAN menerjemahkan seluruh ai_ready_prompt ke ${spokenLanguageLabel} — hanya directive dialog ini saja yang menyesuaikan bahasa. Jika ${form.aiTool} adalah tool silent/tanpa audio native (seperti Kling AI, Runway, Luma, Pika, Wan 2.1), directive ini boleh diabaikan/dihilangkan karena tidak relevan.
+  AUDIO/DIALOG: ai_ready_prompt WAJIB tetap diisi seperti biasa (deskripsi scene dalam English, sesuai format di atas). Setelah deskripsi scene selesai, tambahkan SATU baris tambahan persis di akhir: [DIALOGUE: ${spokenLanguageLabel}]. Contoh lengkap: "...[MOOD: confident]. [10s, 9:16 vertical frame]. [DIALOGUE: ${spokenLanguageLabel}]". Field ai_ready_prompt TIDAK BOLEH kosong atau hilang — ini field WAJIB di setiap scene.
 
 ---
 

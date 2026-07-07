@@ -4,6 +4,7 @@ import { useAppStore } from '../store';
 import { compileMasterPrompt } from '../lib/masterPrompt';
 import { generateWithFallback, ApiCallError } from '../lib/apiClient';
 import { validateFormData, getFormWarnings } from '../lib/validation';
+import { validateVideoJSON } from '../lib/jsonParser';
 import { StepIndicator } from '../components/form/StepIndicator';
 import { Step1Business } from '../components/form/Step1Business';
 import { Step2Video } from '../components/form/Step2Video';
@@ -87,6 +88,8 @@ export function Home() {
   const setGenerateProgress = useAppStore(s => s.setGenerateProgress);
   const generateError = useAppStore(s => s.generateError);
   const setGenerateError = useAppStore(s => s.setGenerateError);
+  const generateWarnings = useAppStore(s => s.generateWarnings);
+  const setGenerateWarnings = useAppStore(s => s.setGenerateWarnings);
   const settings = useAppStore(s => s.settings);
   const addHistory = useAppStore(s => s.addHistory);
 
@@ -138,6 +141,7 @@ export function Home() {
   const handleGenerate = async (mode: 'direct' | 'manual') => {
     setFormData({ mode });
     setGenerateError('');
+    setGenerateWarnings('');
     setFormErrors([]);
 
     const prompt = compileMasterPrompt({ ...formData, mode });
@@ -158,6 +162,13 @@ export function Home() {
       };
       const json = await generateWithFallback(prompt, keys, (msg) => setGenerateProgress(msg));
       setOutputJSON(json);
+      const validation = validateVideoJSON(json, formData.sceneCount);
+      if (!validation.valid || validation.warnings.length > 0) {
+        const msgs = [...validation.errors, ...validation.warnings];
+        setGenerateWarnings(msgs.join('\n'));
+      } else {
+        setGenerateWarnings('');
+      }
       addHistory({
         id: Date.now().toString(),
         timestamp: Date.now(),
@@ -269,7 +280,20 @@ export function Home() {
           </div>
         )}
 
-        {!isGenerating && !generateError && formData.mode === 'direct' && outputJSON && (
+        {!isGenerating && generateWarnings && (
+          <div className="max-w-5xl mx-auto mb-4">
+            <div className="p-4 rounded-xl" style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid var(--vf-accent-warning)' }}>
+              <div className="flex items-start gap-3">
+                <AlertCircle size={20} style={{ color: 'var(--vf-accent-warning)' }} className="shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium text-sm" style={{ color: 'var(--vf-accent-warning)' }}>⚠️ Hasil Generate Tidak Lengkap</p>
+                  <pre className="text-sm mt-1 whitespace-pre-wrap" style={{ color: 'var(--vf-text-secondary)' }}>{generateWarnings}</pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {!isGenerating && formData.mode === 'direct' && outputJSON && (
           <DirectPanel json={outputJSON} onRegenerate={handleRegenerate} onEdit={handleEdit} referencePhotos={formData.referencePhotos} />
         )}
 
