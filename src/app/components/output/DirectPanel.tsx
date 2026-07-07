@@ -3,6 +3,7 @@ import { Copy, Check, Download, RefreshCw, Edit } from 'lucide-react';
 import JSZip from 'jszip';
 import { VideoJSON } from '../../types';
 import { SceneCard } from './SceneCard';
+import { useAppStore } from '../../store';
 
 interface DirectPanelProps {
   json: VideoJSON;
@@ -100,6 +101,7 @@ function ViralScoreMeter({ score }: { score: string }) {
 }
 
 export function DirectPanel({ json, onRegenerate, onEdit, referencePhotos }: DirectPanelProps) {
+  const lastUsedProvider = useAppStore(s => s.lastUsedProvider);
   const totalDuration = json.video_metadata.total_duration_seconds;
   const scoreStr = json.video_metadata.viral_score_estimate || '0/100';
   const aiTool = json.video_metadata.ai_video_tool;
@@ -110,6 +112,11 @@ export function DirectPanel({ json, onRegenerate, onEdit, referencePhotos }: Dir
       <div className="rounded-xl p-4" style={{ background: 'var(--vf-bg-elevated)', border: '1px solid var(--vf-border)' }}>
         <div className="flex flex-wrap items-center gap-4 mb-3">
           <span className="text-sm font-semibold" style={{ color: 'var(--vf-accent-success)' }}>✅ Generate Selesai</span>
+          {lastUsedProvider && (
+            <span className="text-xs px-2 py-1 rounded-full" style={{ background: 'rgba(16,185,129,0.15)', color: 'var(--vf-accent-success)' }}>
+              Digenerate via {lastUsedProvider === 'gemini' ? 'Gemini' : lastUsedProvider === 'groq' ? 'Groq' : 'OpenRouter'}
+            </span>
+          )}
           <span className="text-sm" style={{ color: 'var(--vf-text-secondary)' }}>
             {json.video_metadata.total_scenes} Scene · {totalDuration} Detik
           </span>

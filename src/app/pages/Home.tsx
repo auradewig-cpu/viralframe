@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Zap, Loader2, AlertCircle, BookmarkPlus } from 'lucide-react';
 import { useAppStore } from '../store';
 import { compileMasterPrompt } from '../lib/masterPrompt';
 import { generateWithFallback, ApiCallError } from '../lib/apiClient';
 import { validateFormData, getFormWarnings } from '../lib/validation';
 import { validateVideoJSON } from '../lib/jsonParser';
+import { Progress } from '../components/ui/progress';
 import { StepIndicator } from '../components/form/StepIndicator';
 import { Step1Business } from '../components/form/Step1Business';
 import { Step2Video } from '../components/form/Step2Video';
@@ -73,6 +74,19 @@ function ModeSelector({ onSelect }: { onSelect: (mode: 'direct' | 'manual') => v
 
 
 
+function mapProgressMessage(msg: string): { provider: 'gemini' | 'groq' | 'openrouter' | null; status: 'trying' | 'success' | 'failed' | null; percent: number | null } {
+  if (msg.startsWith('Memanggil Gemini')) return { provider: 'gemini', status: 'trying', percent: 15 };
+  if (msg.includes('Mengurai JSON dari respons Gemini')) return { provider: 'gemini', status: 'trying', percent: 40 };
+  if (msg.includes('Gemini gagal')) return { provider: 'gemini', status: 'failed', percent: 45 };
+  if (msg.startsWith('Beralih ke Groq')) return { provider: 'groq', status: 'trying', percent: 55 };
+  if (msg.includes('Mengurai JSON dari respons Groq')) return { provider: 'groq', status: 'trying', percent: 70 };
+  if (msg.includes('Groq gagal')) return { provider: 'groq', status: 'failed', percent: 75 };
+  if (msg.startsWith('Memanggil OpenRouter')) return { provider: 'openrouter', status: 'trying', percent: 80 };
+  if (msg.includes('Mengurai JSON dari respons OpenRouter')) return { provider: 'openrouter', status: 'trying', percent: 90 };
+  if (msg === 'Menyiapkan Scene Cards...') return { provider: null, status: 'success', percent: 95 };
+  return { provider: null, status: null, percent: null };
+}
+
 export function Home() {
   const formData = useAppStore(s => s.formData);
   const setFormData = useAppStore(s => s.setFormData);
@@ -90,6 +104,13 @@ export function Home() {
   const setGenerateError = useAppStore(s => s.setGenerateError);
   const generateWarnings = useAppStore(s => s.generateWarnings);
   const setGenerateWarnings = useAppStore(s => s.setGenerateWarnings);
+  const generateProgressPercent = useAppStore(s => s.generateProgressPercent);
+  const setGenerateProgressPercent = useAppStore(s => s.setGenerateProgressPercent);
+  const providerStatus = useAppStore(s => s.providerStatus);
+  const setProviderStatus = useAppStore(s => s.setProviderStatus);
+  const resetProviderStatus = useAppStore(s => s.resetProviderStatus);
+  const lastUsedProvider = useAppStore(s => s.lastUsedProvider);
+  const setLastUsedProvider = useAppStore(s => s.setLastUsedProvider);
   const settings = useAppStore(s => s.settings);
   const addHistory = useAppStore(s => s.addHistory);
 
@@ -98,6 +119,7 @@ export function Home() {
   const [formWarnings, setFormWarnings] = useState<string[]>([]);
   const [showOutput, setShowOutput] = useState(false);
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const currentProviderRef = useRef<'gemini' | 'groq' | 'openrouter' | null>(null);
 
   const steps = ['Konteks Bisnis', 'Spesifikasi Video', 'Parameter Kreatif'];
 
@@ -142,6 +164,10 @@ export function Home() {
     setFormData({ mode });
     setGenerateError('');
     setGenerateWarnings('');
+    setGenerateProgressPercent(0);
+    resetProviderStatus();
+    setLastUsedProvider(null);
+    currentProviderRef.current = null;
     setFormErrors([]);
 
     const prompt = compileMasterPrompt({ ...formData, mode });
@@ -160,7 +186,19 @@ export function Home() {
         groq: settings.groqApiKey,
         openrouter: settings.openrouterApiKey,
       };
-      const json = await generateWithFallback(prompt, keys, (msg) => setGenerateProgress(msg));
+      const json = await generateWithFallback(prompt, keys, (msg) => {
+        setGenerateProgress(msg);
+        const mapped = mapProgressMessage(msg);
+        if (mapped.provider) {
+          currentProviderRef.current = mapped.provider;
+          setProviderStatus(mapped.provider, mapped.status || 'trying');
+        } else if (mapped.status === 'success' && currentProviderRef.current) {
+          setProviderStatus(currentProviderRef.current, 'success');
+        }
+        if (mapped.percent !== null) setGenerateProgressPercent(mapped.percent);
+      });
+      setGenerateProgressPercent(100);
+      if (currentProviderRef.current) setLastUsedProvider(currentProviderRef.current);
       setOutputJSON(json);
       const validation = validateVideoJSON(json, formData.sceneCount);
       if (!validation.valid || validation.warnings.length > 0) {
@@ -254,6 +292,23 @@ export function Home() {
                   {step}
                 </div>
               ))}
+            </div>
+            <div className="max-w-xs mx-auto mt-4">
+              <Progress value={generateProgressPercent} className="h-2" />
+              <p className="text-xs text-center mt-1" style={{ color: 'var(--vf-text-muted)' }}>{generateProgressPercent}%</p>
+            </div>
+            <div className="flex items-center justify-center gap-3 mt-4">
+              {(['gemini', 'groq', 'openrouter'] as const).map((p) => {
+                const status = providerStatus[p];
+                const color = status === 'success' ? 'var(--vf-accent-success)' : status === 'trying' ? 'var(--vf-accent-warning)' : status === 'failed' ? 'var(--vf-accent-danger)' : 'var(--vf-border)';
+                const label = p === 'gemini' ? 'Gemini' : p === 'groq' ? 'Groq' : 'OpenRouter';
+                return (
+                  <div key={p} className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full" style={{ background: color }} />
+                    <span className="text-xs" style={{ color: 'var(--vf-text-muted)' }}>{label}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

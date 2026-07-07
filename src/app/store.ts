@@ -3,6 +3,9 @@ import { persist } from 'zustand/middleware';
 import { FormData, AppSettings, HistoryRecord, Template, VideoJSON, DEFAULT_FORM, DEFAULT_SETTINGS } from './types';
 import { PRESET_TEMPLATES } from './lib/maps';
 
+export type ProviderKey = 'gemini' | 'groq' | 'openrouter';
+export type ProviderStatus = 'idle' | 'trying' | 'success' | 'failed';
+
 interface AppState {
   // Form
   formData: FormData;
@@ -25,6 +28,13 @@ interface AppState {
   setGenerateProgress: (msg: string) => void;
   setGenerateError: (err: string) => void;
   setGenerateWarnings: (w: string) => void;
+  generateProgressPercent: number;
+  setGenerateProgressPercent: (percent: number) => void;
+  providerStatus: Record<ProviderKey, ProviderStatus>;
+  setProviderStatus: (provider: ProviderKey, status: ProviderStatus) => void;
+  resetProviderStatus: () => void;
+  lastUsedProvider: ProviderKey | null;
+  setLastUsedProvider: (provider: ProviderKey | null) => void;
 
   // Settings
   settings: AppSettings;
@@ -50,7 +60,7 @@ export const useAppStore = create<AppState>()(
       currentStep: 0,
       setFormData: (data) => set((s) => ({ formData: { ...s.formData, ...data } })),
       setCurrentStep: (step) => set({ currentStep: step }),
-      resetForm: () => set({ formData: { ...DEFAULT_FORM }, currentStep: 0, outputJSON: null, masterPrompt: '', generateError: '', generateWarnings: '' }),
+      resetForm: () => set({ formData: { ...DEFAULT_FORM }, currentStep: 0, outputJSON: null, masterPrompt: '', generateError: '', generateWarnings: '', generateProgressPercent: 0, providerStatus: { gemini: 'idle', groq: 'idle', openrouter: 'idle' }, lastUsedProvider: null }),
       loadFormData: (data) => set({ formData: data, currentStep: 0, outputJSON: null, masterPrompt: '' }),
 
       outputJSON: null,
@@ -65,6 +75,13 @@ export const useAppStore = create<AppState>()(
       setGenerateProgress: (msg) => set({ generateProgress: msg }),
       setGenerateError: (err) => set({ generateError: err }),
       setGenerateWarnings: (w) => set({ generateWarnings: w }),
+      generateProgressPercent: 0,
+      setGenerateProgressPercent: (percent) => set({ generateProgressPercent: percent }),
+      providerStatus: { gemini: 'idle', groq: 'idle', openrouter: 'idle' },
+      setProviderStatus: (provider, status) => set((s) => ({ providerStatus: { ...s.providerStatus, [provider]: status } })),
+      resetProviderStatus: () => set({ providerStatus: { gemini: 'idle', groq: 'idle', openrouter: 'idle' } }),
+      lastUsedProvider: null,
+      setLastUsedProvider: (provider) => set({ lastUsedProvider: provider }),
 
       settings: { ...DEFAULT_SETTINGS },
       setSettings: (s) => set((prev) => ({ settings: { ...prev.settings, ...s } })),
