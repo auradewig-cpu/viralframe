@@ -154,7 +154,7 @@ export function SceneCard({ scene, aiTool, isFirst, characterAnchor, referencePh
             {scene.ai_ready_prompt}
           </div>
           <div className="flex items-center justify-between mt-2">
-            <CopyButton text={scene.ai_ready_prompt} label={`⎘ Copy Prompt Scene ${scene.scene_number}`} />
+            <CopyButton text={JSON.stringify(scene, null, 2)} label={`⎘ Copy Prompt Scene ${scene.scene_number}`} />
             <span className="text-xs" style={{ color: promptOver ? 'var(--vf-accent-danger)' : 'var(--vf-accent-success)' }}>
               {promptLen} / {charLimit} chars {promptOver ? '⚠️' : '✅'}
             </span>
