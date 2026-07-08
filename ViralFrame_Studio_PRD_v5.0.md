@@ -1304,6 +1304,8 @@ Halaman settings dibagi dalam beberapa seksi:
 | AI Tool | Tidak dipilih | Error | "Pilih AI video generator yang akan kamu gunakan." |
 | Karakter aktif, usia kosong | — | Error | "Masukkan usia karakter." |
 | CTA = comment_keyword | Keyword kosong | Error | "Masukkan keyword untuk CTA ini." |
+| Variasi Captions | < 1 | Error | "Minimal 1 variasi caption." |
+| Variasi Captions | > 5 | Error | "Maksimal 5 variasi caption." |
 | Direct API Mode, tidak ada API key | — | Warning | "API key belum dikonfigurasi. Konfigurasi di Settings atau gunakan Manual Prompt Mode." |
 
 ---
