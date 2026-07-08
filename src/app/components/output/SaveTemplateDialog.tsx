@@ -26,7 +26,7 @@ export function SaveTemplateDialog({ formData, onClose }: SaveTemplateDialogProp
       ctaType: formData.ctaType,
       aiTool: formData.aiTool,
       isPreset: false,
-      formData: { ...formData },
+      formData: { ...formData, referencePhotos: [] },
     });
     setSaved(true);
     setTimeout(onClose, 1200);

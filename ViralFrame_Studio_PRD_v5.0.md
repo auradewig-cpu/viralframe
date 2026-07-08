@@ -70,9 +70,11 @@
 | 14 | **Quota di Settings** | Ada teks "Sisa quota hari ini" di mockup UI | Dihapus — tidak diimplementasikan |
 | 15 | **Platform Baru** | Tidak ada Shopee Video | Ditambahkan `shopee_video` ke PLATFORMS (9:16, 15-60s) + PLATFORM_BEHAVIOR entry |
 | 16 | **CTA Baru** | Tidak ada Klik Keranjang Kuning | Ditambahkan `klik_keranjang_kuning` ke CTA_TYPES |
-| 17 | **Hashtag Variations** | Hanya 1 set hashtag statis dari AI | `generateHashtagVariations()` — 5 seeded shuffle kombinasi + tombol copy per variasi di DirectPanel |
-| 18 | **Caption Variations** | `caption_first_line` + `hashtag_strategy` (field terpisah) | Diganti `caption_variations[]` — AI generate N variasi (caption text + 5 hashtag combos), dropdown di Step 3 (1-5), validasi di jsonParser, rendering per variasi di DirectPanel |
-| 15 | **Badge Ref Image** | "✅ Mendukung Reference Image" | Dipendekkan jadi "✅ Ref Image" |
+| 17 | **Hashtag Variations (SUPERSEDED)** | Hanya 1 set hashtag statis dari AI | Sempat ditambahkan `generateHashtagVariations()` (client-side shuffle), namun kemudian DIHAPUS TOTAL dan digantikan oleh fitur Caption Variations (lihat item 18) yang menghasilkan hashtag langsung dari AI per caption |
+| 18 | **Caption Variations** | `caption_first_line` + `hashtag_strategy` (field terpisah) | Diganti `caption_variations[]` — AI generate N variasi, tiap variasi berisi 1 caption_text + 5 hashtags (array tag individual, BUKAN 5 kombinasi), dropdown di Step 3 (1-5), validasi di jsonParser, rendering per variasi di DirectPanel |
+| 19 | **Badge Ref Image** | "✅ Mendukung Reference Image" | Dipendekkan jadi "✅ Ref Image" |
+| 20 | **Default Template Values** | `captionVariationCount` tidak disimpan di template (potensi inconsistent state) | Ditambahkan `captionVariationCount: 1` ke template metadata. Juga strip `referencePhotos` (base64) di `SaveTemplateDialog.tsx` — cegah QuotaExceededError yang sama seperti History |
+| 21 | **Default Form Values** | `aiTool` default kosong (''), `uniformDuration` default 8 detik | Diubah: `aiTool` default `'google_flow'`, `uniformDuration` default `10` detik |
 
 ---
 
@@ -1466,6 +1468,7 @@ Contoh output yang dihasilkan AI setelah menerima Master Prompt. Kasus: Affiliat
 - Setiap record menyimpan: timestamp, label, formData (tanpa referencePhotos/base64 — foto TIDAK di-persist), master prompt, dan JSON hasil
 - Halaman `/history`: list record, tombol [Load Ulang] dan [Hapus], [Hapus Semua]
 - Jika record punya JSON hasil, tombol [Lihat Scene Cards] tersedia langsung dari history
+- Sama seperti History, referencePhotos (base64) di-strip sebelum disimpan ke customTemplates (fix di SaveTemplateDialog.tsx) — mencegah QuotaExceededError yang sama
 
 ### 11.2 Template Preset
 
