@@ -296,9 +296,9 @@ OUTPUT JSON SCHEMA:
     "caption_variations": [
       {
         "caption_text": "1 kalimat caption pembuka yang menarik dan unik",
-        "hashtag_combinations": ["kombinasi 1: 5-8 hashtag dipisah spasi, unik", "kombinasi 2: unik", "kombinasi 3: unik", "kombinasi 4: unik", "kombinasi 5: unik"]
+        "hashtags": ["#tag1", "#tag2", "#tag3", "#tag4", "#tag5"]
       }
-      // WAJIB DIISI: generate PERSIS ${form.captionVariationCount} object di array ini. Setiap object harus punya caption_text yang BEDA (angle/tone berbeda) dan 5 hashtag_combinations yang BEDA satu sama lain (bukan pengulangan). Field ini TIDAK BOLEH kosong atau kurang dari ${form.captionVariationCount} object.
+      // WAJIB DIISI: generate PERSIS ${form.captionVariationCount} object di array ini. Setiap object = 1 caption_text UNIK + PERSIS 5 hashtags (array string, masing-masing diawali #). Antar object, caption_text dan hashtags HARUS berbeda satu sama lain (bukan pengulangan). Field ini TIDAK BOLEH kosong atau kurang dari ${form.captionVariationCount} object.
     ],
     "lipsync_summary": "ringkasan pace per scene",
     "editing_sequence": "urutan scene dengan transisi",

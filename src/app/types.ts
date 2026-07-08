@@ -115,7 +115,7 @@ export interface VideoJSON {
   production_notes: {
     caption_variations: {
       caption_text: string;
-      hashtag_combinations: string[];
+      hashtags: string[];
     }[];
     lipsync_summary: string;
     editing_sequence: string;

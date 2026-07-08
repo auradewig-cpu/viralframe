@@ -1167,7 +1167,7 @@ OUTPUT JSON SCHEMA:
     "caption_variations": [
       {
         "caption_text": "1 kalimat caption pembuka yang menarik dan unik",
-        "hashtag_combinations": ["kombinasi 1: 5-8 hashtag", "kombinasi 2", "kombinasi 3", "kombinasi 4", "kombinasi 5"]
+        "hashtags": ["#tag1", "#tag2", "#tag3", "#tag4", "#tag5"]
       }
     ],
     "lipsync_summary": "ringkasan pace per scene",
@@ -1445,7 +1445,7 @@ Contoh output yang dihasilkan AI setelah menerima Master Prompt. Kasus: Affiliat
     "caption_variations": [
       {
         "caption_text": "Kamu salah besar kalau masih beli sepatu lari biasa 😤",
-        "hashtag_combinations": ["#sepatulari #sepatoolahraga #affiliate #sepatumurah #olahragayuk", "#rekomendasiproduk #sepatuwanita #gayahidupsehat #reviewjujur #sepatukeren", "#sepatulari #reviewjujur #affiliate #sepatuwanita #olahragayuk", "#sepatoolahraga #rekomendasiproduk #sepatumurah #gayahidupsehat #affiliate", "#sepatulari #sepatuwanita #reviewjujur #olahragayuk #rekomendasiproduk"]
+        "hashtags": ["#sepatulari", "#sepatoolahraga", "#affiliate", "#sepatumurah", "#olahragayuk"]
       }
     ],
     "posting_time_suggestion": "TikTok: Selasa–Jumat pukul 19.00–21.00 WIB. Hindari Senin pagi dan weekend sebelum siang.",
