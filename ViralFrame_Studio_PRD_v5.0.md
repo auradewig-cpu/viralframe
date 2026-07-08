@@ -71,6 +71,7 @@
 | 15 | **Platform Baru** | Tidak ada Shopee Video | Ditambahkan `shopee_video` ke PLATFORMS (9:16, 15-60s) + PLATFORM_BEHAVIOR entry |
 | 16 | **CTA Baru** | Tidak ada Klik Keranjang Kuning | Ditambahkan `klik_keranjang_kuning` ke CTA_TYPES |
 | 17 | **Hashtag Variations** | Hanya 1 set hashtag statis dari AI | `generateHashtagVariations()` — 5 seeded shuffle kombinasi + tombol copy per variasi di DirectPanel |
+| 18 | **Caption Variations** | `caption_first_line` + `hashtag_strategy` (field terpisah) | Diganti `caption_variations[]` — AI generate N variasi (caption text + 5 hashtag combos), dropdown di Step 3 (1-5), validasi di jsonParser, rendering per variasi di DirectPanel |
 | 15 | **Badge Ref Image** | "✅ Mendukung Reference Image" | Dipendekkan jadi "✅ Ref Image" |
 
 ---
@@ -1163,16 +1164,16 @@ OUTPUT JSON SCHEMA:
     }
   ],
   "production_notes": {
+    "caption_variations": [
+      {
+        "caption_text": "1 kalimat caption pembuka yang menarik dan unik",
+        "hashtag_combinations": ["kombinasi 1: 5-8 hashtag", "kombinasi 2", "kombinasi 3", "kombinasi 4", "kombinasi 5"]
+      }
+    ],
     "lipsync_summary": "ringkasan pace per scene",
     "editing_sequence": "Scene 1 [transisi] → Scene 2 → dst",
     "color_grade_lut": "rekomendasi LUT",
     "thumbnail_concept": "deskripsi thumbnail optimal",
-    "caption_first_line": "hook caption",
-    "hashtag_strategy": {
-      "primary": ["array 3"],
-      "secondary": ["array 2–3"],
-      "niche": ["array 3–5"]
-    },
     "posting_time_suggestion": "string",
     "ab_test_suggestion": "variasi hook alternatif"
   }
@@ -1441,12 +1442,12 @@ Contoh output yang dihasilkan AI setelah menerima Master Prompt. Kasus: Affiliat
     "editing_sequence": "Scene 1 [hard cut + audio impact] → Scene 2 [zoom punch] → Scene 3 [whip pan] → Scene 4 [end]",
     "color_grade_lut": "Lightroom Mobile 'Vibrant Warm' atau LUT 'Orange & Teal Light'. Clarity +15, Vibrance +20.",
     "thumbnail_concept": "Frame Scene 1 saat karakter menatap kamera — ekspresi shocked, text '10.000+ TERJUAL', sepatu merah pojok kanan bawah",
-    "caption_first_line": "Kamu salah besar kalau masih beli sepatu lari biasa 😤",
-    "hashtag_strategy": {
-      "primary": ["#sepatulari", "#sepatoolahraga", "#affiliate"],
-      "secondary": ["#rekomendasiproduk", "#reviewjujur", "#produklokal"],
-      "niche": ["#sepatumurah", "#sepatuwanita", "#olahragayuk", "#gayahidupsehat"]
-    },
+    "caption_variations": [
+      {
+        "caption_text": "Kamu salah besar kalau masih beli sepatu lari biasa 😤",
+        "hashtag_combinations": ["#sepatulari #sepatoolahraga #affiliate #sepatumurah #olahragayuk", "#rekomendasiproduk #sepatuwanita #gayahidupsehat #reviewjujur #sepatukeren", "#sepatulari #reviewjujur #affiliate #sepatuwanita #olahragayuk", "#sepatoolahraga #rekomendasiproduk #sepatumurah #gayahidupsehat #affiliate", "#sepatulari #sepatuwanita #reviewjujur #olahragayuk #rekomendasiproduk"]
+      }
+    ],
     "posting_time_suggestion": "TikTok: Selasa–Jumat pukul 19.00–21.00 WIB. Hindari Senin pagi dan weekend sebelum siang.",
     "ab_test_suggestion": "Coba hook alternatif: 'Jangan beli sepatu lari sebelum nonton ini!' (Open Question) untuk A/B test retention vs Shocking Fact hook ini."
   }

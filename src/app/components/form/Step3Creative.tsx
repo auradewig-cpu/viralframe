@@ -3,7 +3,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useAppStore } from '../../store';
 import {
   HOOK_TYPES, CTA_TYPES, ETHNICITIES, CHARACTER_STYLES,
-  EXPRESSIONS, VISUAL_STYLES, BACKSOUNDS, NARRATIVE_TONES
+  EXPRESSIONS, VISUAL_STYLES, BACKSOUNDS, NARRATIVE_TONES, CAPTION_VARIATION_OPTIONS
 } from '../../lib/maps';
 import { FieldLabel, FormCard, SelectField, InputField, TagsInput } from './FormFields';
 
@@ -52,6 +52,12 @@ export function Step3Creative() {
             placeholder="Contoh: INFO"
           />
         )}
+        <SelectField
+          label="Variasi Captions & Hashtag"
+          value={String(formData.captionVariationCount)}
+          onChange={v => setFormData({ captionVariationCount: Number(v) })}
+          options={CAPTION_VARIATION_OPTIONS}
+        />
       </FormCard>
 
       <FormCard title="🧍 Karakter dalam Video">

@@ -23,6 +23,7 @@ export interface FormData {
   hookType: string;
   ctaType: string;
   ctaKeyword: string;
+  captionVariationCount: number;
   useCharacter: boolean;
   characterGender: string;
   characterAge: number;
@@ -112,16 +113,14 @@ export interface VideoJSON {
   };
   scenes: SceneData[];
   production_notes: {
+    caption_variations: {
+      caption_text: string;
+      hashtag_combinations: string[];
+    }[];
     lipsync_summary: string;
     editing_sequence: string;
     color_grade_lut: string;
     thumbnail_concept: string;
-    caption_first_line: string;
-    hashtag_strategy: {
-      primary: string[];
-      secondary: string[];
-      niche: string[];
-    };
     posting_time_suggestion: string;
     ab_test_suggestion: string;
   };
@@ -188,6 +187,7 @@ export const DEFAULT_FORM: FormData = {
   hookType: 'auto',
   ctaType: 'auto',
   ctaKeyword: '',
+  captionVariationCount: 1,
   useCharacter: false,
   characterGender: 'female',
   characterAge: 25,

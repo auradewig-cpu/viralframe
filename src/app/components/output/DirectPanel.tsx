@@ -5,6 +5,7 @@ import { VideoJSON } from '../../types';
 import { SceneCard } from './SceneCard';
 import { useAppStore } from '../../store';
 import { generateHashtagVariations } from '../../lib/hashtagVariations';
+import { CAPTION_VARIATION_OPTIONS } from '../../lib/maps';
 
 interface DirectPanelProps {
   json: VideoJSON;
@@ -162,40 +163,36 @@ export function DirectPanel({ json, onRegenerate, onEdit, referencePhotos }: Dir
         <div className="rounded-xl p-4" style={{ background: 'var(--vf-bg-elevated)', border: '1px solid var(--vf-border)' }}>
           <p className="text-xs font-semibold mb-2" style={{ color: 'var(--vf-text-secondary)' }}>📋 PRODUCTION NOTES</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {json.production_notes.caption_first_line && (
-              <div className="text-sm p-3 rounded-lg" style={{ background: 'var(--vf-bg-secondary)' }}>
-                <span className="text-xs font-medium" style={{ color: 'var(--vf-text-muted)' }}>Hook Caption</span>
-                <p className="mt-1" style={{ color: 'var(--vf-text-primary)' }}>"{json.production_notes.caption_first_line}"</p>
-              </div>
-            )}
             {json.production_notes.posting_time_suggestion && (
               <div className="text-sm p-3 rounded-lg" style={{ background: 'var(--vf-bg-secondary)' }}>
                 <span className="text-xs font-medium" style={{ color: 'var(--vf-text-muted)' }}>Waktu Posting</span>
                 <p className="mt-1" style={{ color: 'var(--vf-text-secondary)' }}>{json.production_notes.posting_time_suggestion}</p>
               </div>
             )}
-            {json.production_notes.hashtag_strategy && (
-              <div className="text-sm p-3 rounded-lg md:col-span-2" style={{ background: 'var(--vf-bg-secondary)' }}>
-                <span className="text-xs font-medium" style={{ color: 'var(--vf-text-muted)' }}>Hashtag Strategy</span>
-                <p className="mt-1" style={{ color: 'var(--vf-text-secondary)' }}>
-                  {[...(json.production_notes.hashtag_strategy.primary || []), ...(json.production_notes.hashtag_strategy.secondary || []), ...(json.production_notes.hashtag_strategy.niche || [])].join(' ')}
-                </p>
-              </div>
-            )}
           </div>
         </div>
       )}
 
-      {/* 5 Kombinasi Hashtag */}
-      {json.production_notes.hashtag_strategy && (
+      {/* Variasi Captions & Hashtag */}
+      {json.production_notes.caption_variations && json.production_notes.caption_variations.length > 0 && (
         <div className="rounded-xl p-4" style={{ background: 'var(--vf-bg-elevated)', border: '1px solid var(--vf-border)' }}>
-          <span className="text-xs font-medium" style={{ color: 'var(--vf-text-muted)' }}>5 Kombinasi Hashtag (Variasi Anti-Duplikat)</span>
-          <div className="mt-2 space-y-2">
-            {generateHashtagVariations(json.production_notes.hashtag_strategy).map((combo, i) => (
-              <div key={i} className="flex items-start gap-3 p-3 rounded-lg" style={{ background: 'var(--vf-bg-secondary)' }}>
-                <span className="text-xs font-semibold shrink-0 mt-1.5" style={{ color: 'var(--vf-accent-primary)' }}>V{i + 1}</span>
-                <p className="flex-1 text-sm" style={{ color: 'var(--vf-text-secondary)' }}>{combo.join(' ')}</p>
-                <HashtagCopyButton text={combo.join(' ')} label="Copy" />
+          <span className="text-xs font-medium" style={{ color: 'var(--vf-text-muted)' }}>Variasi Captions & Hashtag</span>
+          <div className="mt-2 space-y-3">
+            {json.production_notes.caption_variations.map((cv, i) => (
+              <div key={i} className="p-3 rounded-lg" style={{ background: 'var(--vf-bg-secondary)' }}>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-medium flex-1" style={{ color: 'var(--vf-text-primary)' }}>Variasi {i + 1}: "{cv.caption_text}"</p>
+                  <HashtagCopyButton text={cv.caption_text} label="Copy Caption" />
+                </div>
+                <div className="mt-2 space-y-1.5">
+                  {(cv.hashtag_combinations || []).map((combo, j) => (
+                    <div key={j} className="flex items-center gap-2">
+                      <span className="text-xs shrink-0" style={{ color: 'var(--vf-accent-primary)' }}>#{j + 1}</span>
+                      <p className="flex-1 text-xs" style={{ color: 'var(--vf-text-secondary)' }}>{combo}</p>
+                      <HashtagCopyButton text={combo} label="Copy" />
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>

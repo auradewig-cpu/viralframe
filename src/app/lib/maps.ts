@@ -211,3 +211,11 @@ export const PRESET_TEMPLATES = [
   { id: 'preset_5', name: 'Edukasi Storytelling', niche: 'education_course', platform: 'instagram_reels', sceneCount: 6, durationPerScene: 9, hookType: 'pain_point_attack', ctaType: 'comment_keyword', aiTool: 'kling_ai', isPreset: true },
   { id: 'preset_6', name: 'Fashion Editorial', niche: 'fashion_beauty', platform: 'instagram_reels', sceneCount: 5, durationPerScene: 6, hookType: 'visual_shock', ctaType: 'link_bio', aiTool: 'luma_dream', isPreset: true },
 ];
+
+export const CAPTION_VARIATION_OPTIONS = [
+  { value: '1', label: '1 Variasi (Default)' },
+  { value: '2', label: '2 Variasi' },
+  { value: '3', label: '3 Variasi' },
+  { value: '4', label: '4 Variasi' },
+  { value: '5', label: '5 Variasi' },
+];

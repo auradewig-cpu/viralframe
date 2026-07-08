@@ -293,16 +293,17 @@ OUTPUT JSON SCHEMA:
     // ... repeat for all ${form.sceneCount} scenes. Scene terakhir scene_type: "cta"
   ],
   "production_notes": {
+    "caption_variations": [
+      {
+        "caption_text": "1 kalimat caption pembuka yang menarik dan unik",
+        "hashtag_combinations": ["kombinasi 1: 5-8 hashtag dipisah spasi, unik", "kombinasi 2: unik", "kombinasi 3: unik", "kombinasi 4: unik", "kombinasi 5: unik"]
+      }
+      // WAJIB DIISI: generate PERSIS ${form.captionVariationCount} object di array ini. Setiap object harus punya caption_text yang BEDA (angle/tone berbeda) dan 5 hashtag_combinations yang BEDA satu sama lain (bukan pengulangan). Field ini TIDAK BOLEH kosong atau kurang dari ${form.captionVariationCount} object.
+    ],
     "lipsync_summary": "ringkasan pace per scene",
     "editing_sequence": "urutan scene dengan transisi",
     "color_grade_lut": "rekomendasi LUT",
     "thumbnail_concept": "deskripsi thumbnail optimal",
-    "caption_first_line": "hook caption",
-    "hashtag_strategy": {
-      "primary": ["3 hashtag"],
-      "secondary": ["2–3 hashtag"],
-      "niche": ["3–5 hashtag niche"]
-    },
     "posting_time_suggestion": "waktu posting optimal",
     "ab_test_suggestion": "variasi hook alternatif"
   }

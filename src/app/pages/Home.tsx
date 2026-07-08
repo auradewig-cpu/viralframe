@@ -201,7 +201,7 @@ export function Home() {
       setGenerateProgressPercent(100);
       if (currentProviderRef.current) setLastUsedProvider(currentProviderRef.current);
       setOutputJSON(json);
-      const validation = validateVideoJSON(json, formData.sceneCount);
+      const validation = validateVideoJSON(json, formData.sceneCount, formData.captionVariationCount);
       if (!validation.valid || validation.warnings.length > 0) {
         const msgs = [...validation.errors, ...validation.warnings];
         setGenerateWarnings(msgs.join('\n'));

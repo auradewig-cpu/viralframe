@@ -21,7 +21,7 @@ export interface ValidationResult {
   warnings: string[];
 }
 
-export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number): ValidationResult {
+export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number, expectedCaptionCount: number = 1): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -49,7 +49,24 @@ export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number): 
       if (!scene.script_narration) warnings.push(`Scene ${i + 1}: "script_narration" kosong.`);
     });
   }
-  if (!json.production_notes) warnings.push('Field "production_notes" tidak ditemukan.');
+  if (!json.production_notes) {
+    warnings.push('Field "production_notes" tidak ditemukan.');
+  } else {
+    const captionVariations = json.production_notes.caption_variations;
+    if (!captionVariations || !Array.isArray(captionVariations) || captionVariations.length === 0) {
+      errors.push('Field "caption_variations" kosong atau tidak ditemukan.');
+    } else {
+      if (captionVariations.length !== expectedCaptionCount) {
+        warnings.push(`Jumlah variasi caption tidak sesuai. Diharapkan ${expectedCaptionCount}, dapat ${captionVariations.length}.`);
+      }
+      captionVariations.forEach((cv, i) => {
+        if (!cv.caption_text) errors.push(`Variasi caption ${i + 1}: field "caption_text" kosong.`);
+        if (!cv.hashtag_combinations || cv.hashtag_combinations.length !== 5) {
+          warnings.push(`Variasi caption ${i + 1}: jumlah hashtag_combinations tidak 5 (dapat ${cv.hashtag_combinations?.length || 0}).`);
+        }
+      });
+    }
+  }
 
   return { valid: errors.length === 0, errors, warnings };
 }
