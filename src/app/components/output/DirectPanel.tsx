@@ -4,8 +4,6 @@ import JSZip from 'jszip';
 import { VideoJSON } from '../../types';
 import { SceneCard } from './SceneCard';
 import { useAppStore } from '../../store';
-import { generateHashtagVariations } from '../../lib/hashtagVariations';
-import { CAPTION_VARIATION_OPTIONS } from '../../lib/maps';
 
 interface DirectPanelProps {
   json: VideoJSON;
@@ -169,27 +167,25 @@ export function DirectPanel({ json, onRegenerate, onEdit, referencePhotos }: Dir
                 <p className="mt-1" style={{ color: 'var(--vf-text-secondary)' }}>{json.production_notes.posting_time_suggestion}</p>
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Variasi Captions & Hashtag */}
-      {json.production_notes.caption_variations && json.production_notes.caption_variations.length > 0 && (
-        <div className="rounded-xl p-4" style={{ background: 'var(--vf-bg-elevated)', border: '1px solid var(--vf-border)' }}>
-          <span className="text-xs font-medium" style={{ color: 'var(--vf-text-muted)' }}>Variasi Captions & Hashtag</span>
-          <div className="mt-2 space-y-3">
-      {json.production_notes.caption_variations.map((cv, i) => (
-        <div key={i} className="p-3 rounded-lg" style={{ background: 'var(--vf-bg-secondary)' }}>
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-sm font-medium flex-1" style={{ color: 'var(--vf-text-primary)' }}>Variasi {i + 1}: "{cv.caption_text}"</p>
-            <HashtagCopyButton text={cv.caption_text} label="Copy Caption" />
-          </div>
-          <div className="mt-2 flex items-center gap-2">
-            <p className="flex-1 text-xs" style={{ color: 'var(--vf-text-secondary)' }}>{(cv.hashtags || []).join(' ')}</p>
-            <HashtagCopyButton text={(cv.hashtags || []).join(' ')} label="Copy Hashtag" />
-          </div>
-        </div>
-      ))}
+            {json.production_notes.caption_variations && json.production_notes.caption_variations.length > 0 && (
+              <div className="md:col-span-2">
+                <span className="text-xs font-medium" style={{ color: 'var(--vf-text-muted)' }}>Variasi Captions & Hashtag</span>
+                <div className="mt-2 space-y-3">
+                  {json.production_notes.caption_variations.map((cv, i) => (
+                    <div key={i} className="p-3 rounded-lg" style={{ background: 'var(--vf-bg-secondary)' }}>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-medium flex-1" style={{ color: 'var(--vf-text-primary)' }}>Variasi {i + 1}: "{cv.caption_text}"</p>
+                        <HashtagCopyButton text={cv.caption_text} label="Copy Caption" />
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <p className="flex-1 text-xs" style={{ color: 'var(--vf-text-secondary)' }}>{(cv.hashtags || []).join(' ')}</p>
+                        <HashtagCopyButton text={(cv.hashtags || []).join(' ')} label="Copy Hashtag" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

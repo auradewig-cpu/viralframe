@@ -239,6 +239,7 @@ export function Home() {
 
   const handleRegenerate = () => {
     setOutputJSON(null);
+    setGenerateWarnings('');
     setShowOutput(false);
     handleGenerate(formData.mode);
   };
@@ -364,6 +365,7 @@ export function Home() {
                 aiTool={formData.aiTool}
                 onJsonValidated={handleJsonValidated}
                 referencePhotos={formData.referencePhotos}
+                captionVariationCount={formData.captionVariationCount}
               />
             </div>
           </div>

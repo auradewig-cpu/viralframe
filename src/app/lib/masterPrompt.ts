@@ -104,7 +104,7 @@ export function compileMasterPrompt(form: FormData): string {
   if (form.subtitleStyle !== 'None') advancedBlocks += `Subtitle style: ${form.subtitleStyle}\n`;
   if (hasLocation) advancedBlocks += `DESKRIPSI LOKASI/PROPERTI: ${form.locationDescription}\n`;
 
-  return `=== VIRALFRAME MASTER PROMPT v4 ===
+  return `=== VIRALFRAME MASTER PROMPT v4.1 ===
 INSTRUKSI KRITIS: Baca seluruh prompt ini sebelum mulai bekerja.
 Output kamu HANYA berupa JSON murni. Tidak ada teks sebelum JSON.
 Tidak ada teks setelah JSON. Tidak ada penjelasan. Tidak ada markdown
@@ -311,5 +311,5 @@ OUTPUT JSON SCHEMA:
 
 GUARDRAIL: Output JSON murni. Mulai {. Akhiri }. Tidak ada teks lain.
 Generate SEMUA ${form.sceneCount} scene lengkap.
-=== END OF VIRALFRAME MASTER PROMPT v4 ===`;
+=== END OF VIRALFRAME MASTER PROMPT v4.1 ===`;
 }

@@ -61,8 +61,8 @@ export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number, e
       }
       captionVariations.forEach((cv, i) => {
         if (!cv.caption_text) errors.push(`Variasi caption ${i + 1}: field "caption_text" kosong.`);
-        if (!cv.hashtags || cv.hashtags.length !== 5) {
-          warnings.push(`Variasi caption ${i + 1}: jumlah hashtags tidak 5 (dapat ${cv.hashtags?.length || 0}).`);
+        if (!cv.hashtags || cv.hashtags.length < 1) {
+          errors.push(`Variasi caption ${i + 1}: "hashtags" kosong.`);
         }
       });
     }

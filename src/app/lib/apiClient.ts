@@ -56,10 +56,6 @@ async function callGemini(apiKey: string, prompt: string, signal?: AbortSignal):
 
   const data = await resp.json();
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  console.log('[DEBUG GEMINI RAW RESPONSE]', text);
-  console.log('[DEBUG GEMINI FINISH REASON]', data?.candidates?.[0]?.finishReason);
-  console.log('[DEBUG GEMINI SAFETY RATINGS]', JSON.stringify(data?.candidates?.[0]?.safetyRatings));
-  console.log('[DEBUG GEMINI PROMPT FEEDBACK]', JSON.stringify(data?.promptFeedback));
   if (!text) throw new ApiCallError('JSON_PARSE_ERROR', 'Gemini tidak menghasilkan teks.');
   return text;
 }
@@ -112,11 +108,11 @@ async function callOpenRouter(apiKey: string, prompt: string, signal?: AbortSign
   return text;
 }
 
-async function callWithTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+async function callWithTimeout<T>(factory: (signal: AbortSignal) => Promise<T>, timeoutMs: number): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await promise;
+    return await factory(controller.signal);
   } finally {
     clearTimeout(timer);
   }
@@ -140,7 +136,7 @@ export async function generateWithFallback(
   if (keys.gemini) {
     try {
       onProgress('Memanggil Gemini 2.5 Flash API...');
-      const text = await callWithTimeout(callGemini(keys.gemini, prompt), TIMEOUT);
+      const text = await callWithTimeout((signal) => callGemini(keys.gemini, prompt, signal), TIMEOUT);
       onProgress('Mengurai JSON dari respons Gemini...');
       const json = parseAiResponse(text);
       if (json) { onProgress('Menyiapkan Scene Cards...'); return json; }
@@ -152,7 +148,7 @@ export async function generateWithFallback(
       onProgress('Gemini gagal, mencoba ulang...');
       // retry once
       try {
-        const text = await callWithTimeout(callGemini(keys.gemini, prompt), TIMEOUT);
+        const text = await callWithTimeout((signal) => callGemini(keys.gemini, prompt, signal), TIMEOUT);
         const json = parseAiResponse(text);
         if (json) { onProgress('Menyiapkan Scene Cards...'); return json; }
       } catch {
@@ -164,7 +160,7 @@ export async function generateWithFallback(
   if (keys.groq) {
     try {
       onProgress('Beralih ke Groq Llama 3.3 70B...');
-      const text = await callWithTimeout(callGroq(keys.groq, prompt), TIMEOUT);
+      const text = await callWithTimeout((signal) => callGroq(keys.groq, prompt, signal), TIMEOUT);
       onProgress('Mengurai JSON dari respons Groq...');
       const json = parseAiResponse(text);
       if (json) { onProgress('Menyiapkan Scene Cards...'); return json; }
@@ -179,7 +175,7 @@ export async function generateWithFallback(
 
   if (keys.openrouter) {
     onProgress('Memanggil OpenRouter API...');
-    const text = await callWithTimeout(callOpenRouter(keys.openrouter, prompt), TIMEOUT);
+    const text = await callWithTimeout((signal) => callOpenRouter(keys.openrouter, prompt, signal), TIMEOUT);
     onProgress('Mengurai JSON dari respons OpenRouter...');
     const json = parseAiResponse(text);
     if (json) { onProgress('Menyiapkan Scene Cards...'); return json; }

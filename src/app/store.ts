@@ -55,7 +55,7 @@ interface AppState {
 
 export const useAppStore = create<AppState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       formData: { ...DEFAULT_FORM },
       currentStep: 0,
       setFormData: (data) => set((s) => ({ formData: { ...s.formData, ...data } })),

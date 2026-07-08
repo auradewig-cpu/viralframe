@@ -112,7 +112,7 @@ export function History() {
               {viewingId === record.id && record.videoJSON && (
                 <div className="mt-4 space-y-3">
                   {record.videoJSON.scenes.map((scene, i) => (
-                    <SceneCard key={i} scene={scene} aiTool={record.formData.aiTool} isFirst={i === 0} />
+                    <SceneCard key={i} scene={scene} aiTool={record.formData.aiTool} isFirst={i === 0} characterAnchor={record.videoJSON?.character_sheet?.description} />
                   ))}
                 </div>
               )}

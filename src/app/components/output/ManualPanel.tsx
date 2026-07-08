@@ -13,6 +13,7 @@ interface ManualPanelProps {
   aiTool: string;
   onJsonValidated: (json: VideoJSON) => void;
   referencePhotos?: string[];
+  captionVariationCount?: number;
 }
 
 function CopyButton({ text, label }: { text: string; label: string }) {
@@ -29,7 +30,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   );
 }
 
-export function ManualPanel({ masterPrompt, sceneCount, aiTool, onJsonValidated, referencePhotos }: ManualPanelProps) {
+export function ManualPanel({ masterPrompt, sceneCount, aiTool, onJsonValidated, referencePhotos, captionVariationCount = 1 }: ManualPanelProps) {
   const [tab, setTab] = useState<'prompt' | 'inspect' | 'brief' | 'validate'>('prompt');
   const [pastedJson, setPastedJson] = useState('');
   const [validationResult, setValidationResult] = useState<{ valid: boolean; errors: string[]; warnings: string[]; json: VideoJSON | null } | null>(null);
@@ -50,7 +51,7 @@ export function ManualPanel({ masterPrompt, sceneCount, aiTool, onJsonValidated,
       setValidationResult({ valid: false, errors: ['JSON tidak valid atau tidak dapat di-parse. Pastikan output AI dimulai dengan { dan diakhiri dengan }.'], warnings: [], json: null });
       return;
     }
-    const result = validateVideoJSON(json, sceneCount);
+    const result = validateVideoJSON(json, sceneCount, captionVariationCount);
     setValidationResult({ ...result, json: result.valid ? json : null });
     if (result.valid) onJsonValidated(json);
   };

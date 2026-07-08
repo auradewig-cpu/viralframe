@@ -35,6 +35,9 @@ export const formSchema = z.object({
   textOverlay: z.boolean(),
   brandColor: z.string(),
   avoidColor: z.string(),
+  referencePhotos: z.array(z.string()),
+  locationDescription: z.string(),
+  captionVariationCount: z.number().min(1).max(5),
   mode: z.enum(['direct', 'manual']),
 }).superRefine((data, ctx) => {
   if (data.useCharacter && !data.characterAge) {
