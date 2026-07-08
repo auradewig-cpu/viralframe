@@ -56,6 +56,10 @@ async function callGemini(apiKey: string, prompt: string, signal?: AbortSignal):
 
   const data = await resp.json();
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  console.log('[DEBUG GEMINI RAW RESPONSE]', text);
+  console.log('[DEBUG GEMINI FINISH REASON]', data?.candidates?.[0]?.finishReason);
+  console.log('[DEBUG GEMINI SAFETY RATINGS]', JSON.stringify(data?.candidates?.[0]?.safetyRatings));
+  console.log('[DEBUG GEMINI PROMPT FEEDBACK]', JSON.stringify(data?.promptFeedback));
   if (!text) throw new ApiCallError('JSON_PARSE_ERROR', 'Gemini tidak menghasilkan teks.');
   return text;
 }

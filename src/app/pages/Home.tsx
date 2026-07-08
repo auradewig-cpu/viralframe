@@ -180,6 +180,7 @@ export function Home() {
 
     // Direct API mode
     setIsGenerating(true);
+    setShowOutput(true);
     try {
       const keys = {
         gemini: settings.geminiApiKey,
@@ -215,7 +216,6 @@ export function Home() {
         masterPrompt: prompt,
         videoJSON: json,
       });
-      setShowOutput(true);
     } catch (e: unknown) {
       const err = e as ApiCallError;
       setGenerateError(err.message || 'Terjadi kesalahan tidak diketahui.');
