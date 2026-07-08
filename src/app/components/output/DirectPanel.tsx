@@ -4,6 +4,7 @@ import JSZip from 'jszip';
 import { VideoJSON } from '../../types';
 import { SceneCard } from './SceneCard';
 import { useAppStore } from '../../store';
+import { generateHashtagVariations } from '../../lib/hashtagVariations';
 
 interface DirectPanelProps {
   json: VideoJSON;
@@ -71,6 +72,24 @@ function DownloadZIPButton({ json }: { json: VideoJSON }) {
   return (
     <button onClick={download} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm" style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-text-secondary)', border: '1px solid var(--vf-border)' }}>
       <Download size={14} /> ↓ Download ZIP Per Scene
+    </button>
+  );
+}
+
+function HashtagCopyButton({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <button
+      onClick={handleCopy}
+      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-all"
+      style={{ background: copied ? 'var(--vf-accent-success)' : 'var(--vf-bg-elevated)', color: copied ? 'white' : 'var(--vf-text-secondary)', border: `1px solid ${copied ? 'var(--vf-accent-success)' : 'var(--vf-border)'}` }}
+    >
+      {copied ? '✓ Copied' : label}
     </button>
   );
 }
@@ -163,6 +182,22 @@ export function DirectPanel({ json, onRegenerate, onEdit, referencePhotos }: Dir
                 </p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 5 Kombinasi Hashtag */}
+      {json.production_notes.hashtag_strategy && (
+        <div className="rounded-xl p-4" style={{ background: 'var(--vf-bg-elevated)', border: '1px solid var(--vf-border)' }}>
+          <span className="text-xs font-medium" style={{ color: 'var(--vf-text-muted)' }}>5 Kombinasi Hashtag (Variasi Anti-Duplikat)</span>
+          <div className="mt-2 space-y-2">
+            {generateHashtagVariations(json.production_notes.hashtag_strategy).map((combo, i) => (
+              <div key={i} className="flex items-start gap-3 p-3 rounded-lg" style={{ background: 'var(--vf-bg-secondary)' }}>
+                <span className="text-xs font-semibold shrink-0 mt-1.5" style={{ color: 'var(--vf-accent-primary)' }}>V{i + 1}</span>
+                <p className="flex-1 text-sm" style={{ color: 'var(--vf-text-secondary)' }}>{combo.join(' ')}</p>
+                <HashtagCopyButton text={combo.join(' ')} label="Copy" />
+              </div>
+            ))}
           </div>
         </div>
       )}

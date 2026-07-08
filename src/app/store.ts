@@ -88,7 +88,11 @@ export const useAppStore = create<AppState>()(
 
       history: [],
       addHistory: (record) => set((s) => {
-        const updated = [record, ...s.history].slice(0, 50);
+        const cleanRecord = {
+          ...record,
+          formData: { ...record.formData, referencePhotos: [] },
+        };
+        const updated = [cleanRecord, ...s.history].slice(0, 50);
         return { history: updated };
       }),
       removeHistory: (id) => set((s) => ({ history: s.history.filter(r => r.id !== id) })),

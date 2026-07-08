@@ -1,21 +1,22 @@
-# ViralFrame Studio — PRD v5.0
+# ViralFrame Studio — PRD v5.1
 ### AI Video Prompt Generator · Direct API Integration · Scene-Ready Output
-### Figma-Handoff Edition · Production-Ready · Verified Complete
+### Codebase-Synced Edition · Production-Ready · Verified Complete
 
-> **Dokumen ini adalah revisi final atas PRD v4.0.**
-> v5.0 memperbaiki 12 gap yang ditemukan dalam evaluasi menyeluruh v4.0:
-> contoh JSON output hilang, token limit tidak cukup untuk scene banyak,
-> CORS blocking tidak dibahas, OpenRouter tidak ada di localStorage spec,
-> Duo karakter tidak ada spec inject, Temperature untuk JSON terlalu tinggi,
-> field `vf_api_openrouter` hilang dari localStorage, contoh output JSON
-> tidak ada di dokumen ini, step form tidak menyebutkan kapan mode dipilih,
-> halaman /templates tidak ada spesifikasi UI, font fallback tidak didefinisikan,
-> dan Seksi 9 (halaman /guide referensi) tidak konsisten dengan navigasi Seksi 2.
-> Dokumen ini adalah sumber kebenaran tunggal final untuk wireframe Figma dan implementasi.
+> **Dokumen ini adalah sinkronisasi PRD v5.0 dengan kode aktual setelah implementasi penuh.**
+> v5.1 memperbaiki 15+ ketidaksesuaian antara PRD v5.0 dan codebase real:
+> tabel AI Tools kehilangan entri `google_flow`, localStorage keys mengacu nama `vf_` lawas,
+> nama file tech stack tidak sesuai (masterPromptCompiler.ts → masterPrompt.ts, dll),
+> Tailwind CSS v3 → v4, React Hook Form tidak dipakai (Zod saja),
+> template Master Prompt kurang AUDIO/DIALOG directive dan POLICY COMPLIANCE block,
+> posisi field `ai_ready_prompt` di JSON schema (kini di awal, bukan akhir scene),
+> timeout API 60s → 90s, loading state skeleton → progress bar + lampu provider,
+> badge provider di output header, referencePhotos di-strip dari history,
+> dan error handling QuotaExceeded (tanpa toast system).
+> Dokumen ini adalah sumber kebenaran tunggal untuk kode saat ini.
 
 ---
 
-## CHANGELOG v3.0 → v4.0 → v5.0
+## CHANGELOG v3.0 → v4.0 → v5.0 → v5.1
 
 ### v3.0 → v4.0
 | # | Area | Kondisi di v3.0 | Perubahan di v4.0 |
@@ -48,6 +49,29 @@
 | 10 | **Seksi /guide Referensi** | Seksi 2 navigasi menyebut `/guide` sebagai "Seksi 10" tapi isinya ada di Seksi 11 | Referensi dikoreksi — konsisten di seluruh dokumen |
 | 11 | **Estimasi Token per Generate** | Tidak ada panduan berapa token yang dibutuhkan per generate | Ditambahkan tabel estimasi di Seksi 5.1 |
 | 12 | **ZIP Download Spec** | Tidak ada spec isi file ZIP per scene | Ditambahkan spec di Seksi 4.2 |
+
+### v5.0 → v5.1 (Codebase Sync)
+
+| # | Area | Gap di v5.0 | Perbaikan di v5.1 |
+|---|------|-------------|-------------------|
+| 1 | **AI Tools** | `google_flow` tidak ada di tabel AI Tools dan format spec | Ditambahkan sebagai tool pertama (500 chars, ✅ ref image) |
+| 2 | **localStorage keys** | PRD menyebut key `vf_history`, `vf_api_gemini`, dll. — tidak sesuai kode (pakai zustand persist key `viralframe-store`) | Semua referensi localStorage diperbarui |
+| 3 | **Tech Stack file names** | `masterPromptCompiler.ts`, `lipsyncCalculator.ts`, dll. — tidak ada di codebase | Diperbarui: `masterPrompt.ts`, `lipsync.ts`, `maps.ts`, `validation.ts`, `jsonParser.ts` |
+| 4 | **Tailwind CSS** | Disebut v3 | Diperbarui ke v4 |
+| 5 | **React Hook Form** | Disebut di tech stack | Dihapus — form pakai Zustand + Zod langsung |
+| 6 | **Master Prompt template** | Tidak ada AUDIO/DIALOG directive, POLICY COMPLIANCE block, atau simplified ai_ready_prompt schema | Ditambahkan di template |
+| 7 | **Posisi ai_ready_prompt** | Di akhir object scene (setelah cliffhanger_to_next) | Dipindah ke posisi 5 (setelah speech_pace, sebelum script_narration) — mencegah AI skip field |
+| 8 | **API Timeout** | 60 detik | Dinaikkan ke 90 detik |
+| 9 | **Loading State UI** | Skeleton cards | Progress bar 0–100% + 3 lampu provider (Gemini/Groq/OpenRouter) + teks progress real-time |
+| 10 | **Error UX** | Toast auto-dismiss 5 detik | Inline banner merah, non-blocking — tidak ada toast system |
+| 11 | **Character Consistency Score** | Disebut di Scene Card | Di form Step 3 (bukan Scene Card) |
+| 12 | **Output Header** | Tidak ada badge provider | Menampilkan "Digenerate via [provider]" |
+| 13 | **History** | `referencePhotos` tidak disebut | Sekarang referencePhotos (base64) dihapus dari history — cegah QuotaExceededError |
+| 14 | **Quota di Settings** | Ada teks "Sisa quota hari ini" di mockup UI | Dihapus — tidak diimplementasikan |
+| 15 | **Platform Baru** | Tidak ada Shopee Video | Ditambahkan `shopee_video` ke PLATFORMS (9:16, 15-60s) + PLATFORM_BEHAVIOR entry |
+| 16 | **CTA Baru** | Tidak ada Klik Keranjang Kuning | Ditambahkan `klik_keranjang_kuning` ke CTA_TYPES |
+| 17 | **Hashtag Variations** | Hanya 1 set hashtag statis dari AI | `generateHashtagVariations()` — 5 seeded shuffle kombinasi + tombol copy per variasi di DirectPanel |
+| 15 | **Badge Ref Image** | "✅ Mendukung Reference Image" | Dipendekkan jadi "✅ Ref Image" |
 
 ---
 
@@ -254,6 +278,7 @@ Target pain point: kaki pegal dan mudah terpeleset saat olahraga.
 | `youtube_shorts` | YouTube Shorts | 9:16 | 15–60s |
 | `facebook_reels` | Facebook Reels | 9:16 | 15–60s |
 | `xiaohongshu` | Xiaohongshu / RedNote | 9:16 atau 3:4 | 15–60s |
+| `shopee_video` | Shopee Video | 9:16 | 15–60s |
 
 ---
 
@@ -264,18 +289,19 @@ Target pain point: kaki pegal dan mudah terpeleset saat olahraga.
 
 | Value | Label | Batas Karakter Prompt | Mendukung Ref Image |
 |-------|-------|----------------------|---------------------|
-| `veo3` | Google Veo 3 | 500 chars | ❌ Tidak (teks saja) |
-| `kling_ai` | Kling AI 2.0 | 400 chars | ✅ Ya |
-| `minimax_hailuo` | Minimax Video / Hailuo | 350 chars | ✅ Ya |
-| `runway_gen4` | Runway Gen-4 | 300 chars | ✅ Ya |
-| `luma_dream` | Luma Dream Machine | 300 chars | ✅ Ya |
-| `pika_labs` | Pika Labs 2.0 | 250 chars | ✅ Ya |
-| `sora` | OpenAI Sora | 600 chars | ❌ Tidak (teks saja) |
-| `bytedance_jianying` | Bytedance Jianying / MagicVideo | 400 chars | ✅ Ya |
-| `wan21` | Wan 2.1 (Alibaba) | 400 chars | ✅ Ya |
-| `cogvideox` | CogVideoX | 350 chars | ❌ Tidak (teks saja) |
+| `google_flow` | Google Flow | 500 chars | ✅ |
+| `veo3` | Google Veo 3 | 500 chars | ❌ |
+| `kling_ai` | Kling AI 2.0 | 400 chars | ✅ |
+| `minimax_hailuo` | Minimax Video / Hailuo | 350 chars | ✅ |
+| `runway_gen4` | Runway Gen-4 | 300 chars | ✅ |
+| `luma_dream` | Luma Dream Machine | 300 chars | ✅ |
+| `pika_labs` | Pika Labs 2.0 | 250 chars | ✅ |
+| `sora` | OpenAI Sora | 600 chars | ❌ |
+| `bytedance_jianying` | Bytedance Jianying / MagicVideo | 400 chars | ✅ |
+| `wan21` | Wan 2.1 (Alibaba) | 400 chars | ✅ |
+| `cogvideox` | CogVideoX | 350 chars | ❌ |
 
-**UI Note:** Tampilkan badge "✅ Mendukung Reference Image" di sebelah pilihan yang support. Badge ini relevan untuk panduan konsistensi antar scene.
+**UI Note:** Tampilkan badge "✅ Ref Image" di sebelah pilihan yang support. Badge ini relevan untuk panduan konsistensi antar scene.
 
 #### 3.7 Jumlah Scene
 **Tipe:** Number input (range 2–20)
@@ -362,6 +388,7 @@ Target pain point: kaki pegal dan mudah terpeleset saat olahraga.
 | `free_trial_grab` | 🎁 Ambil Uji Coba Gratis |
 | `save_for_later` | 🔖 Simpan Video Ini |
 | `double_tap_agree` | ❤️ Double Tap Kalau Setuju |
+| `klik_keranjang_kuning` | 🛒 Klik Keranjang Kuning |
 
 **Jika `comment_keyword`:** Tampilkan sub-input "Masukkan keyword:" — nilai disimpan sebagai `cta_keyword`.
 
@@ -510,7 +537,7 @@ Setelah generate berhasil, Output Panel menampilkan:
 
 **Header Panel:**
 ```
-✅ Generate Selesai  |  4 Scene  |  20 Detik  |  Viral Score: 82/100
+✅ Generate Selesai  |  [Digenerate via Gemini]  |  4 Scene  |  20 Detik  |  Viral Score: 82/100
 [⎘ Copy Semua Prompt]  [↓ Download JSON]  [↓ Download ZIP Per Scene]
 [🔄 Regenerate]  [✏️ Edit Parameter]
 ```
@@ -689,7 +716,7 @@ ALUR DIRECT API MODE:
 1. User klik [⚡ Generate]
    ↓
 2. app compile Master Prompt dari form input
-   (fungsi: masterPromptCompiler.ts)
+   (fungsi: masterPrompt.ts — compileMasterPrompt)
    ↓
 3. app panggil Gemini API:
    POST https://generativelanguage.googleapis.com/v1beta/models/
@@ -753,7 +780,7 @@ const PROVIDER_CONFIGS = {
 };
 
 // Retry + Fallback logic:
-// - Timeout: 60 detik per request (dinaikkan dari 30s untuk scene banyak)
+// - Timeout: 90 detik per request (dinaikkan dari 60s untuk scene banyak dan tool format panjang)
 // - Retry: 1x jika timeout atau 5xx error
 // - Fallback: otomatis ke provider berikutnya jika provider primer gagal 2x
 // - Rate limit (429): tampilkan "Quota harian habis, beralih ke Groq otomatis"
@@ -797,7 +824,7 @@ function parseAiResponse(rawText: string): VideoJSON | null {
 
 ### 5.6 Keamanan API Key
 
-- API key disimpan di `localStorage` dengan key `vf_api_gemini` dan `vf_api_groq`
+- API key disimpan di `localStorage` via Zustand persist (key: `viralframe-store`, partialize → settings)
 - API key **tidak pernah** dikirim ke server manapun selain endpoint provider resmi (Google / Groq)
 - API key **tidak pernah** dimasukkan ke dalam Master Prompt atau JSON
 - UI menampilkan key sebagai masked: `AIzaSy...XXXXX` setelah disimpan
@@ -947,7 +974,7 @@ BLOK 5: OUTPUT SCHEMA        → JSON schema + viral score formula + guardrail
 ### 7.2 Template Master Prompt (Production-Ready)
 
 ```
-=== VIRALFRAME MASTER PROMPT v4 ===
+=== VIRALFRAME MASTER PROMPT v4.1 ===
 INSTRUKSI KRITIS: Baca seluruh prompt ini sebelum mulai bekerja.
 Output kamu HANYA berupa JSON murni. Tidak ada teks sebelum JSON.
 Tidak ada teks setelah JSON. Tidak ada penjelasan. Tidak ada markdown
@@ -979,6 +1006,10 @@ PERAN 4 — AI VIDEO PROMPT ENGINEER untuk {{AI_VIDEO_TOOL}}:
 Menulis `ai_ready_prompt` dalam format yang optimal untuk
 {{AI_VIDEO_TOOL}}. Batas karakter: {{AI_TOOL_CHAR_LIMIT}} per scene.
 Format: {{AI_TOOL_FORMAT_SPEC}}
+KRITIS: ai_ready_prompt HANYA berisi deskripsi scene, BUKAN instruksi meta atau klaim pemasaran.
+AUDIO/DIALOG: Setelah deskripsi scene selesai, tambahkan SATU baris di akhir: [DIALOGUE: {{BAHASA_NARASI}}]
+Contoh: "...[MOOD: confident]. [10s, 9:16 vertical frame]. [DIALOGUE: Bahasa Indonesia]"
+Field ai_ready_prompt TIDAK BOLEH kosong — ini field WAJIB di setiap scene.
 
 ---
 
@@ -1048,6 +1079,18 @@ KONSISTENSI WAJIB:
 - Eskalasi: Hook (pancing) → Body (bangun) → CTA (ledakkan)
 - Transisi: whip pan / zoom punch / hard cut + audio cue
 
+POLICY COMPLIANCE — WAJIB untuk Google Flow & Veo3:
+FORBIDDEN PATTERNS — JANGAN pernah gunakan:
+✗ Klaim absolut: "terbaik", "nomor 1", "jamin 100%", "dijamin", "pasti"
+✗ Klaim medis/kesehatan: "sembuh total", "menyembuhkan", "terbukti klinis"
+✗ Before/After transformasi hasil fisik/kesehatan
+✗ Testimonial fiktif yang terlihat seperti nyata
+✗ Klaim performa tanpa bukti: "meningkatkan X dalam Y hari"
+
+WAJIB rewrite klaim jadi observasi netral:
+- BUKAN: "Krim ini menghilangkan kerutan dalam 3 hari"
+- TAPI: "Krim ini diformulasikan untuk merawat kulit"
+
 ---
 
 [BLOK 5: OUTPUT JSON SCHEMA + VIRAL SCORE FORMULA + GUARDRAIL]
@@ -1103,6 +1146,7 @@ OUTPUT JSON SCHEMA:
       "duration_seconds": number,
       "max_words": number,
       "speech_pace": "ultra_fast|fast|normal|medium|relaxed|slow_dramatic",
+      "ai_ready_prompt": "WAJIB DIISI, string, max {{AI_TOOL_CHAR_LIMIT}} chars. Format: [CHARACTER ANCHOR] [SCENE] [CAMERA] [ENVIRONMENT] [MOOD] [durasi+rasio] [DIALOGUE: bahasa_narasi]",
       "script_narration": "string MAKS max_words kata",
       "script_subtitle": "string atau null",
       "script_word_count": number,
@@ -1115,8 +1159,7 @@ OUTPUT JSON SCHEMA:
       "sound_design": "string",
       "transition_to_next": "string atau end",
       "viral_element_in_scene": "string",
-      "cliffhanger_to_next": "string atau CTA release",
-      "ai_ready_prompt": "string Bahasa Inggris, max {{AI_TOOL_CHAR_LIMIT}} chars, siap di-paste ke {{AI_VIDEO_TOOL}}"
+      "cliffhanger_to_next": "string atau CTA release"
     }
   ],
   "production_notes": {
@@ -1136,7 +1179,7 @@ OUTPUT JSON SCHEMA:
 }
 
 GUARDRAIL: Output JSON murni. Mulai {. Akhiri }. Tidak ada teks lain.
-=== END OF VIRALFRAME MASTER PROMPT v4 ===
+=== END OF VIRALFRAME MASTER PROMPT v4.1 ===
 ```
 
 ### 7.3 Platform Behavior Notes
@@ -1153,7 +1196,8 @@ GUARDRAIL: Output JSON murni. Mulai {. Akhiri }. Tidak ada teks lain.
 
 | Tool | Format Spec | Char Limit | Ref Image |
 |------|-------------|------------|-----------|
-| `veo3` | "Natural language cinematic. Subject + action + environment + lighting + camera movement + mood. End with: [X]s, [ratio] vertical frame. English." | 500 | ❌ |
+| `google_flow` | "Natural descriptive prompt in English: [Scene setting]. [Character appearance + action]. [Camera angle + movement]. [Lighting]. [Mood]. Wajib policy-safe: gunakan bahasa netral, hindari klaim absolut, medis, atau testimonial. Hanya deskripsi visual." | 500 | ✅ |
+| `veo3` | "Mulai dengan CHARACTER ANCHOR. English only. Policy-safe: hanya deskripsi visual netral." | 500 | ❌ |
 | `kling_ai` | "Subject description. Action/motion. Camera movement (smooth pan/zoom in/tracking/static). Environment. Lighting. Style/mood. English." | 400 | ✅ |
 | `minimax_hailuo` | "'Character: [desc]. Action: [desc]. Scene: [desc]. Mood: [desc].' English." | 350 | ✅ |
 | `runway_gen4` | "Action-first. Camera keyword (dolly in/pan left/static/handheld). Environment. Style. [X]s. English." | 300 | ✅ |
@@ -1203,7 +1247,6 @@ Halaman settings dibagi dalam beberapa seksi:
 │  [Test Koneksi]  [Hapus Key]                                 │
 │                                                              │
 │  Status: ✅ Terhubung — Gemini 2.5 Flash                    │
-│  Sisa quota hari ini: ~187 request tersisa                  │
 │  Cara mendapatkan key gratis: [📖 Panduan]                  │
 │                                                              │
 │  ──────────────────────────────────────────────────────     │
@@ -1415,9 +1458,9 @@ Contoh output yang dihasilkan AI setelah menerima Master Prompt. Kasus: Affiliat
 ## 11. HISTORY & TEMPLATE
 
 ### 11.1 History
-- Disimpan di localStorage, key `vf_history`
-- Maksimal **50 record**, FIFO auto-prune
-- Setiap record menyimpan: timestamp, label, semua parameter form, master prompt, dan JSON hasil (jika Direct API Mode)
+- Disimpan di localStorage via Zustand persist (key: `viralframe-store`, partialize → history)
+- Maksimal **50 record**, FIFO auto-prune (addHistory: `[record, ...history].slice(0, 50)`)
+- Setiap record menyimpan: timestamp, label, formData (tanpa referencePhotos/base64 — foto TIDAK di-persist), master prompt, dan JSON hasil
 - Halaman `/history`: list record, tombol [Load Ulang] dan [Hapus], [Hapus Semua]
 - Jika record punya JSON hasil, tombol [Lihat Scene Cards] tersedia langsung dari history
 
@@ -1564,9 +1607,9 @@ Tools rekomendasi: CapCut, DaVinci Resolve, Adobe Premiere. Tips color grading a
 | Copy Button | Animasi: teks berubah "Copied! ✓" selama 2 detik lalu kembali |
 | Char Counter di Prompt | "432 / 500 chars ✅" — merah jika melebihi batas |
 | Viral Score Meter | Gauge radial 0–100, gradient merah→kuning→hijau |
-| Loading State Generate | Skeleton cards dengan progress indicator + pesan: "Memanggil Gemini API..." / "Mengurai JSON..." / "Menyiapkan Scene Cards..." |
-| Error Toast | Slide-in dari kanan, warna accent-danger, auto-dismiss 5 detik |
-| Character Consistency Score | Progress bar horizontal dengan breakdown per field |
+| Loading State Generate | Progress bar (0–100%) + lampu status provider (Gemini/Groq/OpenRouter — idle/trying/success/failed) + teks progress dari API callback |
+| Error Banner | Inline banner merah (accent-danger) dengan icon AlertCircle, muncul di output panel tanpa menghalangi scene cards. Menggantikan error toast (tidak ada toast system). |
+| Character Consistency Score | Progress bar horizontal dengan breakdown per field — ditampilkan di Step 3 (form karakter), bukan di Scene Card |
 | Reference Frame Guide | Collapsible section di setiap Scene Card dengan step bernomor |
 
 ---
@@ -1576,51 +1619,42 @@ Tools rekomendasi: CapCut, DaVinci Resolve, Adobe Premiere. Tips color grading a
 ```
 FRONTEND:
 ├── React 18 + Vite + TypeScript
-├── Tailwind CSS v3
+├── Tailwind CSS v4
 ├── shadcn/ui
 │   └── Select, Checkbox, Slider, Tabs, Accordion, Toast,
 │       Dialog, Tooltip, Badge, Progress, Skeleton
-├── React Hook Form + Zod
+├── Zod (validasi form)
 ├── Zustand (form state, history, settings, api config)
 └── Lucide React (icons)
 
 PROMPT ENGINE (pure frontend):
-├── masterPromptCompiler.ts    → merakit 5 blok menjadi satu string
-├── lipsyncCalculator.ts       → durasi → {max_words, pace, instruksi}
-├── platformBehaviorMap.ts     → lookup platform behavior notes
-├── aiToolFormatMap.ts         → lookup format spec + char limit per tool
-├── nicheDataMap.ts            → lookup psikografis + pain point per niche
-└── advancedSettingsInjector.ts → mapping advanced settings → prompt
+├── masterPrompt.ts            → merakit 5 blok menjadi satu string (compileMasterPrompt)
+├── lipsync.ts                 → durasi → {max_words, pace, instruksi} (getLipsyncSpec)
+├── maps.ts                    → AI_TOOLS + AI_TOOL_FORMAT + PLATFORM_BEHAVIOR + NICHE_DATA + PRESET_TEMPLATES
+├── jsonParser.ts              → auto-strip + parse + error recovery (parseAiResponse, validateVideoJSON)
+└── validation.ts              → Zod schema form + warnings (validateFormData, getFormWarnings)
 
 API INTEGRATION (Direct API Mode):
 ├── apiClient.ts               → fetch wrapper + retry + fallback logic
 │   ├── callGemini()           → POST ke Gemini API
 │   ├── callGroq()             → POST ke Groq API
-│   └── callWithFallback()     → primer → retry → fallback otomatis
-├── jsonParser.ts              → auto-strip + parse + error recovery
-├── jsonValidator.ts           → validasi schema + field + counts + chars
-└── apiKeyManager.ts           → simpan/baca/hapus key dari localStorage
+│   ├── callOpenRouter()       → POST ke OpenRouter API
+│   └── generateWithFallback() → Gemini → retry → Groq → OpenRouter (auto-fallback)
+├── jsonParser.ts              → auto-strip + parse + error recovery + validateVideoJSON
 
 OUTPUT & STORAGE:
 ├── Clipboard API              → copy prompt dan per-scene JSON
-├── FileSaver.js               → download .txt dan .json
 ├── JSZip                      → download per-scene ZIP
-└── localStorage
-    ├── vf_history             → max 50 record, FIFO
-    ├── vf_templates           → template custom user
-    ├── vf_settings            → preferensi default + mode
-    ├── vf_api_gemini          → Gemini API key (masked di UI)
-    ├── vf_api_groq            → Groq API key (masked di UI)
-    └── vf_api_openrouter      → OpenRouter API key (masked di UI, opsional)
+└── localStorage (via Zustand persist — key: `viralframe-store`)
+    ├── settings               → preferensi default + API keys + mode (partialize)
+    ├── history                → max 50 record, FIFO (partialize)
+    └── customTemplates        → template custom user (partialize)
 
 TAB 4 / MANUAL MODE UTILITIES:
-├── jsonAutoStrip.ts           → extract JSON dari output kotor
-└── Prism.js                   → JSON syntax highlighting
+├── jsonParser.ts              → parse + validate JSON (parseAiResponse)
 
 DEV TOOLS:
 ├── Vite dev server (localhost:5173)
-├── ESLint + Prettier
-└── dotenv (untuk future direct API call tambahan)
 ```
 
 ---
@@ -1658,6 +1692,5 @@ DEV TOOLS:
 
 ---
 
-*ViralFrame Studio — PRD v5.0 · Final Verified Edition · Figma-Handoff Ready*
-*Semua gap dari v4.0 diselesaikan. 12 perbaikan diterapkan. Dokumen ini adalah sumber kebenaran tunggal final.*
-*Siap untuk wireframe Figma dan implementasi penuh tanpa ambiguitas.*
+*ViralFrame Studio — PRD v5.1 · Codebase-Synced Edition · Production-Ready*
+*Semua gap dari v5.0 diselesaikan (15 perbaikan). Dokumen ini sinkron dengan kode aktual.*

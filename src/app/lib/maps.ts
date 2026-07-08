@@ -34,10 +34,11 @@ export const PLATFORMS = [
   { value: 'youtube_shorts', label: 'YouTube Shorts', ratio: '9:16', duration: '15–60s' },
   { value: 'facebook_reels', label: 'Facebook Reels', ratio: '9:16', duration: '15–60s' },
   { value: 'xiaohongshu', label: 'Xiaohongshu / RedNote', ratio: '9:16 atau 3:4', duration: '15–60s' },
+  { value: 'shopee_video', label: 'Shopee Video', ratio: '9:16', duration: '15–60s' },
 ];
 
 export const AI_TOOLS: { value: string; label: string; charLimit: number; supportsRef: boolean }[] = [
-  { value: 'google_flow', label: 'Google Flow', charLimit: 500, supportsRef: false },
+  { value: 'google_flow', label: 'Google Flow', charLimit: 500, supportsRef: true },
   { value: 'veo3', label: 'Google Veo 3', charLimit: 500, supportsRef: false },
   { value: 'kling_ai', label: 'Kling AI 2.0', charLimit: 400, supportsRef: true },
   { value: 'minimax_hailuo', label: 'Minimax Video / Hailuo', charLimit: 350, supportsRef: true },
@@ -93,6 +94,7 @@ export const CTA_TYPES = [
   { value: 'free_trial_grab', label: '🎁 Ambil Uji Coba Gratis' },
   { value: 'save_for_later', label: '🔖 Simpan Video Ini' },
   { value: 'double_tap_agree', label: '❤️ Double Tap Kalau Setuju' },
+  { value: 'klik_keranjang_kuning', label: '🛒 Klik Keranjang Kuning' },
 ];
 
 export const ETHNICITIES = [
