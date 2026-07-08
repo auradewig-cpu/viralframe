@@ -275,6 +275,7 @@ OUTPUT JSON SCHEMA:
       "duration_seconds": ${durations[0]},
       "max_words": ${getLipsyncSpec(durations[0]).maxWords},
       "speech_pace": "${getLipsyncSpec(durations[0]).pace}",
+      "ai_ready_prompt": "WAJIB DIISI, string, max ${charLimit} karakter. Format singkat: [CHARACTER ANCHOR] [SCENE] [CAMERA] [ENVIRONMENT] [MOOD] [durasi+rasio] [DIALOGUE: ${spokenLanguageLabel}]",
       "script_narration": "Teks narasi (maks ${getLipsyncSpec(durations[0]).maxWords} kata) — bahasa HARUS sesuai [BLOK 2: BAHASA]",
       "script_subtitle": null,
       "script_word_count": 0,
@@ -287,8 +288,7 @@ OUTPUT JSON SCHEMA:
       "sound_design": "string",
       "transition_to_next": "string",
       "viral_element_in_scene": "string",
-      "cliffhanger_to_next": "string",
-      "ai_ready_prompt": "[CHARACTER ANCHOR: {character_sheet.description copy verbatim}] [SCENE: {aksi spesifik scene ini}] [CAMERA: {shot type, movement, angle}] [ENVIRONMENT: {setting, lighting${hasLocation ? ` — ${form.locationDescription}` : ''}${hasRefPhotos ? ` — match visual dari foto referensi yang diupload user` : ''}}] [MOOD: {suasana, ekspresi karakter}] [{durasi}s, {rasio} vertical frame]. Hanya deskripsi scene natural — TANPA klaim, testimonial, atau ajakan."
+      "cliffhanger_to_next": "string"
     }
     // ... repeat for all ${form.sceneCount} scenes. Scene terakhir scene_type: "cta"
   ],
