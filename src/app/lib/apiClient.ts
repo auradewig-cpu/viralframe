@@ -3,7 +3,6 @@ import { parseAiResponse } from './jsonParser';
 
 const PROVIDER_CONFIGS = {
   gemini: {
-    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',
     maxTokens: 32768,
     temperature: 0.3,
   },
@@ -29,9 +28,10 @@ export class ApiCallError extends Error {
   }
 }
 
-async function callGemini(apiKey: string, prompt: string, signal?: AbortSignal): Promise<string> {
+async function callGemini(apiKey: string, prompt: string, model: string, signal?: AbortSignal): Promise<string> {
   const cfg = PROVIDER_CONFIGS.gemini;
-  const resp = await fetch(`${cfg.endpoint}?key=${apiKey}`, {
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  const resp = await fetch(`${endpoint}?key=${apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     signal,
@@ -138,14 +138,15 @@ export async function generateWithFallback(
   prompt: string,
   keys: ApiKeys,
   onProgress: ProgressCallback,
-  onGroqQuota?: (percent: number | null) => void
+  onGroqQuota?: (percent: number | null) => void,
+  geminiModel: string = 'gemini-3.5-flash'
 ): Promise<VideoJSON> {
   const TIMEOUT = 90_000;
 
   if (keys.gemini) {
     try {
       onProgress('Memanggil Gemini Flash API...');
-      const text = await callWithTimeout((signal) => callGemini(keys.gemini, prompt, signal), TIMEOUT);
+      const text = await callWithTimeout((signal) => callGemini(keys.gemini, prompt, geminiModel, signal), TIMEOUT);
       onProgress('Mengurai JSON dari respons Gemini...');
       const json = parseAiResponse(text);
       if (json) { onProgress('Menyiapkan Scene Cards...'); return json; }
@@ -155,7 +156,7 @@ export async function generateWithFallback(
       onProgress(`Gemini gagal (${err.code || 'unknown'}), mencoba ulang...`);
       // retry once
       try {
-        const text = await callWithTimeout((signal) => callGemini(keys.gemini, prompt, signal), TIMEOUT);
+        const text = await callWithTimeout((signal) => callGemini(keys.gemini, prompt, geminiModel, signal), TIMEOUT);
         const json = parseAiResponse(text);
         if (json) { onProgress('Menyiapkan Scene Cards...'); return json; }
       } catch {

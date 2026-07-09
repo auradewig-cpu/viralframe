@@ -3,16 +3,23 @@ import { Eye, EyeOff, Check, X, Loader2, Trash2, Download, Sun, Moon } from 'luc
 import { useAppStore } from '../store';
 import { AI_TOOLS, PLATFORMS, LANGUAGES } from '../lib/maps';
 
+const GEMINI_MODELS = [
+  { value: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash — Paling pintar (Direkomendasikan)' },
+  { value: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite — Lebih cepat & hemat' },
+  { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite — Paling hemat (model lama, masih valid)' },
+];
+
 function maskKey(key: string): string {
   if (!key || key.length < 10) return key;
   return key.slice(0, 7) + '•'.repeat(key.length - 12) + key.slice(-5);
 }
 
 function ApiKeyField({
-  label, storageKey, description, provider
+  label, storageKey, description, provider, showModelSelect
 }: {
   label: string; storageKey: 'geminiApiKey' | 'groqApiKey' | 'openrouterApiKey';
   description: string; provider: 'gemini' | 'groq' | 'openrouter';
+  showModelSelect?: boolean;
 }) {
   const settings = useAppStore(s => s.settings);
   const setSettings = useAppStore(s => s.setSettings);
@@ -42,7 +49,8 @@ function ApiKeyField({
     setTestStatus('testing');
     try {
       if (provider === 'gemini') {
-        const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${savedKey}`, {
+        const modelToTest = settings.geminiModel || 'gemini-3.5-flash';
+        const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelToTest}:generateContent?key=${savedKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ contents: [{ parts: [{ text: 'ping' }] }], generationConfig: { maxOutputTokens: 5 } }),
@@ -74,6 +82,22 @@ function ApiKeyField({
           <span className="text-xs px-2 py-1 rounded-full" style={{ background: 'rgba(16,185,129,0.15)', color: 'var(--vf-accent-success)' }}>✅ Tersimpan</span>
         )}
       </div>
+
+      {showModelSelect && (
+        <div>
+          <label className="text-xs" style={{ color: 'var(--vf-text-muted)' }}>Model</label>
+          <select
+            value={settings.geminiModel || 'gemini-3.5-flash'}
+            onChange={e => setSettings({ geminiModel: e.target.value })}
+            className="w-full mt-1 px-3 py-2 rounded-lg text-sm outline-none"
+            style={{ background: 'var(--vf-bg-secondary)', color: 'var(--vf-text-primary)', border: '1px solid var(--vf-border)' }}
+          >
+            {GEMINI_MODELS.map(m => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {savedKey && !showInput && (
         <div>
@@ -168,6 +192,7 @@ export function Settings() {
             storageKey="geminiApiKey"
             description="250 req/hari · 1M token/hari · CORS supported"
             provider="gemini"
+            showModelSelect
           />
           <ApiKeyField
             label="Groq API Key (Backup Otomatis)"

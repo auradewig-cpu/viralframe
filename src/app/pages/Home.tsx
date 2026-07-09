@@ -200,7 +200,7 @@ export function Home() {
           setProviderStatus(currentProviderRef.current, 'success');
         }
         if (mapped.percent !== null) setGenerateProgressPercent(mapped.percent);
-      }, (percent) => setGroqQuotaPercent(percent));
+      }, (percent) => setGroqQuotaPercent(percent), settings.geminiModel || 'gemini-3.5-flash');
       setGenerateProgressPercent(100);
       if (currentProviderRef.current) setLastUsedProvider(currentProviderRef.current);
       setOutputJSON(json);

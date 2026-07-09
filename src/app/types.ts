@@ -156,6 +156,7 @@ export interface AppSettings {
   defaultMode: GenerateMode;
   darkMode: boolean;
   geminiApiKey: string;
+  geminiModel: string;
   groqApiKey: string;
   openrouterApiKey: string;
 }
@@ -167,6 +168,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   defaultMode: 'direct',
   darkMode: true,
   geminiApiKey: '',
+  geminiModel: 'gemini-3.5-flash',
   groqApiKey: '',
   openrouterApiKey: '',
 };
