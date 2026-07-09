@@ -158,22 +158,24 @@ ${advancedBlocks}
 [BLOK 3: SPESIFIKASI VIDEO]
 
 AI TOOL: ${form.aiTool} | RASIO: ${form.ratio} | TOTAL SCENE: ${form.sceneCount}
-STRUKTUR: Scene 1 = Hook (${form.hookType}) · Scene 2–${form.sceneCount - 1} = Body · Scene ${form.sceneCount} = CTA (${form.ctaType})
-${form.ctaType === 'comment_keyword' && form.ctaKeyword ? `CTA Keyword: "${form.ctaKeyword}"` : ''}
+STRUKTUR: Scene 1 = Hook · Scene 2–${form.sceneCount - 1} = Body · Scene ${form.sceneCount} = CTA
+HOOK TYPE: ${form.hookType === 'auto' ? 'AI bebas memilih teknik hook paling kuat sesuai niche & target audience.' : `WAJIB gunakan teknik hook "${form.hookType}" di Scene 1 — bangun SELURUH narasi & visual scene pembuka di sekitar teknik ini secara eksplisit, bukan cuma disinggung sekilas.`}
+CTA TYPE: ${form.ctaType === 'auto' ? 'AI bebas memilih jenis CTA paling kuat sesuai niche & platform.' : `WAJIB gunakan jenis CTA "${form.ctaType}" di scene terakhir — bangun SELURUH narasi & visual scene penutup di sekitar CTA ini secara eksplisit.`}
+${form.ctaType === 'comment_keyword' && form.ctaKeyword ? `CTA Keyword WAJIB dipakai persis: "${form.ctaKeyword}" — sertakan kata ini secara eksplisit di script_narration atau text_overlay scene CTA.` : ''}
 
 LIPSYNC PER SCENE:
 ${sceneDurationTable}
 
 KARAKTER:
 ${characterBlock}
-${form.useCharacter ? `Ekspresi default: ${form.expression}` : ''}
+${form.useCharacter ? (form.expression === 'auto' ? 'Ekspresi karakter: AI bebas menentukan ekspresi paling sesuai tiap scene.' : `Ekspresi karakter WAJIB: "${form.expression}" sebagai ekspresi DASAR karakter di semua scene (boleh sedikit bervariasi sesuai konteks emosi scene, tapi harus tetap terasa sebagai ekspresi dasar yang sama).`) : ''}
 ${form.useCharacter ? `\nCHARACTER ANCHOR STRING (copy ini verbatim ke awal setiap ai_ready_prompt):\n'${characterAnchor}'\n\nDefinisi: Setiap ai_ready_prompt di SEMUA scene HARUS dimulai dengan string ini persis, baru kemudian deskripsi aksi scene. Tanpa character anchor yang identik di setiap prompt, AI video tool akan menghasilkan karakter berbeda di setiap scene.` : ''}
 ${hasRefPhotos ? `\nREFERENCE IMAGE INSTRUCTION: User telah mengupload ${form.referencePhotos.length} foto referensi properti/produk. Setiap ai_ready_prompt WAJIB menyertakan instruksi untuk mem-atch visual dari foto referensi tersebut. Tulis di section [ENVIRONMENT]: "This scene MUST visually reference the uploaded property/product photo. Match the exact building facade, color scheme, architectural details, and surroundings from the reference image. Do not invent generic environments."` : ''}
 ${hasLocation ? `\nLOKASI YANG HARUS DIGUNAKAN: ${form.locationDescription}. Semua scene HARUS menampilkan lokasi/properti yang SAMA dari sudut pandang berbeda.` : ''}
 
-GAYA VISUAL: ${form.visualStyle}
-BACKSOUND: ${form.backsound}
-TONE: ${form.narrativeTone}
+GAYA VISUAL: ${form.visualStyle === 'auto' ? 'AI bebas menentukan gaya visual paling sesuai niche & platform.' : `WAJIB gunakan gaya visual "${form.visualStyle}" di SETIAP scene tanpa kecuali — cerminkan gaya ini secara eksplisit di visual_description dan camera_direction tiap scene.`}
+BACKSOUND: ${form.backsound === 'auto' ? 'AI bebas menentukan backsound/musik paling sesuai mood video.' : `WAJIB gunakan backsound/musik bergaya "${form.backsound}" — cerminkan di music_direction dan sfx_palette.`}
+TONE: ${form.narrativeTone === 'auto' ? 'AI bebas menentukan tone narasi paling sesuai niche & audience.' : `WAJIB gunakan tone narasi "${form.narrativeTone}" secara konsisten di SEMUA script_narration dan overall_emotional_arc — bukan cuma di salah satu scene.`}
 
 ---
 
