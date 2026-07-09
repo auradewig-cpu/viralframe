@@ -42,9 +42,15 @@ function ApiKeyField({
     setTestStatus('testing');
     try {
       if (provider === 'gemini') {
-        const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${savedKey}`);
-        if (resp.ok) { setTestStatus('ok'); setTestMsg('Gemini 2.5 Flash — Terhubung'); }
-        else { setTestStatus('error'); setTestMsg('API key tidak valid'); }
+        const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${savedKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: 'ping' }] }], generationConfig: { maxOutputTokens: 5 } }),
+        });
+        if (resp.ok) { setTestStatus('ok'); setTestMsg('Gemini Flash — Terhubung'); }
+        else if (resp.status === 401 || resp.status === 403) { setTestStatus('error'); setTestMsg('API key tidak valid'); }
+        else if (resp.status === 404) { setTestStatus('error'); setTestMsg('Model tidak ditemukan — kemungkinan API key dibatasi (restricted) atau region tidak didukung'); }
+        else { setTestStatus('error'); setTestMsg(`Gagal terhubung (HTTP ${resp.status})`); }
       } else if (provider === 'groq') {
         const resp = await fetch('https://api.groq.com/openai/v1/models', { headers: { Authorization: `Bearer ${savedKey}` } });
         if (resp.ok) { setTestStatus('ok'); setTestMsg('Groq Llama 3.3 70B — Terhubung'); }

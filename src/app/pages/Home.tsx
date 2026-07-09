@@ -111,6 +111,8 @@ export function Home() {
   const resetProviderStatus = useAppStore(s => s.resetProviderStatus);
   const lastUsedProvider = useAppStore(s => s.lastUsedProvider);
   const setLastUsedProvider = useAppStore(s => s.setLastUsedProvider);
+  const groqQuotaPercent = useAppStore(s => s.groqQuotaPercent);
+  const setGroqQuotaPercent = useAppStore(s => s.setGroqQuotaPercent);
   const settings = useAppStore(s => s.settings);
   const addHistory = useAppStore(s => s.addHistory);
 
@@ -167,6 +169,7 @@ export function Home() {
     setGenerateProgressPercent(0);
     resetProviderStatus();
     setLastUsedProvider(null);
+    setGroqQuotaPercent(null);
     currentProviderRef.current = null;
     setFormErrors([]);
 
@@ -197,7 +200,7 @@ export function Home() {
           setProviderStatus(currentProviderRef.current, 'success');
         }
         if (mapped.percent !== null) setGenerateProgressPercent(mapped.percent);
-      });
+      }, (percent) => setGroqQuotaPercent(percent));
       setGenerateProgressPercent(100);
       if (currentProviderRef.current) setLastUsedProvider(currentProviderRef.current);
       setOutputJSON(json);
@@ -301,10 +304,16 @@ export function Home() {
             <div className="flex items-center justify-center gap-3 mt-4">
               {(['gemini', 'groq', 'openrouter'] as const).map((p) => {
                 const status = providerStatus[p];
-                const color = status === 'success' ? 'var(--vf-accent-success)' : status === 'trying' ? 'var(--vf-accent-warning)' : status === 'failed' ? 'var(--vf-accent-danger)' : 'var(--vf-border)';
+                let color = status === 'success' ? 'var(--vf-accent-success)' : status === 'trying' ? 'var(--vf-accent-warning)' : status === 'failed' ? 'var(--vf-accent-danger)' : 'var(--vf-border)';
+                let title = status;
+                if (p === 'groq' && groqQuotaPercent !== null && (status === 'success' || status === 'idle')) {
+                  if (groqQuotaPercent > 50) { color = 'var(--vf-accent-success)'; title = `Kuota ${groqQuotaPercent.toFixed(0)}%`; }
+                  else if (groqQuotaPercent > 10) { color = 'var(--vf-accent-warning)'; title = `Kuota rendah: ${groqQuotaPercent.toFixed(0)}%`; }
+                  else { color = 'var(--vf-accent-danger)'; title = `Kuota hampir habis: ${groqQuotaPercent.toFixed(0)}%`; }
+                }
                 const label = p === 'gemini' ? 'Gemini' : p === 'groq' ? 'Groq' : 'OpenRouter';
                 return (
-                  <div key={p} className="flex items-center gap-1.5">
+                  <div key={p} className="flex items-center gap-1.5" title={title}>
                     <div className="w-2 h-2 rounded-full" style={{ background: color }} />
                     <span className="text-xs" style={{ color: 'var(--vf-text-muted)' }}>{label}</span>
                   </div>

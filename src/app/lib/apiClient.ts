@@ -3,14 +3,14 @@ import { parseAiResponse } from './jsonParser';
 
 const PROVIDER_CONFIGS = {
   gemini: {
-    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',
     maxTokens: 32768,
     temperature: 0.3,
   },
   groq: {
     endpoint: 'https://api.groq.com/openai/v1/chat/completions',
     model: 'llama-3.3-70b-versatile',
-    maxTokens: 32768,
+    maxTokens: 8192,
     temperature: 0.3,
   },
   openrouter: {
@@ -60,7 +60,7 @@ async function callGemini(apiKey: string, prompt: string, signal?: AbortSignal):
   return text;
 }
 
-async function callGroq(apiKey: string, prompt: string, signal?: AbortSignal): Promise<string> {
+async function callGroq(apiKey: string, prompt: string, signal?: AbortSignal, onQuotaHeaders?: (percent: number | null) => void): Promise<string> {
   const cfg = PROVIDER_CONFIGS.groq;
   const resp = await fetch(cfg.endpoint, {
     method: 'POST',
@@ -73,6 +73,14 @@ async function callGroq(apiKey: string, prompt: string, signal?: AbortSignal): P
       max_tokens: cfg.maxTokens,
     }),
   });
+
+  const remaining = resp.headers.get('x-ratelimit-remaining-tokens');
+  const limit = resp.headers.get('x-ratelimit-limit-tokens');
+  if (remaining !== null && limit !== null && Number(limit) > 0) {
+    onQuotaHeaders?.((Number(remaining) / Number(limit)) * 100);
+  } else {
+    onQuotaHeaders?.(null);
+  }
 
   if (resp.status === 401 || resp.status === 403) throw new ApiCallError('API_KEY_INVALID', 'API key Groq tidak valid.');
   if (resp.status === 429) throw new ApiCallError('QUOTA_EXCEEDED', 'Quota Groq habis.');
@@ -129,13 +137,14 @@ export type ProgressCallback = (msg: string) => void;
 export async function generateWithFallback(
   prompt: string,
   keys: ApiKeys,
-  onProgress: ProgressCallback
+  onProgress: ProgressCallback,
+  onGroqQuota?: (percent: number | null) => void
 ): Promise<VideoJSON> {
   const TIMEOUT = 90_000;
 
   if (keys.gemini) {
     try {
-      onProgress('Memanggil Gemini 2.5 Flash API...');
+      onProgress('Memanggil Gemini Flash API...');
       const text = await callWithTimeout((signal) => callGemini(keys.gemini, prompt, signal), TIMEOUT);
       onProgress('Mengurai JSON dari respons Gemini...');
       const json = parseAiResponse(text);
@@ -143,9 +152,7 @@ export async function generateWithFallback(
       throw new ApiCallError('JSON_PARSE_ERROR', 'JSON tidak valid dari Gemini.');
     } catch (e: unknown) {
       const err = e as ApiCallError;
-      if (err.code === 'API_KEY_INVALID' || err.code === 'CONTEXT_LENGTH') throw e;
-      if (err.code === 'QUOTA_EXCEEDED' && !keys.groq) throw e;
-      onProgress('Gemini gagal, mencoba ulang...');
+      onProgress(`Gemini gagal (${err.code || 'unknown'}), mencoba ulang...`);
       // retry once
       try {
         const text = await callWithTimeout((signal) => callGemini(keys.gemini, prompt, signal), TIMEOUT);
@@ -160,26 +167,29 @@ export async function generateWithFallback(
   if (keys.groq) {
     try {
       onProgress('Beralih ke Groq Llama 3.3 70B...');
-      const text = await callWithTimeout((signal) => callGroq(keys.groq, prompt, signal), TIMEOUT);
+      const text = await callWithTimeout((signal) => callGroq(keys.groq, prompt, signal, onGroqQuota), TIMEOUT);
       onProgress('Mengurai JSON dari respons Groq...');
       const json = parseAiResponse(text);
       if (json) { onProgress('Menyiapkan Scene Cards...'); return json; }
       throw new ApiCallError('JSON_PARSE_ERROR', 'JSON tidak valid dari Groq.');
     } catch (e: unknown) {
       const err = e as ApiCallError;
-      if (err.code === 'API_KEY_INVALID' || err.code === 'CONTEXT_LENGTH') throw e;
-      if (err.code === 'QUOTA_EXCEEDED' && !keys.openrouter) throw e;
-      onProgress('Groq gagal, mencoba OpenRouter...');
+      onProgress(`Groq gagal (${err.code || 'unknown'}), mencoba OpenRouter...`);
     }
   }
 
   if (keys.openrouter) {
-    onProgress('Memanggil OpenRouter API...');
-    const text = await callWithTimeout((signal) => callOpenRouter(keys.openrouter, prompt, signal), TIMEOUT);
-    onProgress('Mengurai JSON dari respons OpenRouter...');
-    const json = parseAiResponse(text);
-    if (json) { onProgress('Menyiapkan Scene Cards...'); return json; }
-    throw new ApiCallError('JSON_PARSE_ERROR', 'JSON tidak valid dari OpenRouter.');
+    try {
+      onProgress('Memanggil OpenRouter API...');
+      const text = await callWithTimeout((signal) => callOpenRouter(keys.openrouter, prompt, signal), TIMEOUT);
+      onProgress('Mengurai JSON dari respons OpenRouter...');
+      const json = parseAiResponse(text);
+      if (json) { onProgress('Menyiapkan Scene Cards...'); return json; }
+      throw new ApiCallError('JSON_PARSE_ERROR', 'JSON tidak valid dari OpenRouter.');
+    } catch (e: unknown) {
+      const err = e as ApiCallError;
+      throw new ApiCallError(err.code || 'UNKNOWN', `Semua provider gagal. OpenRouter (terakhir dicoba): ${err.message}`);
+    }
   }
 
   throw new ApiCallError('API_KEY_INVALID', 'Tidak ada API key yang dikonfigurasi. Silakan konfigurasi API key di Settings.');

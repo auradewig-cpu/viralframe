@@ -35,6 +35,8 @@ interface AppState {
   resetProviderStatus: () => void;
   lastUsedProvider: ProviderKey | null;
   setLastUsedProvider: (provider: ProviderKey | null) => void;
+  groqQuotaPercent: number | null;
+  setGroqQuotaPercent: (percent: number | null) => void;
 
   // Settings
   settings: AppSettings;
@@ -60,7 +62,7 @@ export const useAppStore = create<AppState>()(
       currentStep: 0,
       setFormData: (data) => set((s) => ({ formData: { ...s.formData, ...data } })),
       setCurrentStep: (step) => set({ currentStep: step }),
-      resetForm: () => set({ formData: { ...DEFAULT_FORM }, currentStep: 0, outputJSON: null, masterPrompt: '', generateError: '', generateWarnings: '', generateProgressPercent: 0, providerStatus: { gemini: 'idle', groq: 'idle', openrouter: 'idle' }, lastUsedProvider: null }),
+      resetForm: () => set({ formData: { ...DEFAULT_FORM }, currentStep: 0, outputJSON: null, masterPrompt: '', generateError: '', generateWarnings: '', generateProgressPercent: 0, providerStatus: { gemini: 'idle', groq: 'idle', openrouter: 'idle' }, lastUsedProvider: null, groqQuotaPercent: null }),
       loadFormData: (data) => set({ formData: data, currentStep: 0, outputJSON: null, masterPrompt: '' }),
 
       outputJSON: null,
@@ -82,6 +84,8 @@ export const useAppStore = create<AppState>()(
       resetProviderStatus: () => set({ providerStatus: { gemini: 'idle', groq: 'idle', openrouter: 'idle' } }),
       lastUsedProvider: null,
       setLastUsedProvider: (provider) => set({ lastUsedProvider: provider }),
+      groqQuotaPercent: null,
+      setGroqQuotaPercent: (percent) => set({ groqQuotaPercent: percent }),
 
       settings: { ...DEFAULT_SETTINGS },
       setSettings: (s) => set((prev) => ({ settings: { ...prev.settings, ...s } })),
