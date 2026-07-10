@@ -261,14 +261,14 @@ OUTPUT JSON SCHEMA:
   "global_style": {
     "visual_style": "string — HARUS mencerminkan gaya: ${form.visualStyle === 'auto' ? 'sesuai pilihan AI' : (VISUAL_STYLES.find(v => v.value === form.visualStyle)?.label || form.visualStyle)}",
     "cinematography_detail": "string teknis",
-    "color_palette_dominant": ["#hex", "#hex", "#hex"],
-    "color_palette_accent": ["#hex"],
+    "color_palette_dominant": ["#hex — WAJIB salah satu persis: ${form.brandColor || 'pilihan AI'}", "#hex", "#hex"],
+    "color_palette_accent": ["#hex${form.avoidColor ? ` — JANGAN gunakan warna ini atau serupa: ${form.avoidColor}` : ''}"],
     "lighting_style": "string",
     "camera_style_global": "string",
     "music_direction": "string dengan BPM dan mood — HARUS mencerminkan gaya: ${form.backsound === 'auto' ? 'sesuai pilihan AI' : (BACKSOUNDS.find(b => b.value === form.backsound)?.label || form.backsound)}",
     "sfx_palette": "string",
     "overall_emotional_arc": "Hook: X → Body: Y → CTA: Z — HARUS mencerminkan tone: ${form.narrativeTone === 'auto' ? 'sesuai pilihan AI' : (NARRATIVE_TONES.find(t => t.value === form.narrativeTone)?.label || form.narrativeTone)}",
-    "subtitle_style": "string atau none",
+    "subtitle_style": "string — HARUS: ${form.subtitleStyle && form.subtitleStyle !== 'None' ? form.subtitleStyle : 'AI bebas tentukan atau none'}",
     "font_overlay_style": "string"
   },
   "character_sheet": {
