@@ -1,6 +1,6 @@
 import { FormData } from '../types';
 import { getLipsyncSpec } from './lipsync';
-import { NICHE_DATA, AI_TOOL_FORMAT, PLATFORM_BEHAVIOR, AI_TOOLS } from './maps';
+import { NICHE_DATA, AI_TOOL_FORMAT, PLATFORM_BEHAVIOR, AI_TOOLS, EXPRESSIONS, VISUAL_STYLES, BACKSOUNDS, NARRATIVE_TONES } from './maps';
 
 function getSceneDurations(form: FormData): number[] {
   if (form.durationMode === 'uniform') {
@@ -168,14 +168,14 @@ ${sceneDurationTable}
 
 KARAKTER:
 ${characterBlock}
-${form.useCharacter ? (form.expression === 'auto' ? 'Ekspresi karakter: AI bebas menentukan ekspresi paling sesuai tiap scene.' : `Ekspresi karakter WAJIB: "${form.expression}" sebagai ekspresi DASAR karakter di semua scene (boleh sedikit bervariasi sesuai konteks emosi scene, tapi harus tetap terasa sebagai ekspresi dasar yang sama).`) : ''}
+${form.useCharacter ? (form.expression === 'auto' ? 'Ekspresi karakter: AI bebas menentukan ekspresi paling sesuai tiap scene.' : `Ekspresi karakter WAJIB: "${EXPRESSIONS.find(e => e.value === form.expression)?.label || form.expression}" sebagai ekspresi DASAR karakter di semua scene (boleh sedikit bervariasi sesuai konteks emosi scene, tapi harus tetap terasa sebagai ekspresi dasar yang sama). PENTING: Tulis deskripsi ekspresi ini dalam kalimat natural di field character_expression (JSON output), JANGAN tulis ulang slug/kode teknis apapun.`) : ''}
 ${form.useCharacter ? `\nCHARACTER ANCHOR STRING (copy ini verbatim ke awal setiap ai_ready_prompt):\n'${characterAnchor}'\n\nDefinisi: Setiap ai_ready_prompt di SEMUA scene HARUS dimulai dengan string ini persis, baru kemudian deskripsi aksi scene. Tanpa character anchor yang identik di setiap prompt, AI video tool akan menghasilkan karakter berbeda di setiap scene.` : ''}
 ${hasRefPhotos ? `\nREFERENCE IMAGE INSTRUCTION: User telah mengupload ${form.referencePhotos.length} foto referensi properti/produk. Setiap ai_ready_prompt WAJIB menyertakan instruksi untuk mem-atch visual dari foto referensi tersebut. Tulis di section [ENVIRONMENT]: "This scene MUST visually reference the uploaded property/product photo. Match the exact building facade, color scheme, architectural details, and surroundings from the reference image. Do not invent generic environments."` : ''}
 ${hasLocation ? `\nLOKASI YANG HARUS DIGUNAKAN: ${form.locationDescription}. Semua scene HARUS menampilkan lokasi/properti yang SAMA dari sudut pandang berbeda.` : ''}
 
-GAYA VISUAL: ${form.visualStyle === 'auto' ? 'AI bebas menentukan gaya visual paling sesuai niche & platform.' : `WAJIB gunakan gaya visual "${form.visualStyle}" di SETIAP scene tanpa kecuali — cerminkan gaya ini secara eksplisit di visual_description dan camera_direction tiap scene.`}
-BACKSOUND: ${form.backsound === 'auto' ? 'AI bebas menentukan backsound/musik paling sesuai mood video.' : `WAJIB gunakan backsound/musik bergaya "${form.backsound}" — cerminkan di music_direction dan sfx_palette.`}
-TONE: ${form.narrativeTone === 'auto' ? 'AI bebas menentukan tone narasi paling sesuai niche & audience.' : `WAJIB gunakan tone narasi "${form.narrativeTone}" secara konsisten di SEMUA script_narration dan overall_emotional_arc — bukan cuma di salah satu scene.`}
+GAYA VISUAL: ${form.visualStyle === 'auto' ? 'AI bebas menentukan gaya visual paling sesuai niche & platform.' : `WAJIB gunakan gaya visual "${VISUAL_STYLES.find(v => v.value === form.visualStyle)?.label || form.visualStyle}" di SETIAP scene tanpa kecuali — cerminkan gaya ini secara eksplisit dalam kalimat natural di visual_description, camera_direction, dan field "visual_style" pada global_style. JANGAN tulis ulang slug/kode teknis apapun ke output JSON.`}
+BACKSOUND: ${form.backsound === 'auto' ? 'AI bebas menentukan backsound/musik paling sesuai mood video.' : `WAJIB gunakan backsound/musik bergaya "${BACKSOUNDS.find(b => b.value === form.backsound)?.label || form.backsound}" — cerminkan dalam kalimat natural di field "music_direction" dan "sfx_palette" pada global_style. JANGAN tulis ulang slug/kode teknis apapun ke output JSON.`}
+TONE: ${form.narrativeTone === 'auto' ? 'AI bebas menentukan tone narasi paling sesuai niche & audience.' : `WAJIB gunakan tone narasi "${NARRATIVE_TONES.find(t => t.value === form.narrativeTone)?.label || form.narrativeTone}" secara konsisten di SEMUA script_narration dan field "overall_emotional_arc" pada global_style — bukan cuma di salah satu scene. JANGAN tulis ulang slug/kode teknis apapun ke output JSON.`}
 
 ---
 
@@ -252,15 +252,15 @@ OUTPUT JSON SCHEMA:
     "cta_keyword": ${form.ctaKeyword ? `"${form.ctaKeyword}"` : 'null'}
   },
   "global_style": {
-    "visual_style": "string",
+    "visual_style": "string — HARUS mencerminkan gaya: ${form.visualStyle === 'auto' ? 'sesuai pilihan AI' : (VISUAL_STYLES.find(v => v.value === form.visualStyle)?.label || form.visualStyle)}",
     "cinematography_detail": "string teknis",
     "color_palette_dominant": ["#hex", "#hex", "#hex"],
     "color_palette_accent": ["#hex"],
     "lighting_style": "string",
     "camera_style_global": "string",
-    "music_direction": "string dengan BPM dan mood",
+    "music_direction": "string dengan BPM dan mood — HARUS mencerminkan gaya: ${form.backsound === 'auto' ? 'sesuai pilihan AI' : (BACKSOUNDS.find(b => b.value === form.backsound)?.label || form.backsound)}",
     "sfx_palette": "string",
-    "overall_emotional_arc": "Hook: X → Body: Y → CTA: Z",
+    "overall_emotional_arc": "Hook: X → Body: Y → CTA: Z — HARUS mencerminkan tone: ${form.narrativeTone === 'auto' ? 'sesuai pilihan AI' : (NARRATIVE_TONES.find(t => t.value === form.narrativeTone)?.label || form.narrativeTone)}",
     "subtitle_style": "string atau none",
     "font_overlay_style": "string"
   },
@@ -285,7 +285,7 @@ OUTPUT JSON SCHEMA:
       "visual_description": "deskripsi visual scene dalam Bahasa Indonesia",
       "camera_direction": "shot + movement + angle",
       "character_action": "string",
-      "character_expression": "string",
+      "character_expression": "string — deskripsi natural ekspresi wajah/tubuh karakter dalam Bahasa Indonesia, JANGAN gunakan kode/slug teknis",
       "text_overlay": "string dengan timing, atau none",
       "sound_design": "string",
       "transition_to_next": "string",
