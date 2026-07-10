@@ -116,6 +116,13 @@ export function TagsInput({ label, tags, onChange, placeholder }: {
         <input
           type="text"
           onKeyDown={handleKey}
+          onBlur={(e) => {
+            const val = e.currentTarget.value.trim();
+            if (val && !tags.includes(val)) {
+              onChange([...tags, val]);
+            }
+            e.currentTarget.value = '';
+          }}
           placeholder={tags.length === 0 ? placeholder : 'Tambah...'}
           className="flex-1 min-w-20 bg-transparent outline-none text-sm"
           style={{ color: 'var(--vf-text-primary)' }}
