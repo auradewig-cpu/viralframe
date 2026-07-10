@@ -1,6 +1,7 @@
 import { FormData } from '../types';
 import { getLipsyncSpec } from './lipsync';
 import { NICHE_DATA, AI_TOOL_FORMAT, PLATFORM_BEHAVIOR, AI_TOOLS, EXPRESSIONS, VISUAL_STYLES, BACKSOUNDS, NARRATIVE_TONES } from './maps';
+import { CONTENT_STYLES } from './contentStyles';
 
 function getSceneDurations(form: FormData): number[] {
   if (form.durationMode === 'uniform') {
@@ -72,6 +73,9 @@ export function compileMasterPrompt(form: FormData, narrationWPM: number = 165):
   const charLimit = toolData?.charLimit || 400;
   const toolFormat = AI_TOOL_FORMAT[form.aiTool] || '';
   const spokenLanguageLabel = BAHASA_LABEL[form.language] || 'Bahasa Indonesia';
+  const styleConfig = CONTENT_STYLES.find(cs => cs.value === form.contentStyle) || CONTENT_STYLES.find(cs => cs.value === 'direct_response')!;
+  const isWiredStyle = ['direct_response', 'vlog_daily', 'storytime'].includes(styleConfig.value);
+  const effectiveStyle = isWiredStyle ? styleConfig : CONTENT_STYLES.find(cs => cs.value === 'direct_response')!;
 
   const platformList = form.platforms.join(', ');
   const platformPrimer = form.platforms[0] || '-';
@@ -158,7 +162,11 @@ ${advancedBlocks}
 [BLOK 3: SPESIFIKASI VIDEO]
 
 AI TOOL: ${form.aiTool} | RASIO: ${form.ratio} | TOTAL SCENE: ${form.sceneCount}
-STRUKTUR: Scene 1 = Hook · Scene 2–${form.sceneCount - 1} = Body · Scene ${form.sceneCount} = CTA
+GAYA KONTEN: ${effectiveStyle.label} — ${effectiveStyle.description}
+STRUKTUR: ${effectiveStyle.structureDescription}
+GAYA BAHASA NARASI UNTUK GAYA KONTEN INI: ${effectiveStyle.narrativeVoiceGuidance}
+INTENSITAS CTA: ${effectiveStyle.ctaIntensity === 'hard' ? 'CTA WAJIB keras dan eksplisit di scene terakhir (ajakan bertindak jelas).' : effectiveStyle.ctaIntensity === 'soft' ? 'CTA HARUS lembut/tersirat (misal ajakan follow untuk konten berikutnya), BUKAN hard-selling.' : 'JANGAN ada CTA komersial sama sekali — akhiri secara natural sesuai gaya konten.'}
+PERAN TIAP SCENE: ${durations.map((_, i) => `Scene ${i + 1} = ${effectiveStyle.getSceneRole(i, form.sceneCount)}`).join(' · ')}
 HOOK TYPE: ${form.hookType === 'auto' ? 'AI bebas memilih teknik hook paling kuat sesuai niche & target audience.' : `WAJIB gunakan teknik hook "${form.hookType}" di Scene 1 — bangun SELURUH narasi & visual scene pembuka di sekitar teknik ini secara eksplisit, bukan cuma disinggung sekilas.`}
 CTA TYPE: ${form.ctaType === 'auto' ? 'AI bebas memilih jenis CTA paling kuat sesuai niche & platform.' : `WAJIB gunakan jenis CTA "${form.ctaType}" di scene terakhir — bangun SELURUH narasi & visual scene penutup di sekitar CTA ini secara eksplisit.`}
 ${form.ctaType === 'comment_keyword' && form.ctaKeyword ? `CTA Keyword WAJIB dipakai persis: "${form.ctaKeyword}" — sertakan kata ini secara eksplisit di script_narration atau text_overlay scene CTA.` : ''}
@@ -171,7 +179,8 @@ Tulis narasi seolah diucapkan oleh presenter/talent yang SUPEL, PERCAYA DIRI, de
 - Gunakan kalimat PENDEK dan LANGSUNG (subjek-predikat-objek sederhana), hindari anak kalimat bertumpuk.
 - Gunakan kata-kata SEHARI-HARI yang familiar diucapkan cepat (contoh: "banget", "gampang", "gak ribet"), HINDARI kata formal/panjang yang sulit diucapkan cepat (contoh hindari: "signifikan", "komprehensif", "infrastruktur").
 - HINDARI gugus konsonan sulit berturut-turut dalam satu frasa pendek.
-- Setiap script_narration WAJIB pas dengan max_words yang tertera di tabel LIPSYNC PER SCENE di atas — JANGAN melebihi, meski hanya 1-2 kata. Jika draft awal melebihi batas, PANGKAS kalimat sampai pas, jangan percepat asumsi ucapan.
+- TARGET JUMLAH KATA: setiap script_narration WAJIB mendekati max_words yang tertera di tabel LIPSYNC PER SCENE di atas — target MINIMAL 85% dari max_words (bukan asal jauh di bawahnya). Kalimat yang terlalu pendek dibanding durasi scene membuat pacing terasa aneh (talent harus memperlambat ucapan tidak natural, atau ada jeda kosong). JANGAN melebihi max_words, tapi JUGA JANGAN terlalu jauh di bawahnya — isi ruang bicara yang tersedia dengan konten yang relevan (detail produk tambahan, penekanan USP, transisi kalimat) alih-alih memotong terlalu pendek.
+- Sebelum submit, HITUNG jumlah kata script_narration dan pastikan berada di rentang 85%–100% dari max_words scene tersebut.
 
 KARAKTER:
 ${characterBlock}
@@ -197,6 +206,8 @@ VIRAL ELEMENTS (minimal 4 dari 8):
 □ Cliffhanger — akhir body scene menarik ke scene berikutnya
 □ Sensory language — deskripsi yang bisa "dirasakan"
 □ Unexpected twist — 1 momen mengejutkan
+
+PENEKANAN UNTUK GAYA "${effectiveStyle.label}": Prioritaskan elemen viral berikut dari daftar di atas: ${effectiveStyle.viralElementEmphasis.join(', ')}.
 
 KONSISTENSI WAJIB:
 - Color temperature identik semua scene
@@ -280,7 +291,7 @@ OUTPUT JSON SCHEMA:
   "scenes": [
     {
       "scene_number": 1,
-      "scene_type": "hook",
+      "scene_type": "${effectiveStyle.getSceneRole(0, form.sceneCount).toLowerCase().replace(/\s+/g, '_')}",
       "duration_seconds": ${durations[0]},
       "max_words": ${getLipsyncSpec(durations[0], narrationWPM).maxWords},
       "speech_pace": "${getLipsyncSpec(durations[0], narrationWPM).pace}",
@@ -299,7 +310,7 @@ OUTPUT JSON SCHEMA:
       "viral_element_in_scene": "string",
       "cliffhanger_to_next": "string"
     }
-    // ... repeat for all ${form.sceneCount} scenes. Scene terakhir scene_type: "cta"
+    // ... repeat for all ${form.sceneCount} scenes, scene_type sesuai PERAN TIAP SCENE di atas (contoh scene terakhir: "${effectiveStyle.getSceneRole(form.sceneCount - 1, form.sceneCount).toLowerCase().replace(/\s+/g, '_')}")
   ],
   "production_notes": {
     "caption_variations": [
