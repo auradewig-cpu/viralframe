@@ -83,7 +83,7 @@ export function compileMasterPrompt(form: FormData, narrationWPM: number = 165):
 
   const sceneDurationTable = durations.map((d, i) => {
     const spec = getLipsyncSpec(d, narrationWPM);
-    const type = i === 0 ? 'Hook' : i === form.sceneCount - 1 ? 'CTA' : 'Body';
+    const type = effectiveStyle.getSceneRole(i, form.sceneCount);
     return `Scene ${i + 1} [${type}]: ${d}s → maks ${spec.maxWords} kata (${spec.pace}) — ${spec.instruction}`;
   }).join('\n');
 
@@ -131,10 +131,10 @@ PERAN 2 — CREATIVE DIRECTOR & VIDEO DIRECTOR:
 Merancang setiap scene dengan presisi sinematik: komposisi shot,
 pergerakan kamera, pencahayaan, transisi, dan kontinuitas visual.
 
-PERAN 3 — DIRECT RESPONSE COPYWRITER:
-Menulis narasi berbasis AIDA + psikologi persuasi: social proof,
-scarcity, authority, reciprocity, commitment. Setiap kata dipilih
-dengan tujuan.
+PERAN 3 — COPYWRITER & NARRATIVE WRITER (adaptif sesuai Gaya Konten):
+${effectiveStyle.ctaIntensity === 'hard'
+  ? 'Menulis narasi berbasis AIDA + psikologi persuasi: social proof, scarcity, authority, reciprocity, commitment. Setiap kata dipilih dengan tujuan menjual.'
+  : `Menulis narasi sesuai gaya "${effectiveStyle.label}": ${effectiveStyle.narrativeVoiceGuidance} JANGAN gunakan teknik direct-response/hard-selling (AIDA, scarcity, urgency berlebihan) kecuali gaya konten ini secara eksplisit memintanya.`}
 
 PERAN 4 — AI VIDEO PROMPT ENGINEER untuk ${form.aiTool}:
   Menulis ai_ready_prompt sebagai deskripsi scene yang natural, netral, dan policy-safe untuk ${form.aiTool}.
@@ -215,7 +215,7 @@ KONSISTENSI WAJIB:
 - Semua scene menampilkan properti/lokasi yang SAMA dari sudut pandang berbeda — jangan ganti lokasi secara acak${hasLocation ? `. Gunakan variasi shot dari properti yang sama: Scene Hook: exterior shot properti. Scene Body: interior room shots dari properti yang sama. Scene CTA: karakter di depan/dalam properti dengan signage/detail yang sama. Referensi visual environment: ${form.locationDescription}` : ''}${hasRefPhotos ? ' — Environment harus match foto yang diupload user.' : ''}
 - Satu voice narasi, USP ditegaskan 2x
 - Musik satu tema, SFX satu palet mood
-- Eskalasi: Hook (pancing) → Body (bangun) → CTA (ledakkan)
+- Eskalasi mengikuti STRUKTUR gaya konten yang dipilih (lihat GAYA KONTEN & STRUKTUR di Blok 3) — JANGAN paksakan pola Hook→Body→CTA kalau gaya konten yang dipilih tidak memakai pola itu.
 - Transisi: whip pan / zoom punch / hard cut + audio cue
 
 POLICY COMPLIANCE — WAJIB untuk Google Flow & Veo3:
@@ -278,7 +278,7 @@ OUTPUT JSON SCHEMA:
     "camera_style_global": "string",
     "music_direction": "string dengan BPM dan mood — HARUS mencerminkan gaya: ${form.backsound === 'auto' ? 'sesuai pilihan AI' : (BACKSOUNDS.find(b => b.value === form.backsound)?.label || form.backsound)}",
     "sfx_palette": "string",
-    "overall_emotional_arc": "Hook: X → Body: Y → CTA: Z — HARUS mencerminkan tone: ${form.narrativeTone === 'auto' ? 'sesuai pilihan AI' : (NARRATIVE_TONES.find(t => t.value === form.narrativeTone)?.label || form.narrativeTone)}",
+    "overall_emotional_arc": "${effectiveStyle.getSceneRole(0, form.sceneCount)}: X → ... → ${effectiveStyle.getSceneRole(form.sceneCount - 1, form.sceneCount)}: Z (ikuti PERAN TIAP SCENE di Blok 3) — HARUS mencerminkan tone: ${form.narrativeTone === 'auto' ? 'sesuai pilihan AI' : (NARRATIVE_TONES.find(t => t.value === form.narrativeTone)?.label || form.narrativeTone)}",
     "subtitle_style": "string — HARUS: ${form.subtitleStyle && form.subtitleStyle !== 'None' ? form.subtitleStyle : 'AI bebas tentukan atau none'}",
     "font_overlay_style": "string"
   },
