@@ -58,9 +58,9 @@ function ApiKeyField({
     try {
       if (provider === 'gemini') {
         const modelToTest = settings.geminiModel || 'gemini-3.5-flash';
-        const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelToTest}:generateContent?key=${savedKey}`, {
+        const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelToTest}:generateContent`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': savedKey },
           body: JSON.stringify({ contents: [{ parts: [{ text: 'ping' }] }], generationConfig: { maxOutputTokens: 5 } }),
         });
         if (resp.ok) { setTestStatus('ok'); setTestMsg('Gemini Flash — Terhubung'); }

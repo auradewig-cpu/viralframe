@@ -1,6 +1,7 @@
 import { useAppStore } from '../../store';
 import { AI_TOOLS, RATIOS, LANGUAGES } from '../../lib/maps';
 import { getLipsyncSpec } from '../../lib/lipsync';
+import { getSceneRoleLabel } from '../../lib/contentStyles';
 import { FieldLabel, FormCard, SelectField, NumberInput } from './FormFields';
 
 export function Step2Video() {
@@ -28,11 +29,7 @@ export function Step2Video() {
   const durations = getSceneDurations();
   const totalDuration = durations.reduce((a, b) => a + b, 0);
 
-  const getSceneType = (i: number) => {
-    if (i === 0) return 'Hook';
-    if (i === sceneCount - 1) return 'CTA';
-    return 'Body';
-  };
+  const getSceneType = (i: number) => getSceneRoleLabel(formData.contentStyle, i, sceneCount);
 
   const selectedTool = AI_TOOLS.find(t => t.value === formData.aiTool);
 

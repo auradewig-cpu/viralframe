@@ -1,0 +1,91 @@
+import { VideoJSON } from '../types';
+
+// Linter kepatuhan sisi klien — cermin dari blok POLICY COMPLIANCE di master prompt.
+// Memverifikasi output AI benar-benar patuh SEBELUM user paste ke Veo3/Google Flow.
+
+export interface PolicyViolation {
+  sceneNumber: number | null; // null = pelanggaran di level metadata/caption
+  field: string;
+  match: string;
+  category: string;
+  suggestion: string;
+}
+
+interface PolicyRule {
+  pattern: RegExp;
+  category: string;
+  suggestion: string;
+}
+
+const POLICY_RULES: PolicyRule[] = [
+  {
+    pattern: /\b(dijamin|jamin(?:an)? 100%|pasti (?:untung|berhasil|sembuh|naik)|100% (?:aman|berhasil|ampuh|original)|terbaik|nomor (?:1|satu)|no\.? ?1|paling (?:murah|ampuh|efektif|bagus))\b/gi,
+    category: 'Klaim absolut',
+    suggestion: 'Ubah jadi observasi netral, mis. "banyak dipilih konsumen" alih-alih "nomor 1".',
+  },
+  {
+    pattern: /\b(menyembuhkan|sembuh total|obat (?:ampuh|mujarab)|terbukti klinis|tanpa efek samping|anti (?:kanker|diabetes)|menghilangkan (?:kerutan|jerawat|lemak) dalam \d+)\b/gi,
+    category: 'Klaim medis/kesehatan',
+    suggestion: 'Ganti dengan bahasa perawatan netral, mis. "diformulasikan untuk merawat kulit".',
+  },
+  {
+    pattern: /\b(instant result|hasil instan|dalam \d+ (?:hari|minggu) (?:langsung|dijamin|pasti)|meningkatkan \w+ (?:hingga|sampai) \d+%)\b/gi,
+    category: 'Klaim performa tanpa bukti',
+    suggestion: 'Hapus janji waktu/angka spesifik, deskripsikan manfaat secara umum.',
+  },
+  {
+    pattern: /\b(saya (?:sudah )?pakai dan langsung|aku coba dan langsung|setelah pakai \w+ (?:langsung|jadi))\b/gi,
+    category: 'Testimonial fiktif',
+    suggestion: 'Hindari format kesaksian pribadi; gunakan deskripsi fitur produk.',
+  },
+  {
+    pattern: /\b(guaranteed|100% guaranteed|the best|number one|no\.? ?1|cures?|clinically proven|instant results?)\b/gi,
+    category: 'Klaim absolut (English)',
+    suggestion: 'Rewrite ke deskripsi netral — prompt English juga difilter kebijakan Google.',
+  },
+];
+
+function scanText(text: string | null | undefined): { match: string; category: string; suggestion: string }[] {
+  if (!text) return [];
+  const found: { match: string; category: string; suggestion: string }[] = [];
+  for (const rule of POLICY_RULES) {
+    rule.pattern.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = rule.pattern.exec(text)) !== null) {
+      found.push({ match: m[0], category: rule.category, suggestion: rule.suggestion });
+    }
+  }
+  return found;
+}
+
+export function checkPolicyCompliance(json: VideoJSON): PolicyViolation[] {
+  const violations: PolicyViolation[] = [];
+
+  (json.scenes || []).forEach(scene => {
+    const fields: [string, string | null | undefined][] = [
+      ['script_narration', scene.script_narration],
+      ['ai_ready_prompt', scene.ai_ready_prompt],
+      ['text_overlay', scene.text_overlay],
+    ];
+    for (const [field, text] of fields) {
+      for (const hit of scanText(text)) {
+        violations.push({ sceneNumber: scene.scene_number, field, ...hit });
+      }
+    }
+  });
+
+  (json.production_notes?.caption_variations || []).forEach((cv, i) => {
+    for (const hit of scanText(cv.caption_text)) {
+      violations.push({ sceneNumber: null, field: `caption_variations[${i + 1}]`, ...hit });
+    }
+  });
+
+  return violations;
+}
+
+export function formatPolicyViolations(violations: PolicyViolation[]): string[] {
+  return violations.map(v => {
+    const loc = v.sceneNumber !== null ? `Scene ${v.sceneNumber} (${v.field})` : v.field;
+    return `POLICY [${v.category}] ${loc}: "${v.match}" — ${v.suggestion}`;
+  });
+}

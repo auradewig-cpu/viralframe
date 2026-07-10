@@ -73,8 +73,8 @@
 | 17 | **Hashtag Variations (SUPERSEDED)** | Hanya 1 set hashtag statis dari AI | Sempat ditambahkan `generateHashtagVariations()` (client-side shuffle), namun kemudian DIHAPUS TOTAL dan digantikan oleh fitur Caption Variations (lihat item 18) yang menghasilkan hashtag langsung dari AI per caption |
 | 18 | **Caption Variations** | `caption_first_line` + `hashtag_strategy` (field terpisah) | Diganti `caption_variations[]` — AI generate N variasi, tiap variasi berisi 1 caption_text + 5 hashtags (array tag individual, BUKAN 5 kombinasi), dropdown di Step 3 (1-5), validasi di jsonParser, rendering per variasi di DirectPanel |
 | 19 | **Badge Ref Image** | "✅ Mendukung Reference Image" | Dipendekkan jadi "✅ Ref Image" |
-| 20 | **Default Template Values** | `captionVariationCount` tidak disimpan di template (potensi inconsistent state) | Ditambahkan `captionVariationCount: 1` ke template metadata. Juga strip `referencePhotos` (base64) di `SaveTemplateDialog.tsx` — cegah QuotaExceededError yang sama seperti History |
-| 21 | **Default Form Values** | `aiTool` default kosong (''), `uniformDuration` default 8 detik | Diubah: `aiTool` default `'google_flow'`, `uniformDuration` default `10` detik |
+| 20 | **Default Form Values** | `aiTool` default kosong (''), `uniformDuration` default 8 detik | Diubah: `aiTool` default `'google_flow'`, `uniformDuration` default `10` detik |
+| 21 | **Template referencePhotos** | `SaveTemplateDialog.tsx` menyimpan formData mentah termasuk referencePhotos (base64) — risiko QuotaExceededError sama seperti History | Ditambahkan `referencePhotos: []` sebelum disimpan ke customTemplates (sama seperti addHistory) |
 
 ---
 

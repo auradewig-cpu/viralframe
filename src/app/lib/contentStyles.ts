@@ -92,6 +92,19 @@ export const CONTENT_STYLES: ContentStyleConfig[] = [
   },
 ];
 
+// Sanitasi terpusat: overwrite scene_type dari AI dengan slug aman turunan gaya konten.
+// Dipakai Direct mode DAN Manual mode agar nama folder ZIP selalu aman & konsisten.
+export function applySceneTypeSlugs(scenes: { scene_type: string }[], contentStyleValue: string): void {
+  scenes.forEach((scene, i) => {
+    scene.scene_type = getSceneTypeSlug(contentStyleValue, i, scenes.length);
+  });
+}
+
+export function getSceneRoleLabel(contentStyleValue: string, index: number, total: number): string {
+  const style = CONTENT_STYLES.find(cs => cs.value === contentStyleValue) || CONTENT_STYLES.find(cs => cs.value === 'direct_response')!;
+  return style.getSceneRole(index, total);
+}
+
 export function getSceneTypeSlug(contentStyleValue: string, index: number, total: number): string {
   const style = CONTENT_STYLES.find(cs => cs.value === contentStyleValue) || CONTENT_STYLES.find(cs => cs.value === 'direct_response')!;
   const role = style.getSceneRole(index, total);

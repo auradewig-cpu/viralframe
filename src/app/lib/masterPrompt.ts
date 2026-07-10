@@ -73,9 +73,7 @@ export function compileMasterPrompt(form: FormData, narrationWPM: number = 165):
   const charLimit = toolData?.charLimit || 400;
   const toolFormat = AI_TOOL_FORMAT[form.aiTool] || '';
   const spokenLanguageLabel = BAHASA_LABEL[form.language] || 'Bahasa Indonesia';
-  const styleConfig = CONTENT_STYLES.find(cs => cs.value === form.contentStyle) || CONTENT_STYLES.find(cs => cs.value === 'direct_response')!;
-  const isWiredStyle = ['direct_response', 'vlog_daily', 'storytime', 'tutorial_howto', 'listicle_countdown', 'before_after', 'pattern_break_twist', 'series_episodic'].includes(styleConfig.value);
-  const effectiveStyle = isWiredStyle ? styleConfig : CONTENT_STYLES.find(cs => cs.value === 'direct_response')!;
+  const effectiveStyle = CONTENT_STYLES.find(cs => cs.value === form.contentStyle) || CONTENT_STYLES.find(cs => cs.value === 'direct_response')!;
 
   const platformList = form.platforms.join(', ');
   const platformPrimer = form.platforms[0] || '-';
@@ -180,7 +178,7 @@ Tulis narasi seolah diucapkan oleh presenter/talent yang SUPEL, PERCAYA DIRI, de
 - Gunakan kalimat PENDEK dan LANGSUNG (subjek-predikat-objek sederhana), hindari anak kalimat bertumpuk.
 - Gunakan kata-kata SEHARI-HARI yang familiar diucapkan cepat (contoh: "banget", "gampang", "gak ribet"), HINDARI kata formal/panjang yang sulit diucapkan cepat (contoh hindari: "signifikan", "komprehensif", "infrastruktur").
 - HINDARI gugus konsonan sulit berturut-turut dalam satu frasa pendek.
-- TARGET JUMLAH KATA: setiap script_narration WAJIB mendekati max_words yang tertera di tabel LIPSYNC PER SCENE di atas — target MINIMAL 85% dari max_words (bukan asal jauh di bawahnya). Kalimat yang terlalu pendek dibanding durasi scene membuat pacing terasa aneh (talent harus memperlambat ucapan tidak natural, atau ada jeda kosong). JANGAN melebihi max_words, tapi JUGA JANGAN terlalu jauh di bawahnya — isi ruang bicara yang tersedia dengan konten yang relevan (detail produk tambahan, penekanan USP, transisi kalimat) alih-alih memotong terlalu pendek.
+- TARGET JUMLAH KATA: setiap script_narration WAJIB mendekati max_words yang tertera di tabel LIPSYNC PER SCENE di atas — target MINIMAL 85% dari max_words (bukan asal jauh di bawahnya).${form.hookType === 'visual_shock' ? ' PENGECUALIAN: Scene 1 memakai hook Visual Shock (tanpa narasi) — script_narration Scene 1 boleh kosong atau sangat pendek (0–5 kata), dampak hook sepenuhnya dari visual + sound design.' : ''} Kalimat yang terlalu pendek dibanding durasi scene membuat pacing terasa aneh (talent harus memperlambat ucapan tidak natural, atau ada jeda kosong). JANGAN melebihi max_words, tapi JUGA JANGAN terlalu jauh di bawahnya — isi ruang bicara yang tersedia dengan konten yang relevan (detail produk tambahan, penekanan USP, transisi kalimat) alih-alih memotong terlalu pendek.
 - Sebelum submit, HITUNG jumlah kata script_narration dan pastikan berada di rentang 85%–100% dari max_words scene tersebut.
 
 KARAKTER:

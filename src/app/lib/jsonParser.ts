@@ -21,13 +21,19 @@ export interface ValidationResult {
   warnings: string[];
 }
 
-export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number, expectedCaptionCount: number = 1): ValidationResult {
+export function countWords(text: string | null | undefined): number {
+  if (!text) return 0;
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number, expectedCaptionCount: number = 1, expectedAiTool?: string): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  const aiTool = json.video_metadata?.ai_video_tool || '';
+  // Prioritaskan aiTool dari form (pasti slug valid) — AI kadang meng-echo label alih-alih slug.
+  const aiTool = expectedAiTool || json.video_metadata?.ai_video_tool || '';
   const toolInfo = AI_TOOLS.find(t => t.value === aiTool);
-  const charLimit = toolInfo?.charLimit || 500;
+  const charLimit = toolInfo?.charLimit || 400;
 
   if (!json.video_metadata) errors.push('Field "video_metadata" tidak ditemukan.');
   if (!json.global_style) errors.push('Field "global_style" tidak ditemukan.');
@@ -38,15 +44,28 @@ export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number, e
     if (json.scenes.length !== expectedSceneCount) {
       errors.push(`Jumlah scene tidak sesuai. Diharapkan ${expectedSceneCount}, dapat ${json.scenes.length}.`);
     }
+    const anchor = json.character_sheet?.used ? (json.character_sheet.description || '').trim() : '';
     json.scenes.forEach((scene, i) => {
       if (!scene.ai_ready_prompt) errors.push(`Scene ${i + 1}: field "ai_ready_prompt" kosong.`);
-      else if (scene.ai_ready_prompt.length > charLimit) {
-        warnings.push(`Scene ${i + 1}: panjang prompt (${scene.ai_ready_prompt.length} chars) melebihi batas tool ${charLimit} chars.`);
+      else {
+        if (scene.ai_ready_prompt.length > charLimit) {
+          warnings.push(`Scene ${i + 1}: panjang prompt (${scene.ai_ready_prompt.length} chars) melebihi batas tool ${charLimit} chars.`);
+        }
+        if (anchor && !scene.ai_ready_prompt.startsWith(anchor)) {
+          warnings.push(`Scene ${i + 1}: ai_ready_prompt tidak diawali CHARACTER ANCHOR verbatim — konsistensi karakter antar scene berisiko rusak.`);
+        }
       }
-      if (scene.script_word_count > scene.max_words) {
-        warnings.push(`Scene ${i + 1}: jumlah kata (${scene.script_word_count}) melebihi batas (${scene.max_words}).`);
+      if (!scene.script_narration) {
+        warnings.push(`Scene ${i + 1}: "script_narration" kosong.`);
+      } else if (scene.max_words > 0) {
+        // Hitung kata AKTUAL, jangan percaya script_word_count yang dilaporkan AI sendiri.
+        const actual = countWords(scene.script_narration);
+        if (actual > scene.max_words) {
+          warnings.push(`Scene ${i + 1}: narasi aktual ${actual} kata, melebihi batas lipsync ${scene.max_words} kata — talent tidak akan sempat mengucapkannya.`);
+        } else if (actual < Math.ceil(scene.max_words * 0.6)) {
+          warnings.push(`Scene ${i + 1}: narasi aktual ${actual} kata, jauh di bawah target 85% dari ${scene.max_words} kata — pacing akan terasa kosong.`);
+        }
       }
-      if (!scene.script_narration) warnings.push(`Scene ${i + 1}: "script_narration" kosong.`);
     });
   }
   if (!json.production_notes) {
@@ -69,4 +88,26 @@ export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number, e
   }
 
   return { valid: errors.length === 0, errors, warnings };
+}
+
+// Repair loop: satu retry tertarget jauh lebih murah daripada regenerate penuh.
+// Kirim JSON bermasalah + daftar pelanggaran, minta AI memperbaiki HANYA field yang bermasalah.
+export function buildRepairPrompt(json: VideoJSON, problems: string[], expectedSceneCount: number, expectedCaptionCount: number, aiToolValue: string): string {
+  const toolInfo = AI_TOOLS.find(t => t.value === aiToolValue);
+  const charLimit = toolInfo?.charLimit || 400;
+  return `Kamu sebelumnya menghasilkan JSON video berikut, tetapi validator menemukan masalah.
+
+DAFTAR MASALAH YANG HARUS DIPERBAIKI:
+${problems.map((p, i) => `${i + 1}. ${p}`).join('\n')}
+
+ATURAN PERBAIKAN:
+- Perbaiki HANYA field yang bermasalah di daftar atas. Field lain WAJIB disalin apa adanya tanpa perubahan.
+- Total scene HARUS PERSIS ${expectedSceneCount}. Total caption_variations HARUS PERSIS ${expectedCaptionCount}.
+- Setiap ai_ready_prompt maksimal ${charLimit} karakter dan (jika ada karakter) WAJIB diawali character_sheet.description verbatim.
+- Setiap script_narration: jumlah kata aktual antara 85%–100% dari max_words scene tersebut.
+- Semua klaim absolut/medis/testimonial di-rewrite menjadi observasi netral yang policy-safe.
+- Output kamu HANYA JSON lengkap yang sudah diperbaiki, dengan struktur identik. Mulai dengan { dan akhiri dengan }. Tanpa penjelasan, tanpa markdown.
+
+JSON YANG HARUS DIPERBAIKI:
+${JSON.stringify(json, null, 2)}`;
 }

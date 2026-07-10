@@ -7,6 +7,7 @@ interface SceneCardProps {
   scene: SceneData;
   aiTool: string;
   isFirst: boolean;
+  isLast?: boolean;
   characterAnchor?: string;
   referencePhotos?: string[];
 }
@@ -82,7 +83,7 @@ function RefGuide({ aiTool, sceneNumber, isFirst }: { aiTool: string; sceneNumbe
   );
 }
 
-export function SceneCard({ scene, aiTool, isFirst, characterAnchor, referencePhotos }: SceneCardProps) {
+export function SceneCard({ scene, aiTool, isFirst, isLast = false, characterAnchor, referencePhotos }: SceneCardProps) {
   const [refOpen, setRefOpen] = useState(false);
   const [briefOpen, setBriefOpen] = useState(false);
 
@@ -91,14 +92,16 @@ export function SceneCard({ scene, aiTool, isFirst, characterAnchor, referencePh
   const promptLen = scene.ai_ready_prompt?.length || 0;
   const promptOver = promptLen > charLimit;
 
-  const sceneColor = scene.scene_type === 'hook'
+  // Warna berdasarkan posisi (bukan slug) agar 8 gaya konten dengan role berbeda tetap terbaca benar.
+  const sceneColor = isFirst
     ? 'var(--vf-accent-warning)'
-    : scene.scene_type === 'cta'
+    : isLast
       ? 'var(--vf-accent-cta)'
       : 'var(--vf-accent-secondary)';
 
-  const sceneEmoji = scene.scene_type === 'hook' ? '🎣' : scene.scene_type === 'cta' ? '📣' : '📖';
-  const sceneLabel = scene.scene_type === 'hook' ? 'HOOK' : scene.scene_type === 'cta' ? 'CTA' : 'BODY';
+  const sceneEmoji = isFirst ? '🎣' : isLast ? '📣' : '📖';
+  // Label dari slug scene_type, mis. "hook_masalah" → "HOOK MASALAH".
+  const sceneLabel = (scene.scene_type || 'scene').replace(/_/g, ' ').toUpperCase();
 
   return (
     <div className="rounded-xl overflow-hidden" style={{ border: `1px solid var(--vf-border)`, borderLeft: `4px solid ${sceneColor}` }}>

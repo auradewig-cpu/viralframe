@@ -2,10 +2,11 @@ import { useState, useRef } from 'react';
 import { Zap, Loader2, AlertCircle, BookmarkPlus } from 'lucide-react';
 import { useAppStore } from '../store';
 import { compileMasterPrompt } from '../lib/masterPrompt';
-import { getSceneTypeSlug } from '../lib/contentStyles';
+import { applySceneTypeSlugs } from '../lib/contentStyles';
 import { generateWithFallback, ApiCallError } from '../lib/apiClient';
 import { validateFormData, getFormWarnings } from '../lib/validation';
-import { validateVideoJSON } from '../lib/jsonParser';
+import { validateVideoJSON, buildRepairPrompt } from '../lib/jsonParser';
+import { checkPolicyCompliance, formatPolicyViolations } from '../lib/policyCheck';
 import { Progress } from '../components/ui/progress';
 import { StepIndicator } from '../components/form/StepIndicator';
 import { Step1Business } from '../components/form/Step1Business';
@@ -42,7 +43,7 @@ function ModeSelector({ onSelect }: { onSelect: (mode: 'direct' | 'manual') => v
           <div className="space-y-1">
             {hasApiKey ? (
               <span className="text-xs px-2 py-1 rounded" style={{ background: 'rgba(16,185,129,0.15)', color: 'var(--vf-accent-success)' }}>
-                ✅ API Terkonfigurasi — {hasGemini ? 'Gemini 2.5 Flash' : 'Groq Llama 3.3'}
+                ✅ API Terkonfigurasi — {hasGemini ? 'Gemini Flash' : 'Groq Llama 3.3'}
               </span>
             ) : (
               <span className="text-xs px-2 py-1 rounded" style={{ background: 'rgba(245,158,11,0.15)', color: 'var(--vf-accent-warning)' }}>
@@ -191,7 +192,7 @@ export function Home() {
         groq: settings.groqApiKey,
         openrouter: settings.openrouterApiKey,
       };
-      const json = await generateWithFallback(prompt, keys, (msg) => {
+      const onProgress = (msg: string) => {
         setGenerateProgress(msg);
         const mapped = mapProgressMessage(msg);
         if (mapped.provider) {
@@ -201,25 +202,47 @@ export function Home() {
           setProviderStatus(currentProviderRef.current, 'success');
         }
         if (mapped.percent !== null) setGenerateProgressPercent(mapped.percent);
-      }, (percent) => setGroqQuotaPercent(percent), settings.geminiModel || 'gemini-3.5-flash');
+      };
+      let json = await generateWithFallback(prompt, keys, onProgress, (percent) => setGroqQuotaPercent(percent), settings.geminiModel || 'gemini-3.5-flash');
       if (json && json.scenes && Array.isArray(json.scenes)) {
-        console.log('[DEBUG SCENE_TYPE] SEBELUM overwrite:', json.scenes.map(s => s.scene_type));
-        console.log('[DEBUG SCENE_TYPE] formData.contentStyle:', formData.contentStyle);
-        json.scenes.forEach((scene, i) => {
-          scene.scene_type = getSceneTypeSlug(formData.contentStyle, i, json.scenes.length);
-        });
-        console.log('[DEBUG SCENE_TYPE] SESUDAH overwrite:', json.scenes.map(s => s.scene_type));
+        applySceneTypeSlugs(json.scenes, formData.contentStyle);
       }
+
+      let validation = validateVideoJSON(json, formData.sceneCount, formData.captionVariationCount, formData.aiTool);
+      let policyMsgs = formatPolicyViolations(checkPolicyCompliance(json));
+
+      // Repair loop: satu retry tertarget untuk memperbaiki HANYA field yang bermasalah,
+      // jauh lebih murah dan lebih andal daripada regenerate penuh.
+      if (!validation.valid || validation.warnings.length > 0 || policyMsgs.length > 0) {
+        const problems = [...validation.errors, ...validation.warnings, ...policyMsgs];
+        try {
+          setGenerateProgress('Memperbaiki output yang tidak sesuai aturan...');
+          setGenerateProgressPercent(96);
+          const repairPrompt = buildRepairPrompt(json, problems, formData.sceneCount, formData.captionVariationCount, formData.aiTool);
+          const repaired = await generateWithFallback(repairPrompt, keys, () => {}, undefined, settings.geminiModel || 'gemini-3.5-flash');
+          if (repaired && repaired.scenes && Array.isArray(repaired.scenes)) {
+            applySceneTypeSlugs(repaired.scenes, formData.contentStyle);
+            const revalidation = validateVideoJSON(repaired, formData.sceneCount, formData.captionVariationCount, formData.aiTool);
+            const rePolicyMsgs = formatPolicyViolations(checkPolicyCompliance(repaired));
+            const before = problems.length;
+            const after = revalidation.errors.length + revalidation.warnings.length + rePolicyMsgs.length;
+            // Pakai hasil repair hanya jika benar-benar lebih baik.
+            if (revalidation.valid && after < before) {
+              json = repaired;
+              validation = revalidation;
+              policyMsgs = rePolicyMsgs;
+            }
+          }
+        } catch {
+          // Repair gagal — tetap pakai hasil pertama beserta warning-nya.
+        }
+      }
+
       setGenerateProgressPercent(100);
       if (currentProviderRef.current) setLastUsedProvider(currentProviderRef.current);
       setOutputJSON(json);
-      const validation = validateVideoJSON(json, formData.sceneCount, formData.captionVariationCount);
-      if (!validation.valid || validation.warnings.length > 0) {
-        const msgs = [...validation.errors, ...validation.warnings];
-        setGenerateWarnings(msgs.join('\n'));
-      } else {
-        setGenerateWarnings('');
-      }
+      const allMsgs = [...validation.errors, ...validation.warnings, ...policyMsgs];
+      setGenerateWarnings(allMsgs.length > 0 ? allMsgs.join('\n') : '');
       addHistory({
         id: Date.now().toString(),
         timestamp: Date.now(),
@@ -238,6 +261,9 @@ export function Home() {
   };
 
   const handleJsonValidated = (json: VideoJSON) => {
+    if (json.scenes && Array.isArray(json.scenes)) {
+      applySceneTypeSlugs(json.scenes, formData.contentStyle);
+    }
     setOutputJSON(json);
     addHistory({
       id: Date.now().toString(),
@@ -381,6 +407,7 @@ export function Home() {
                 masterPrompt={masterPrompt}
                 sceneCount={formData.sceneCount}
                 aiTool={formData.aiTool}
+                contentStyle={formData.contentStyle}
                 onJsonValidated={handleJsonValidated}
                 referencePhotos={formData.referencePhotos}
                 captionVariationCount={formData.captionVariationCount}

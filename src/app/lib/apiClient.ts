@@ -9,12 +9,14 @@ const PROVIDER_CONFIGS = {
   groq: {
     endpoint: 'https://api.groq.com/openai/v1/chat/completions',
     model: 'llama-3.3-70b-versatile',
-    maxTokens: 8192,
+    // Output JSON untuk 10-20 scene mudah melebihi 8K token — pakai batas maksimal model.
+    maxTokens: 32768,
     temperature: 0.3,
   },
   openrouter: {
     endpoint: 'https://openrouter.ai/api/v1/chat/completions',
-    model: 'deepseek/deepseek-r1',
+    // deepseek-chat (non-reasoning): jauh lebih cepat dari r1 dan tidak menggerus max_tokens dengan token reasoning.
+    model: 'deepseek/deepseek-chat',
     maxTokens: 32768,
     temperature: 0.3,
   },
@@ -31,15 +33,18 @@ export class ApiCallError extends Error {
 async function callGemini(apiKey: string, prompt: string, model: string, signal?: AbortSignal): Promise<string> {
   const cfg = PROVIDER_CONFIGS.gemini;
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-  const resp = await fetch(`${endpoint}?key=${apiKey}`, {
+  const resp = await fetch(endpoint, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    // Key di header, bukan query string — menghindari bocor via log/referrer.
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     signal,
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: cfg.temperature,
         maxOutputTokens: cfg.maxTokens,
+        // Structured output: Gemini dijamin mengembalikan JSON valid tanpa markdown fence.
+        responseMimeType: 'application/json',
       },
     }),
   });
@@ -71,6 +76,7 @@ async function callGroq(apiKey: string, prompt: string, signal?: AbortSignal, on
       messages: [{ role: 'user', content: prompt }],
       temperature: cfg.temperature,
       max_tokens: cfg.maxTokens,
+      response_format: { type: 'json_object' },
     }),
   });
 
@@ -103,6 +109,7 @@ async function callOpenRouter(apiKey: string, prompt: string, signal?: AbortSign
       messages: [{ role: 'user', content: prompt }],
       temperature: cfg.temperature,
       max_tokens: cfg.maxTokens,
+      response_format: { type: 'json_object' },
     }),
   });
 
@@ -121,10 +128,21 @@ async function callWithTimeout<T>(factory: (signal: AbortSignal) => Promise<T>, 
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await factory(controller.signal);
+  } catch (e: unknown) {
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      throw new ApiCallError('TIMEOUT', `Request melebihi batas waktu ${Math.round(timeoutMs / 1000)} detik.`);
+    }
+    if (e instanceof TypeError) {
+      throw new ApiCallError('NETWORK_ERROR', 'Tidak dapat terhubung ke server. Periksa koneksi internet.');
+    }
+    throw e;
   } finally {
     clearTimeout(timer);
   }
 }
+
+// Error yang tidak akan sembuh dengan retry ke provider yang sama.
+const NON_TRANSIENT: ApiError[] = ['API_KEY_INVALID', 'QUOTA_EXCEEDED', 'CONTEXT_LENGTH'];
 
 export interface ApiKeys {
   gemini: string;
@@ -142,6 +160,7 @@ export async function generateWithFallback(
   geminiModel: string = 'gemini-3.5-flash'
 ): Promise<VideoJSON> {
   const TIMEOUT = 90_000;
+  let lastError: ApiCallError | null = null;
 
   if (keys.gemini) {
     try {
@@ -152,15 +171,20 @@ export async function generateWithFallback(
       if (json) { onProgress('Menyiapkan Scene Cards...'); return json; }
       throw new ApiCallError('JSON_PARSE_ERROR', 'JSON tidak valid dari Gemini.');
     } catch (e: unknown) {
-      const err = e as ApiCallError;
-      onProgress(`Gemini gagal (${err.code || 'unknown'}), mencoba ulang...`);
-      // retry once
-      try {
-        const text = await callWithTimeout((signal) => callGemini(keys.gemini, prompt, geminiModel, signal), TIMEOUT);
-        const json = parseAiResponse(text);
-        if (json) { onProgress('Menyiapkan Scene Cards...'); return json; }
-      } catch {
-        // fall through to groq
+      const err = e instanceof ApiCallError ? e : new ApiCallError('UNKNOWN', String(e));
+      lastError = err;
+      // Retry hanya untuk error transient — key invalid / quota habis tidak akan sembuh dengan retry.
+      if (!NON_TRANSIENT.includes(err.code)) {
+        onProgress(`Gemini gagal (${err.code}), mencoba ulang...`);
+        try {
+          const text = await callWithTimeout((signal) => callGemini(keys.gemini, prompt, geminiModel, signal), TIMEOUT);
+          const json = parseAiResponse(text);
+          if (json) { onProgress('Menyiapkan Scene Cards...'); return json; }
+        } catch (e2: unknown) {
+          lastError = e2 instanceof ApiCallError ? e2 : lastError;
+        }
+      } else {
+        onProgress(`Gemini gagal (${err.code}).`);
       }
     }
   }
@@ -174,8 +198,9 @@ export async function generateWithFallback(
       if (json) { onProgress('Menyiapkan Scene Cards...'); return json; }
       throw new ApiCallError('JSON_PARSE_ERROR', 'JSON tidak valid dari Groq.');
     } catch (e: unknown) {
-      const err = e as ApiCallError;
-      onProgress(`Groq gagal (${err.code || 'unknown'}), mencoba OpenRouter...`);
+      const err = e instanceof ApiCallError ? e : new ApiCallError('UNKNOWN', String(e));
+      lastError = err;
+      onProgress(`Groq gagal (${err.code}), mencoba OpenRouter...`);
     }
   }
 
@@ -188,10 +213,12 @@ export async function generateWithFallback(
       if (json) { onProgress('Menyiapkan Scene Cards...'); return json; }
       throw new ApiCallError('JSON_PARSE_ERROR', 'JSON tidak valid dari OpenRouter.');
     } catch (e: unknown) {
-      const err = e as ApiCallError;
-      throw new ApiCallError(err.code || 'UNKNOWN', `Semua provider gagal. OpenRouter (terakhir dicoba): ${err.message}`);
+      lastError = e instanceof ApiCallError ? e : new ApiCallError('UNKNOWN', String(e));
     }
   }
 
+  if (lastError) {
+    throw new ApiCallError(lastError.code, `Semua provider yang dikonfigurasi gagal. Error terakhir: ${lastError.message}`);
+  }
   throw new ApiCallError('API_KEY_INVALID', 'Tidak ada API key yang dikonfigurasi. Silakan konfigurasi API key di Settings.');
 }

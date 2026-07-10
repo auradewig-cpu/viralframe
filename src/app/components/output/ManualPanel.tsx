@@ -5,12 +5,15 @@ import 'prismjs/components/prism-json';
 import 'prismjs/themes/prism-tomorrow.css';
 import { VideoJSON } from '../../types';
 import { parseAiResponse, validateVideoJSON } from '../../lib/jsonParser';
+import { applySceneTypeSlugs, getSceneRoleLabel } from '../../lib/contentStyles';
+import { checkPolicyCompliance, formatPolicyViolations } from '../../lib/policyCheck';
 import { SceneCard } from './SceneCard';
 
 interface ManualPanelProps {
   masterPrompt: string;
   sceneCount: number;
   aiTool: string;
+  contentStyle?: string;
   onJsonValidated: (json: VideoJSON) => void;
   referencePhotos?: string[];
   captionVariationCount?: number;
@@ -30,7 +33,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   );
 }
 
-export function ManualPanel({ masterPrompt, sceneCount, aiTool, onJsonValidated, referencePhotos, captionVariationCount = 1 }: ManualPanelProps) {
+export function ManualPanel({ masterPrompt, sceneCount, aiTool, contentStyle = 'direct_response', onJsonValidated, referencePhotos, captionVariationCount = 1 }: ManualPanelProps) {
   const [tab, setTab] = useState<'prompt' | 'inspect' | 'brief' | 'validate'>('prompt');
   const [pastedJson, setPastedJson] = useState('');
   const [validationResult, setValidationResult] = useState<{ valid: boolean; errors: string[]; warnings: string[]; json: VideoJSON | null } | null>(null);
@@ -51,8 +54,13 @@ export function ManualPanel({ masterPrompt, sceneCount, aiTool, onJsonValidated,
       setValidationResult({ valid: false, errors: ['JSON tidak valid atau tidak dapat di-parse. Pastikan output AI dimulai dengan { dan diakhiri dengan }.'], warnings: [], json: null });
       return;
     }
-    const result = validateVideoJSON(json, sceneCount, captionVariationCount);
-    setValidationResult({ ...result, json: result.valid ? json : null });
+    // Sanitasi scene_type juga di Manual mode — nama folder ZIP dibangun dari field ini.
+    if (json.scenes && Array.isArray(json.scenes)) {
+      applySceneTypeSlugs(json.scenes, contentStyle);
+    }
+    const result = validateVideoJSON(json, sceneCount, captionVariationCount, aiTool);
+    const policyMsgs = formatPolicyViolations(checkPolicyCompliance(json));
+    setValidationResult({ ...result, warnings: [...result.warnings, ...policyMsgs], json: result.valid ? json : null });
     if (result.valid) onJsonValidated(json);
   };
 
@@ -146,20 +154,20 @@ export function ManualPanel({ masterPrompt, sceneCount, aiTool, onJsonValidated,
             <p className="text-sm" style={{ color: 'var(--vf-text-secondary)' }}>Timeline scene video kamu:</p>
             <div className="flex gap-1 items-stretch">
               {Array.from({ length: sceneCount }, (_, i) => {
-                const type = i === 0 ? 'hook' : i === sceneCount - 1 ? 'cta' : 'body';
-                const color = type === 'hook' ? 'var(--vf-accent-warning)' : type === 'cta' ? 'var(--vf-accent-cta)' : 'var(--vf-accent-secondary)';
-                const emoji = type === 'hook' ? '🎣' : type === 'cta' ? '📣' : '📖';
+                const role = getSceneRoleLabel(contentStyle, i, sceneCount);
+                const color = i === 0 ? 'var(--vf-accent-warning)' : i === sceneCount - 1 ? 'var(--vf-accent-cta)' : 'var(--vf-accent-secondary)';
+                const emoji = i === 0 ? '🎣' : i === sceneCount - 1 ? '📣' : '📖';
                 return (
                   <div key={i} className="flex-1 rounded-lg p-3 flex flex-col items-center gap-1 text-center" style={{ background: 'var(--vf-bg-elevated)', border: `2px solid ${color}` }}>
                     <span className="text-lg">{emoji}</span>
-                    <span className="text-xs font-bold" style={{ color }}>{type.toUpperCase()}</span>
+                    <span className="text-xs font-bold" style={{ color }}>{role.toUpperCase()}</span>
                     <span className="text-xs" style={{ color: 'var(--vf-text-muted)' }}>S{i + 1}</span>
                   </div>
                 );
               })}
             </div>
             <p className="text-xs" style={{ color: 'var(--vf-text-muted)' }}>
-              Scene 1 = Hook · Scene 2–{sceneCount - 1} = Body ({sceneCount - 2} scene) · Scene {sceneCount} = CTA
+              Scene 1 = {getSceneRoleLabel(contentStyle, 0, sceneCount)} · Scene {sceneCount} = {getSceneRoleLabel(contentStyle, sceneCount - 1, sceneCount)}
             </p>
           </div>
         )}
@@ -231,7 +239,7 @@ export function ManualPanel({ masterPrompt, sceneCount, aiTool, onJsonValidated,
               <div className="space-y-4 mt-4">
                 <p className="text-sm font-semibold" style={{ color: 'var(--vf-text-primary)' }}>Scene Cards dari JSON yang divalidasi:</p>
                 {validationResult.json.scenes.map((scene, i) => (
-                  <SceneCard key={i} scene={scene} aiTool={aiTool} isFirst={i === 0} characterAnchor={validationResult.json?.character_sheet?.description} referencePhotos={referencePhotos} />
+                  <SceneCard key={i} scene={scene} aiTool={aiTool} isFirst={i === 0} isLast={i === validationResult.json!.scenes.length - 1} characterAnchor={validationResult.json?.character_sheet?.description} referencePhotos={referencePhotos} />
                 ))}
               </div>
             )}

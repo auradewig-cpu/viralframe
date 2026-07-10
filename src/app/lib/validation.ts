@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export const formSchema = z.object({
+  contentStyle: z.string().min(1, 'Pilih gaya konten.'),
   niche: z.string().min(1, 'Pilih jenis bisnis / niche.'),
   productDescription: z.string()
     .min(30, 'Deskripsi produk terlalu singkat. Tambahkan detail produk (min 30 karakter).'),
@@ -64,11 +65,22 @@ export interface WarningResult {
 
 export function getFormWarnings(formData: Record<string, unknown>): WarningResult {
   const warnings: WarningResult = {};
-  const uniformDuration = (formData as { uniformDuration?: number }).uniformDuration;
-  const sceneCount = (formData as { sceneCount?: number }).sceneCount;
-  const totalDuration = uniformDuration && sceneCount ? uniformDuration * sceneCount : 0;
-  if (uniformDuration && uniformDuration > 20) {
-    warnings.hookDurationWarning = 'Durasi per scene lebih dari 20 detik cukup panjang — pastikan konten tetap padat dan tidak bertele-tele.';
+  const { uniformDuration, sceneCount, durationMode, sceneDurations } = formData as {
+    uniformDuration?: number; sceneCount?: number; durationMode?: string; sceneDurations?: number[];
+  };
+
+  // Hitung durasi efektif per scene sesuai mode — mode manual punya durasi berbeda tiap scene.
+  const count = sceneCount || 0;
+  const durations: number[] = durationMode === 'manual'
+    ? Array.from({ length: count }, (_, i) => (sceneDurations && sceneDurations[i]) || uniformDuration || 0)
+    : Array(count).fill(uniformDuration || 0);
+
+  const totalDuration = durations.reduce((a, b) => a + b, 0);
+  const longScenes = durations.map((d, i) => ({ d, i })).filter(({ d }) => d > 20);
+  if (longScenes.length > 0) {
+    warnings.hookDurationWarning = durationMode === 'manual'
+      ? `Scene ${longScenes.map(({ i }) => i + 1).join(', ')} berdurasi lebih dari 20 detik — pastikan konten tetap padat dan tidak bertele-tele.`
+      : 'Durasi per scene lebih dari 20 detik cukup panjang — pastikan konten tetap padat dan tidak bertele-tele.';
   }
   if (totalDuration > 180) {
     warnings.totalDurationWarning = 'Total lebih dari 3 menit. Pertimbangkan kurangi scene untuk performa optimal.';

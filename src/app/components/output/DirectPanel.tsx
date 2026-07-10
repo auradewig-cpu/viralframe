@@ -193,7 +193,7 @@ export function DirectPanel({ json, onRegenerate, onEdit, referencePhotos }: Dir
       {/* Scene Cards */}
       <div className="space-y-4">
         {json.scenes.map((scene, i) => (
-          <SceneCard key={i} scene={scene} aiTool={aiTool} isFirst={i === 0} characterAnchor={json.character_sheet?.description} referencePhotos={referencePhotos} />
+          <SceneCard key={i} scene={scene} aiTool={aiTool} isFirst={i === 0} isLast={i === json.scenes.length - 1} characterAnchor={json.character_sheet?.description} referencePhotos={referencePhotos} />
         ))}
       </div>
     </div>
