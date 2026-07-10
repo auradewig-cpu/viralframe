@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { Zap, Loader2, AlertCircle, BookmarkPlus } from 'lucide-react';
 import { useAppStore } from '../store';
 import { compileMasterPrompt } from '../lib/masterPrompt';
+import { getSceneTypeSlug } from '../lib/contentStyles';
 import { generateWithFallback, ApiCallError } from '../lib/apiClient';
 import { validateFormData, getFormWarnings } from '../lib/validation';
 import { validateVideoJSON } from '../lib/jsonParser';
@@ -201,6 +202,14 @@ export function Home() {
         }
         if (mapped.percent !== null) setGenerateProgressPercent(mapped.percent);
       }, (percent) => setGroqQuotaPercent(percent), settings.geminiModel || 'gemini-3.5-flash');
+      if (json && json.scenes && Array.isArray(json.scenes)) {
+        console.log('[DEBUG SCENE_TYPE] SEBELUM overwrite:', json.scenes.map(s => s.scene_type));
+        console.log('[DEBUG SCENE_TYPE] formData.contentStyle:', formData.contentStyle);
+        json.scenes.forEach((scene, i) => {
+          scene.scene_type = getSceneTypeSlug(formData.contentStyle, i, json.scenes.length);
+        });
+        console.log('[DEBUG SCENE_TYPE] SESUDAH overwrite:', json.scenes.map(s => s.scene_type));
+      }
       setGenerateProgressPercent(100);
       if (currentProviderRef.current) setLastUsedProvider(currentProviderRef.current);
       setOutputJSON(json);

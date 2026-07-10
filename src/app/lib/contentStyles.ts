@@ -91,3 +91,9 @@ export const CONTENT_STYLES: ContentStyleConfig[] = [
     viralElementEmphasis: ['cliffhanger', 'curiosity_gap', 'micro_hooks'],
   },
 ];
+
+export function getSceneTypeSlug(contentStyleValue: string, index: number, total: number): string {
+  const style = CONTENT_STYLES.find(cs => cs.value === contentStyleValue) || CONTENT_STYLES.find(cs => cs.value === 'direct_response')!;
+  const role = style.getSceneRole(index, total);
+  return role.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}

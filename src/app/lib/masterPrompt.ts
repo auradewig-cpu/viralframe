@@ -167,7 +167,7 @@ STRUKTUR: ${effectiveStyle.structureDescription}
 GAYA BAHASA NARASI UNTUK GAYA KONTEN INI: ${effectiveStyle.narrativeVoiceGuidance}
 INTENSITAS CTA: ${effectiveStyle.ctaIntensity === 'hard' ? 'CTA WAJIB keras dan eksplisit di scene terakhir (ajakan bertindak jelas).' : effectiveStyle.ctaIntensity === 'soft' ? 'CTA HARUS lembut/tersirat (misal ajakan follow untuk konten berikutnya), BUKAN hard-selling.' : 'JANGAN ada CTA komersial sama sekali — akhiri secara natural sesuai gaya konten.'}
 PERAN TIAP SCENE: ${durations.map((_, i) => `Scene ${i + 1} = ${effectiveStyle.getSceneRole(i, form.sceneCount)}`).join(' · ')}
-HOOK TYPE: ${form.hookType === 'auto' ? 'AI bebas memilih teknik hook paling kuat sesuai niche & target audience.' : `WAJIB gunakan teknik hook "${form.hookType}" di Scene 1 — bangun SELURUH narasi & visual scene pembuka di sekitar teknik ini secara eksplisit, bukan cuma disinggung sekilas.`}
+    HOOK TYPE: ${form.hookType === 'auto' ? 'AI bebas memilih teknik hook paling kuat sesuai niche & target audience.' : `WAJIB gunakan teknik hook "${form.hookType}" di Scene 1 — bangun SELURUH narasi & visual scene pembuka di sekitar teknik ini secara eksplisit, bukan cuma disinggung sekilas.`}
 CTA TYPE: ${form.ctaType === 'auto' ? 'AI bebas memilih jenis CTA paling kuat sesuai niche & platform.' : `WAJIB gunakan jenis CTA "${form.ctaType}" di scene terakhir — bangun SELURUH narasi & visual scene penutup di sekitar CTA ini secara eksplisit.`}
 ${form.ctaType === 'comment_keyword' && form.ctaKeyword ? `CTA Keyword WAJIB dipakai persis: "${form.ctaKeyword}" — sertakan kata ini secara eksplisit di script_narration atau text_overlay scene CTA.` : ''}
 
@@ -291,7 +291,7 @@ OUTPUT JSON SCHEMA:
   "scenes": [
     {
       "scene_number": 1,
-      "scene_type": "${effectiveStyle.getSceneRole(0, form.sceneCount).toLowerCase().replace(/[\s/]+/g, '_')}",
+      "scene_type": "${effectiveStyle.getSceneRole(0, form.sceneCount).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')}",
       "duration_seconds": ${durations[0]},
       "max_words": ${getLipsyncSpec(durations[0], narrationWPM).maxWords},
       "speech_pace": "${getLipsyncSpec(durations[0], narrationWPM).pace}",
@@ -310,7 +310,7 @@ OUTPUT JSON SCHEMA:
       "viral_element_in_scene": "string",
       "cliffhanger_to_next": "string"
     }
-    // ... repeat for all ${form.sceneCount} scenes, scene_type sesuai PERAN TIAP SCENE di atas (contoh scene terakhir: "${effectiveStyle.getSceneRole(form.sceneCount - 1, form.sceneCount).toLowerCase().replace(/[\s/]+/g, '_')}")
+    // ... repeat for all ${form.sceneCount} scenes, scene_type sesuai PERAN TIAP SCENE di atas (contoh scene terakhir: "${effectiveStyle.getSceneRole(form.sceneCount - 1, form.sceneCount).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')}")
   ],
   "production_notes": {
     "caption_variations": [
