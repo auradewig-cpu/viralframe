@@ -3,6 +3,14 @@ import { Eye, EyeOff, Check, X, Loader2, Trash2, Download, Sun, Moon } from 'luc
 import { useAppStore } from '../store';
 import { AI_TOOLS, PLATFORMS, LANGUAGES } from '../lib/maps';
 
+const WPM_OPTIONS = [
+  { value: 120, label: '120 WPM — Santai (formal, tenang)' },
+  { value: 140, label: '140 WPM — Normal (natural, jelas)' },
+  { value: 165, label: '165 WPM — Cepat & Jelas (Direkomendasikan, gaya konten kreator)' },
+  { value: 185, label: '185 WPM — Lebih Cepat' },
+  { value: 200, label: '200 WPM — Sangat Cepat (berisiko kurang jelas)' },
+];
+
 const GEMINI_MODELS = [
   { value: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash — Paling pintar (Direkomendasikan)' },
   { value: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite — Lebih cepat & hemat' },
@@ -259,6 +267,20 @@ export function Settings() {
                 ))}
               </div>
             </div>
+          </div>
+          <div className="mt-4">
+            <label className="text-sm font-medium" style={{ color: 'var(--vf-text-primary)' }}>Kecepatan Narasi Target (WPM)</label>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--vf-text-muted)' }}>Mengatur jumlah kata maksimal per scene agar sesuai kecepatan bicara yang kamu mau. Makin tinggi = makin banyak kata, makin cepat harus diucapkan.</p>
+            <select
+              value={settings.narrationWPM || 165}
+              onChange={e => setSettings({ narrationWPM: Number(e.target.value) })}
+              className="w-full mt-2 px-3 py-2 rounded-lg text-sm outline-none"
+              style={{ background: 'var(--vf-bg-secondary)', color: 'var(--vf-text-primary)', border: '1px solid var(--vf-border)' }}
+            >
+              {WPM_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
           </div>
         </div>
       </section>

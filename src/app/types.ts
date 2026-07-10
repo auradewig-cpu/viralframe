@@ -159,6 +159,7 @@ export interface AppSettings {
   geminiModel: string;
   groqApiKey: string;
   openrouterApiKey: string;
+  narrationWPM: number;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -171,6 +172,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   geminiModel: 'gemini-3.5-flash',
   groqApiKey: '',
   openrouterApiKey: '',
+  narrationWPM: 165,
 };
 
 export const DEFAULT_FORM: FormData = {

@@ -173,7 +173,7 @@ export function Home() {
     currentProviderRef.current = null;
     setFormErrors([]);
 
-    const prompt = compileMasterPrompt({ ...formData, mode });
+    const prompt = compileMasterPrompt({ ...formData, mode }, settings.narrationWPM || 165);
     setMasterPrompt(prompt);
 
     if (mode === 'manual') {

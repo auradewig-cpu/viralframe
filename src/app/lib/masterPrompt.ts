@@ -65,7 +65,7 @@ function buildCharacterAnchor(form: FormData): string {
   return `${form.characterAge}-year-old ${features} ${gender}, ${form.characterStyle} style${traits}, ${expr} expression`;
 }
 
-export function compileMasterPrompt(form: FormData): string {
+export function compileMasterPrompt(form: FormData, narrationWPM: number = 165): string {
   const durations = getSceneDurations(form);
   const nicheData = NICHE_DATA[form.niche] || { psikografis: '-', painPoint: '-' };
   const toolData = AI_TOOLS.find(t => t.value === form.aiTool);
@@ -78,7 +78,7 @@ export function compileMasterPrompt(form: FormData): string {
   const platformBehavior = PLATFORM_BEHAVIOR[platformPrimer] || '-';
 
   const sceneDurationTable = durations.map((d, i) => {
-    const spec = getLipsyncSpec(d);
+    const spec = getLipsyncSpec(d, narrationWPM);
     const type = i === 0 ? 'Hook' : i === form.sceneCount - 1 ? 'CTA' : 'Body';
     return `Scene ${i + 1} [${type}]: ${d}s → maks ${spec.maxWords} kata (${spec.pace}) — ${spec.instruction}`;
   }).join('\n');
@@ -165,6 +165,13 @@ ${form.ctaType === 'comment_keyword' && form.ctaKeyword ? `CTA Keyword WAJIB dip
 
 LIPSYNC PER SCENE:
 ${sceneDurationTable}
+
+GAYA BICARA & ARTIKULASI (WAJIB dipatuhi untuk SEMUA script_narration):
+Tulis narasi seolah diucapkan oleh presenter/talent yang SUPEL, PERCAYA DIRI, dengan intonasi CEPAT namun ARTIKULASI JELAS — gaya konten kreator TikTok/Reels yang lancar bicara, bukan gaya formal/lambat/berbelit. Panduan menulis:
+- Gunakan kalimat PENDEK dan LANGSUNG (subjek-predikat-objek sederhana), hindari anak kalimat bertumpuk.
+- Gunakan kata-kata SEHARI-HARI yang familiar diucapkan cepat (contoh: "banget", "gampang", "gak ribet"), HINDARI kata formal/panjang yang sulit diucapkan cepat (contoh hindari: "signifikan", "komprehensif", "infrastruktur").
+- HINDARI gugus konsonan sulit berturut-turut dalam satu frasa pendek.
+- Setiap script_narration WAJIB pas dengan max_words yang tertera di tabel LIPSYNC PER SCENE di atas — JANGAN melebihi, meski hanya 1-2 kata. Jika draft awal melebihi batas, PANGKAS kalimat sampai pas, jangan percepat asumsi ucapan.
 
 KARAKTER:
 ${characterBlock}
@@ -275,10 +282,10 @@ OUTPUT JSON SCHEMA:
       "scene_number": 1,
       "scene_type": "hook",
       "duration_seconds": ${durations[0]},
-      "max_words": ${getLipsyncSpec(durations[0]).maxWords},
-      "speech_pace": "${getLipsyncSpec(durations[0]).pace}",
+      "max_words": ${getLipsyncSpec(durations[0], narrationWPM).maxWords},
+      "speech_pace": "${getLipsyncSpec(durations[0], narrationWPM).pace}",
       "ai_ready_prompt": "WAJIB DIISI, string, max ${charLimit} karakter. Format singkat: [CHARACTER ANCHOR] [SCENE] [CAMERA] [ENVIRONMENT] [MOOD] [durasi+rasio] [DIALOGUE: ${spokenLanguageLabel}]",
-      "script_narration": "Teks narasi (maks ${getLipsyncSpec(durations[0]).maxWords} kata) — bahasa HARUS sesuai [BLOK 2: BAHASA]",
+      "script_narration": "Teks narasi, WAJIB PERSIS maks ${getLipsyncSpec(durations[0], narrationWPM).maxWords} kata (hitung manual sebelum submit) — bahasa HARUS sesuai [BLOK 2: BAHASA], gaya bicara cepat & jelas sesuai GAYA BICARA & ARTIKULASI di atas",
       "script_subtitle": null,
       "script_word_count": 0,
       "script_fit_confirmation": "X kata, muat Y detik pace Z",

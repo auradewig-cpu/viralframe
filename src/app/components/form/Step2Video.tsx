@@ -6,6 +6,7 @@ import { FieldLabel, FormCard, SelectField, NumberInput } from './FormFields';
 export function Step2Video() {
   const formData = useAppStore(s => s.formData);
   const setFormData = useAppStore(s => s.setFormData);
+  const settings = useAppStore(s => s.settings);
 
   const sceneCount = formData.sceneCount;
 
@@ -131,7 +132,7 @@ export function Step2Video() {
           <div className="space-y-2">
             {Array.from({ length: sceneCount }, (_, i) => {
               const d = durations[i] || formData.uniformDuration;
-              const spec = getLipsyncSpec(d);
+              const spec = getLipsyncSpec(d, settings.narrationWPM || 165);
               return (
                 <div key={i} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: 'var(--vf-bg-secondary)' }}>
                   <span className="text-sm w-16 shrink-0" style={{ color: 'var(--vf-text-secondary)' }}>
