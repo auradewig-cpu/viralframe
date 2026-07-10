@@ -3,6 +3,9 @@ export type GenerateMode = 'direct' | 'manual';
 export type DurationMode = 'uniform' | 'manual';
 
 export interface FormData {
+  // Content Style (menentukan struktur scene keseluruhan)
+  contentStyle: string;
+
   // Step 1
   niche: string;
   productDescription: string;
@@ -55,7 +58,7 @@ export interface FormData {
 
 export interface SceneData {
   scene_number: number;
-  scene_type: 'hook' | 'body' | 'cta';
+  scene_type: string;
   duration_seconds: number;
   max_words: number;
   speech_pace: string;
@@ -176,6 +179,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 };
 
 export const DEFAULT_FORM: FormData = {
+  contentStyle: 'direct_response',
   niche: '',
   productDescription: '',
   usp: '',

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Upload, X } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { NICHES, TARGET_AUDIENCES, PLATFORMS } from '../../lib/maps';
+import { CONTENT_STYLES } from '../../lib/contentStyles';
 import { FieldLabel, FormCard, SelectField, TextareaField, InputField } from './FormFields';
 
 export function Step1Business() {
@@ -63,6 +64,18 @@ export function Step1Business() {
   return (
     <div className="space-y-6">
       <FormCard title="🏢 Konteks Bisnis">
+        <SelectField
+          label="Gaya Konten *"
+          value={formData.contentStyle}
+          onChange={v => setFormData({ contentStyle: v })}
+          options={CONTENT_STYLES.map(cs => ({ value: cs.value, label: cs.label }))}
+          placeholder="Pilih gaya/struktur konten"
+        />
+        {CONTENT_STYLES.find(cs => cs.value === formData.contentStyle) && (
+          <p className="text-xs -mt-2" style={{ color: 'var(--vf-text-muted)' }}>
+            {CONTENT_STYLES.find(cs => cs.value === formData.contentStyle)?.description}
+          </p>
+        )}
         <SelectField
           label="Jenis Bisnis / Niche *"
           value={formData.niche}
