@@ -74,7 +74,7 @@ export function compileMasterPrompt(form: FormData, narrationWPM: number = 165):
   const toolFormat = AI_TOOL_FORMAT[form.aiTool] || '';
   const spokenLanguageLabel = BAHASA_LABEL[form.language] || 'Bahasa Indonesia';
   const styleConfig = CONTENT_STYLES.find(cs => cs.value === form.contentStyle) || CONTENT_STYLES.find(cs => cs.value === 'direct_response')!;
-  const isWiredStyle = ['direct_response', 'vlog_daily', 'storytime'].includes(styleConfig.value);
+  const isWiredStyle = ['direct_response', 'vlog_daily', 'storytime', 'tutorial_howto', 'listicle_countdown', 'before_after', 'pattern_break_twist', 'series_episodic'].includes(styleConfig.value);
   const effectiveStyle = isWiredStyle ? styleConfig : CONTENT_STYLES.find(cs => cs.value === 'direct_response')!;
 
   const platformList = form.platforms.join(', ');
@@ -291,7 +291,7 @@ OUTPUT JSON SCHEMA:
   "scenes": [
     {
       "scene_number": 1,
-      "scene_type": "${effectiveStyle.getSceneRole(0, form.sceneCount).toLowerCase().replace(/\s+/g, '_')}",
+      "scene_type": "${effectiveStyle.getSceneRole(0, form.sceneCount).toLowerCase().replace(/[\s/]+/g, '_')}",
       "duration_seconds": ${durations[0]},
       "max_words": ${getLipsyncSpec(durations[0], narrationWPM).maxWords},
       "speech_pace": "${getLipsyncSpec(durations[0], narrationWPM).pace}",
@@ -310,7 +310,7 @@ OUTPUT JSON SCHEMA:
       "viral_element_in_scene": "string",
       "cliffhanger_to_next": "string"
     }
-    // ... repeat for all ${form.sceneCount} scenes, scene_type sesuai PERAN TIAP SCENE di atas (contoh scene terakhir: "${effectiveStyle.getSceneRole(form.sceneCount - 1, form.sceneCount).toLowerCase().replace(/\s+/g, '_')}")
+    // ... repeat for all ${form.sceneCount} scenes, scene_type sesuai PERAN TIAP SCENE di atas (contoh scene terakhir: "${effectiveStyle.getSceneRole(form.sceneCount - 1, form.sceneCount).toLowerCase().replace(/[\s/]+/g, '_')}")
   ],
   "production_notes": {
     "caption_variations": [
