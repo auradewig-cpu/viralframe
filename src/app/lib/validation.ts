@@ -64,11 +64,11 @@ export interface WarningResult {
 
 export function getFormWarnings(formData: Record<string, unknown>): WarningResult {
   const warnings: WarningResult = {};
-  const hookDuration = (formData as { uniformDuration?: number }).uniformDuration;
+  const uniformDuration = (formData as { uniformDuration?: number }).uniformDuration;
   const sceneCount = (formData as { sceneCount?: number }).sceneCount;
-  const totalDuration = hookDuration && sceneCount ? hookDuration * sceneCount : 0;
-  if (hookDuration && hookDuration > 8) {
-    warnings.hookDurationWarning = 'Hook lebih dari 8 detik berisiko kehilangan penonton. Disarankan 3–5 detik.';
+  const totalDuration = uniformDuration && sceneCount ? uniformDuration * sceneCount : 0;
+  if (uniformDuration && uniformDuration > 20) {
+    warnings.hookDurationWarning = 'Durasi per scene lebih dari 20 detik cukup panjang — pastikan konten tetap padat dan tidak bertele-tele.';
   }
   if (totalDuration > 180) {
     warnings.totalDurationWarning = 'Total lebih dari 3 menit. Pertimbangkan kurangi scene untuk performa optimal.';
