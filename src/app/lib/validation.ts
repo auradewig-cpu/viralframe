@@ -38,6 +38,12 @@ export const formSchema = z.object({
   avoidColor: z.string(),
   referencePhotos: z.array(z.string()),
   locationDescription: z.string(),
+  characterRefFile: z.string(),
+  locationRefs: z.array(z.object({
+    file: z.string(),
+    keterangan: z.string(),
+    sceneNumber: z.number().nullable(),
+  })),
   captionVariationCount: z.number().min(1).max(5),
   mode: z.enum(['direct', 'manual']),
 }).superRefine((data, ctx) => {
@@ -61,12 +67,14 @@ export interface WarningResult {
   hookDurationWarning?: string;
   totalDurationWarning?: string;
   apiKeyWarning?: string;
+  locationRefWarning?: string;
 }
 
 export function getFormWarnings(formData: Record<string, unknown>): WarningResult {
   const warnings: WarningResult = {};
-  const { uniformDuration, sceneCount, durationMode, sceneDurations } = formData as {
+  const { uniformDuration, sceneCount, durationMode, sceneDurations, locationRefs } = formData as {
     uniformDuration?: number; sceneCount?: number; durationMode?: string; sceneDurations?: number[];
+    locationRefs?: { file: string; keterangan: string; sceneNumber: number | null }[];
   };
 
   // Hitung durasi efektif per scene sesuai mode — mode manual punya durasi berbeda tiap scene.
@@ -85,5 +93,11 @@ export function getFormWarnings(formData: Record<string, unknown>): WarningResul
   if (totalDuration > 180) {
     warnings.totalDurationWarning = 'Total lebih dari 3 menit. Pertimbangkan kurangi scene untuk performa optimal.';
   }
+
+  const invalidRefs = (locationRefs || []).filter(r => r.sceneNumber !== null && r.sceneNumber > count);
+  if (invalidRefs.length > 0) {
+    warnings.locationRefWarning = `${invalidRefs.length} referensi lokasi/produk ditugaskan ke scene yang sudah tidak ada (jumlah scene sekarang ${count}) — baris ini akan diabaikan saat compile prompt.`;
+  }
+
   return warnings;
 }

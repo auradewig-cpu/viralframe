@@ -4,6 +4,15 @@ export type DurationMode = 'uniform' | 'manual';
 export type TalentStyle = 'visible_character' | 'faceless_pov' | 'product_only';
 export type ContentGoal = 'conversion' | 'growth' | 'engagement';
 
+// Referensi lokasi/produk berbasis TEKS (nama file + keterangan) — dibaca AI video tool dari nama
+// file yang disebut user saat attach foto langsung di tool (Google Flow dll), bukan dari upload di
+// app ini. role TIDAK disimpan di sini — selalu di-derive dari sceneNumber (lihat lib/locationRefs.ts).
+export interface LocationRef {
+  file: string;
+  keterangan: string;
+  sceneNumber: number | null; // null = "Semua scene"
+}
+
 export interface FormData {
   // Content Style (menentukan struktur scene keseluruhan)
   contentStyle: string;
@@ -53,10 +62,15 @@ export interface FormData {
   brandColor: string;
   avoidColor: string;
 
-  // Reference Photos & Location
+  // Reference Photos & Location (upload berbasis base64 — JANGAN dikembangkan, lihat CLAUDE.md)
   referencePhotos: string[];
   referenceImageFilename: string;
   locationDescription: string;
+
+  // Multi-Reference Image berbasis TEKS (short_video saja) — nama file + keterangan yang disebut
+  // user di AI video tool, BUKAN upload. Lihat lib/locationRefs.ts untuk resolusi & derive role.
+  characterRefFile: string;
+  locationRefs: LocationRef[];
 
   // YouTube Long Form — hanya dipakai content type 'youtube_long'
   targetDurationMinutes: number;
@@ -248,6 +262,8 @@ export const DEFAULT_FORM: FormData = {
   referencePhotos: [],
   referenceImageFilename: '',
   locationDescription: '',
+  characterRefFile: '',
+  locationRefs: [],
   targetDurationMinutes: 10,
   chapterCount: 5,
   channelStyle: 'edukasi',

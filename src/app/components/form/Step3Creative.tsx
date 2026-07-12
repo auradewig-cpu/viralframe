@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, X } from 'lucide-react';
 import { useAppStore } from '../../store';
 import {
   HOOK_TYPES, CTA_TYPES, ETHNICITIES, CHARACTER_STYLES, TALENT_STYLES,
   EXPRESSIONS, VISUAL_STYLES, BACKSOUNDS, NARRATIVE_TONES, CAPTION_VARIATION_OPTIONS,
   GROWTH_ALLOWED_CTAS
 } from '../../lib/maps';
-import { TalentStyle } from '../../types';
+import { TalentStyle, LocationRef } from '../../types';
 import { getContentType, DEFAULT_CONTENT_TYPE_ID } from '../../lib/registry';
 
 const formSections = getContentType(DEFAULT_CONTENT_TYPE_ID).formSections;
@@ -43,6 +43,19 @@ export function Step3Creative() {
   };
 
   const score = consistencyScore();
+
+  const addLocationRef = () => {
+    setFormData({ locationRefs: [...formData.locationRefs, { file: '', keterangan: '', sceneNumber: null }] });
+  };
+
+  const updateLocationRef = (idx: number, patch: Partial<LocationRef>) => {
+    const updated = formData.locationRefs.map((r, i) => i === idx ? { ...r, ...patch } : r);
+    setFormData({ locationRefs: updated });
+  };
+
+  const removeLocationRef = (idx: number) => {
+    setFormData({ locationRefs: formData.locationRefs.filter((_, i) => i !== idx) });
+  };
 
   return (
     <div className="space-y-6">
@@ -214,6 +227,90 @@ export function Step3Creative() {
             )}
           </div>
         )}
+      </FormCard>
+      )}
+
+      {formSections.includes('character') && (
+      <FormCard title="🖼️ Referensi Visual">
+        <p className="text-xs -mt-2" style={{ color: 'var(--vf-text-muted)' }}>
+          Untuk AI video tool yang mendukung attach foto langsung (mis. Google Flow) — yang dibaca tool
+          HANYA nama file yang disebut di teks prompt. Isi nama file PERSIS sama dengan yang kamu lampirkan.
+        </p>
+
+        {formData.talentStyle !== 'product_only' && (
+          <div>
+            <FieldLabel>🧑 Referensi Karakter</FieldLabel>
+            <InputField
+              value={formData.characterRefFile}
+              onChange={v => setFormData({ characterRefFile: v })}
+              placeholder='Contoh: "lisa.webp"'
+            />
+            <p className="text-xs mt-1" style={{ color: 'var(--vf-text-muted)' }}>
+              Nama file harus persis sama dengan yang kamu lampirkan di AI video tool. Deskripsi wajah/fisik
+              tidak perlu diulang di sini — sudah tercakup di character sheet Blok Karakter di atas.
+            </p>
+          </div>
+        )}
+
+        <div>
+          <FieldLabel>🏠 Referensi Lokasi / Produk</FieldLabel>
+          <div className="space-y-3">
+            {formData.locationRefs.map((ref, idx) => {
+              const isInvalid = ref.sceneNumber !== null && ref.sceneNumber > formData.sceneCount;
+              return (
+                <div key={idx} className="p-3 rounded-lg space-y-2" style={{ background: 'var(--vf-bg-secondary)', border: '1px solid var(--vf-border)' }}>
+                  <div className="flex items-start gap-2">
+                    <div className="flex-1 space-y-2">
+                      <InputField
+                        value={ref.file}
+                        onChange={v => updateLocationRef(idx, { file: v })}
+                        placeholder='Nama file, mis: "scene1_foto.jpg"'
+                      />
+                      <InputField
+                        value={ref.keterangan}
+                        onChange={v => updateLocationRef(idx, { keterangan: v })}
+                        placeholder='Apa ini + ciri khasnya, mis: fasad — rumah 2 lantai putih, pagar hitam'
+                      />
+                      <select
+                        value={ref.sceneNumber === null ? 'all' : String(ref.sceneNumber)}
+                        onChange={e => updateLocationRef(idx, { sceneNumber: e.target.value === 'all' ? null : Number(e.target.value) })}
+                        className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                        style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-text-primary)', border: '1px solid var(--vf-border)' }}
+                      >
+                        <option value="all">Semua scene</option>
+                        {Array.from({ length: formData.sceneCount }, (_, i) => i + 1).map(n => (
+                          <option key={n} value={n}>Scene {n}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeLocationRef(idx)}
+                      className="p-2 rounded-lg shrink-0"
+                      style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-accent-danger)', border: '1px solid var(--vf-border)' }}
+                      aria-label="Hapus referensi"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                  {isInvalid && (
+                    <p className="text-xs" style={{ color: 'var(--vf-accent-danger)' }}>
+                      ⚠️ Scene {ref.sceneNumber} tidak ada — jumlah scene sekarang {formData.sceneCount}. Baris ini akan diabaikan saat generate.
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={addLocationRef}
+            className="mt-3 flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm"
+            style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-accent-primary)', border: '1px solid var(--vf-accent-primary)' }}
+          >
+            <Plus size={14} /> Tambah referensi
+          </button>
+        </div>
       </FormCard>
       )}
 
