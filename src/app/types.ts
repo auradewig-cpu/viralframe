@@ -58,6 +58,21 @@ export interface FormData {
   referenceImageFilename: string;
   locationDescription: string;
 
+  // YouTube Long Form — hanya dipakai content type 'youtube_long'
+  targetDurationMinutes: number;
+  chapterCount: number;
+  channelStyle: string;
+
+  // Thumbnail Pack — hanya dipakai content type 'thumbnail_pack'
+  thumbnailTopic: string;
+  thumbnailFaceOption: 'with_face' | 'no_face';
+
+  // Content Calendar — hanya dipakai content type 'content_calendar'
+  calendarPlatform: string;
+  calendarDays: number;
+  postsPerDay: number;
+  accountInsightText: string;
+
   // Mode
   mode: GenerateMode;
 }
@@ -228,5 +243,14 @@ export const DEFAULT_FORM: FormData = {
   referencePhotos: [],
   referenceImageFilename: '',
   locationDescription: '',
+  targetDurationMinutes: 10,
+  chapterCount: 5,
+  channelStyle: 'edukasi',
+  thumbnailTopic: '',
+  thumbnailFaceOption: 'no_face',
+  calendarPlatform: 'tiktok',
+  calendarDays: 7,
+  postsPerDay: 1,
+  accountInsightText: '',
   mode: 'direct',
 };

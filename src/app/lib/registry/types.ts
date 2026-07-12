@@ -38,7 +38,12 @@ export interface ManualRendererProps<TOutput> {
 export interface ContentTypeDefinition<TOutput = unknown> {
   id: string;
   label: string;
+  emoji: string;
+  description: string;
   formSections: FormSectionId[];
+  // Jika diisi, Home.tsx merender komponen form single-page ini alih-alih wizard 3 langkah
+  // (dipakai content type non-short_video yang field-nya jauh lebih sedikit).
+  FormComponent?: ComponentType;
   buildMasterPrompt: (form: FormData, narrationWPM?: number) => string;
   parseOutput: (rawText: string) => TOutput | null;
   validateOutput: (json: TOutput, form: FormData) => ValidationResult;

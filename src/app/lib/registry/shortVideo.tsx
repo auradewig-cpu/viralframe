@@ -30,7 +30,9 @@ function ShortVideoManualRenderer({ masterPrompt, form, onValidated }: ManualRen
 
 export const shortVideoContentType: ContentTypeDefinition<VideoJSON> = {
   id: 'short_video',
-  label: 'Short Video (TikTok / Reels / Shorts)',
+  label: 'Short Video',
+  emoji: '🎬',
+  description: 'Video pendek TikTok/Reels/Shorts — Scene Cards per detik dengan narasi, visual, dan prompt siap paste.',
   formSections: [
     'business_context', 'target_distribution', 'video_spec', 'scene_duration',
     'hook_cta', 'character', 'visual_audio', 'advanced',
