@@ -2,7 +2,10 @@ import { FormData } from '../types';
 import { getLipsyncSpec } from './lipsync';
 import { NICHE_DATA, AI_TOOL_FORMAT, PLATFORM_BEHAVIOR, AI_TOOLS, EXPRESSIONS, VISUAL_STYLES, BACKSOUNDS, NARRATIVE_TONES } from './maps';
 import { CONTENT_STYLES } from './contentStyles';
-import { NEGATIVE_PROMPT_BLOCK } from './negativePrompt';
+import { NEGATIVE_PROMPT_BLOCK, CAMERA_REF_RULE } from './negativePrompt';
+import {
+  getValidLocationRefs, getSceneLocationRef, buildReferenceImageJson, buildBindingSentence, sanitizeRefText,
+} from './locationRefs';
 
 function getSceneDurations(form: FormData): number[] {
   if (form.durationMode === 'uniform') {
@@ -102,6 +105,22 @@ export function compileMasterPrompt(form: FormData, narrationWPM: number = 165):
   const refImageJson = hasRefPhotos
     ? `{ "file": "${refImageFilename}", "instruction": "Match the attached reference image exactly. Keep original shape, color, and proportions. Must be consistent across all scenes. Do not redesign the product." }`
     : 'null';
+
+  // Multi-Reference Image berbasis TEKS (Tugas 2) — independen dari referencePhotos upload di atas.
+  const validLocationRefs = getValidLocationRefs(form);
+  const sceneLocationRefTable = durations.map((_, i) => {
+    const sceneNum = i + 1;
+    const ref = getSceneLocationRef(validLocationRefs, sceneNum);
+    if (!ref) return `Scene ${sceneNum}: reference_image = null (tidak ada foto referensi untuk scene ini).`;
+    const label = ref.role === 'environment' ? 'lokasi' : 'produk';
+    return `Scene ${sceneNum}: reference_image WAJIB PERSIS ${buildReferenceImageJson(ref)} — ai_ready_prompt WAJIB sertakan kalimat singkat: "${buildBindingSentence(ref)}". Deskripsi ${label} HANYA boleh berasal dari keterangan ini + label scene, JANGAN mengarang detail generik di luar itu (contoh larangan eksplisit: "a modern luxury house").`;
+  }).join('\n');
+  const hasEnvironmentRef = validLocationRefs.some(r => r.role === 'environment');
+  const scene1LocationRef = getSceneLocationRef(validLocationRefs, 1);
+  const scene1RefJson = scene1LocationRef ? buildReferenceImageJson(scene1LocationRef) : refImageJson;
+  const characterRefInstruction = (form.talentStyle === 'visible_character' && form.characterRefFile.trim())
+    ? `\nCHARACTER REFERENCE PHOTO: Character must match the attached reference photo "${sanitizeRefText(form.characterRefFile)}" exactly — same face, hair, and body type. CHARACTER ANCHOR STRING di atas TETAP menentukan detail deskriptif dan TETAP wajib jadi awalan setiap ai_ready_prompt; foto ini memperkuat konsistensi wajah, bukan menggantikan anchor.`
+    : '';
 
   let langInstruction = '';
   if (form.language === 'id') langInstruction = 'BAHASA: script_narration HARUS dalam Bahasa Indonesia. script_subtitle = null.';
@@ -210,9 +229,11 @@ Tulis narasi seolah diucapkan oleh presenter/talent yang SUPEL, PERCAYA DIRI, de
 KARAKTER:
 ${characterBlock}
 ${isFacelessPov ? 'MODE POV FACELESS: character_expression WAJIB diisi dengan deskripsi GESTUR TANGAN (bukan ekspresi wajah) — misal "jari menunjuk detail produk dengan percaya diri", "tangan membuka kemasan perlahan". JANGAN sebutkan ekspresi wajah/mata/senyum apapun, karena wajah TIDAK PERNAH tampil di mode ini.' : (form.useCharacter ? (form.expression === 'auto' ? 'Ekspresi karakter: AI bebas menentukan ekspresi paling sesuai tiap scene.' : `Ekspresi karakter WAJIB: "${EXPRESSIONS.find(e => e.value === form.expression)?.label || form.expression}" sebagai ekspresi DASAR karakter di semua scene (boleh sedikit bervariasi sesuai konteks emosi scene, tapi harus tetap terasa sebagai ekspresi dasar yang sama). PENTING: Tulis deskripsi ekspresi ini dalam kalimat natural di field character_expression (JSON output), JANGAN tulis ulang slug/kode teknis apapun.`) : '')}
-${isFacelessPov ? `\nCHARACTER ANCHOR STRING (copy ini verbatim ke awal setiap ai_ready_prompt):\n'${characterAnchor}'\n\nDefinisi: Setiap ai_ready_prompt di SEMUA scene HARUS dimulai dengan string ini persis, baru kemudian deskripsi aksi scene tangan. Tanpa hand anchor yang identik di setiap prompt, AI video tool akan menghasilkan tangan/aksesori berbeda di setiap scene.\n\nCAMERA DIRECTION WAJIB (POV FIRST-PERSON): Kamera = sudut pandang mata talent sendiri (first-person POV). Tangan talent masuk frame DARI BAWAH/DEPAN layar seolah penonton yang sedang memegang & mereview produk. camera_direction WAJIB eksplisit menyebutkan "first-person POV, hand entering frame from bottom" di setiap scene.\n\nLARANGAN EKSPLISIT (WAJIB dipatuhi SETIAP scene, di visual_description, camera_direction, DAN ai_ready_prompt): "no face visible, no reflection showing face". TIDAK BOLEH ada wajah, cermin/pantulan yang menampilkan wajah, atau bagian tubuh selain tangan/lengan yang teridentifikasi sebagai orang.` : (form.useCharacter ? `\nCHARACTER ANCHOR STRING (copy ini verbatim ke awal setiap ai_ready_prompt):\n'${characterAnchor}'\n\nDefinisi: Setiap ai_ready_prompt di SEMUA scene HARUS dimulai dengan string ini persis, baru kemudian deskripsi aksi scene. Tanpa character anchor yang identik di setiap prompt, AI video tool akan menghasilkan karakter berbeda di setiap scene.` : '')}
+${isFacelessPov ? `\nCHARACTER ANCHOR STRING (copy ini verbatim ke awal setiap ai_ready_prompt):\n'${characterAnchor}'\n\nDefinisi: Setiap ai_ready_prompt di SEMUA scene HARUS dimulai dengan string ini persis, baru kemudian deskripsi aksi scene tangan. Tanpa hand anchor yang identik di setiap prompt, AI video tool akan menghasilkan tangan/aksesori berbeda di setiap scene.\n\nCAMERA DIRECTION WAJIB (POV FIRST-PERSON): Kamera = sudut pandang mata talent sendiri (first-person POV). Tangan talent masuk frame DARI BAWAH/DEPAN layar seolah penonton yang sedang memegang & mereview produk. camera_direction WAJIB eksplisit menyebutkan "first-person POV, hand entering frame from bottom" di setiap scene.\n\nLARANGAN EKSPLISIT (WAJIB dipatuhi SETIAP scene, di visual_description, camera_direction, DAN ai_ready_prompt): "no face visible, no reflection showing face". TIDAK BOLEH ada wajah, cermin/pantulan yang menampilkan wajah, atau bagian tubuh selain tangan/lengan yang teridentifikasi sebagai orang.` : (form.useCharacter ? `\nCHARACTER ANCHOR STRING (copy ini verbatim ke awal setiap ai_ready_prompt):\n'${characterAnchor}'\n\nDefinisi: Setiap ai_ready_prompt di SEMUA scene HARUS dimulai dengan string ini persis, baru kemudian deskripsi aksi scene. Tanpa character anchor yang identik di setiap prompt, AI video tool akan menghasilkan karakter berbeda di setiap scene.${characterRefInstruction}` : '')}
 ${hasRefPhotos ? `\nREFERENCE IMAGE INSTRUCTION: User mengupload ${form.referencePhotos.length} foto referensi (nama file: "${refImageFilename}"). Setiap ai_ready_prompt WAJIB sertakan kalimat SINGKAT di [ENVIRONMENT]: "Match uploaded reference photo exactly." — JANGAN pakai kalimat panjang, ini WAJIB dijaga singkat karena ai_ready_prompt punya batas karakter ketat. SELAIN itu, field JSON terstruktur "reference_image" di setiap scene WAJIB diisi persis seperti contoh di OUTPUT JSON SCHEMA — ini yang dibaca engine AI video yang mendukung structured input, jangan sampai kosong atau berbeda antar scene.` : ''}
 ${hasLocation ? `\nLOKASI YANG HARUS DIGUNAKAN: ${form.locationDescription}. Semua scene HARUS menampilkan lokasi/properti yang SAMA dari sudut pandang berbeda.` : ''}
+${validLocationRefs.length > 0 ? `\nREFERENSI LOKASI/PRODUK PER SCENE (Multi-Reference Image, WAJIB DIPATUHI PERSIS — reference_image BOLEH BERBEDA antar scene, ikuti tabel ini per scene, JANGAN disalin rata dari satu scene ke scene lain):\n${sceneLocationRefTable}` : ''}
+${hasEnvironmentRef ? `\n${CAMERA_REF_RULE}` : ''}
 
 GAYA VISUAL: ${form.visualStyle === 'auto' ? 'AI bebas menentukan gaya visual paling sesuai niche & platform.' : `WAJIB gunakan gaya visual "${VISUAL_STYLES.find(v => v.value === form.visualStyle)?.label || form.visualStyle}" di SETIAP scene tanpa kecuali — cerminkan gaya ini secara eksplisit dalam kalimat natural di visual_description, camera_direction, dan field "visual_style" pada global_style. JANGAN tulis ulang slug/kode teknis apapun ke output JSON.`}
 BACKSOUND: ${form.backsound === 'auto' ? 'AI bebas menentukan backsound/musik paling sesuai mood video.' : `WAJIB gunakan backsound/musik bergaya "${BACKSOUNDS.find(b => b.value === form.backsound)?.label || form.backsound}" — cerminkan dalam kalimat natural di field "music_direction" dan "sfx_palette" pada global_style. JANGAN tulis ulang slug/kode teknis apapun ke output JSON.`}
@@ -338,10 +359,13 @@ OUTPUT JSON SCHEMA:
       "transition_to_next": "string",
       "viral_element_in_scene": "string",
       "cliffhanger_to_next": "string",
-      "reference_image": ${refImageJson}
+      "reference_image": ${scene1RefJson}
     }
     // ... repeat for all ${form.sceneCount} scenes, scene_type sesuai PERAN TIAP SCENE di atas (contoh scene terakhir: "${effectiveStyle.getSceneRole(form.sceneCount - 1, form.sceneCount).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')}")
-    // "reference_image" WAJIB IDENTIK PERSIS (copy verbatim) di SETIAP scene — field ini bukan konten kreatif, jangan diubah-ubah antar scene.
+    // "reference_image" contoh di atas HANYA untuk scene 1 — kalau ada REFERENSI LOKASI/PRODUK PER SCENE
+    // di Blok 3, reference_image WAJIB BERBEDA per scene mengikuti tabel itu persis (JANGAN disalin rata
+    // ke semua scene). Kalau tidak ada tabel itu (hanya referencePhotos upload lama atau tidak ada
+    // referensi sama sekali), reference_image tetap IDENTIK PERSIS di semua scene seperti sebelumnya.
   ],
   "production_notes": {
     "caption_variations": [

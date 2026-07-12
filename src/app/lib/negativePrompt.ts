@@ -27,3 +27,14 @@ Tulis ai_ready_prompt sedemikian rupa sehingga TIDAK memicu AI video tool mengha
 Untuk AI video tool yang mendukung field negative prompt terpisah, larangan ini TETAP harus
 tersirat lewat kalimat ai_ready_prompt itu sendiri — JANGAN tambah field baru ke skema JSON.
 Jaga larangan ini SINGKAT (beberapa kata saja) karena ai_ready_prompt punya batas karakter ketat.`;
+
+// Dipakai khusus scene yang punya reference_image berperan environment (fasad/ruangan/properti) —
+// dipanggil dari masterPrompt.ts (generate awal), sceneRegen.ts (regenerate per-scene), dan
+// autoRephrase.ts (rewrite policy). JANGAN copy-paste teks ini.
+export const CAMERA_REF_RULE = `[ATURAN KAMERA — SCENE BER-REFERENSI LOKASI/ENVIRONMENT]
+Scene yang punya reference_image environment (fasad, ruangan, properti) DILARANG memakai whip-pan
+atau fast reveal sebagai pergerakan kamera utama dalam scene tersebut — gerakan kamera cepat memicu
+AI video tool menghalusinasi ulang struktur bangunan sehingga tidak match foto referensi. WAJIB pakai
+slow push-in, gentle orbit, atau steady gimbal untuk camera_direction scene ini. Whip-pan tetap boleh
+dipakai khusus di field transition_to_next menuju scene berikutnya, bukan sebagai gerakan utama scene
+itu sendiri.`;
