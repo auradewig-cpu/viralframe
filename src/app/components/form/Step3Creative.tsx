@@ -7,6 +7,9 @@ import {
   GROWTH_ALLOWED_CTAS
 } from '../../lib/maps';
 import { TalentStyle } from '../../types';
+import { getContentType, DEFAULT_CONTENT_TYPE_ID } from '../../lib/registry';
+
+const formSections = getContentType(DEFAULT_CONTENT_TYPE_ID).formSections;
 import { FieldLabel, FormCard, SelectField, InputField, TagsInput } from './FormFields';
 
 export function Step3Creative() {
@@ -43,6 +46,7 @@ export function Step3Creative() {
 
   return (
     <div className="space-y-6">
+      {formSections.includes('hook_cta') && (
       <FormCard title="🎣 Hook & CTA">
         <SelectField
           label="Tipe Hook (Scene 1)"
@@ -76,7 +80,9 @@ export function Step3Creative() {
           options={CAPTION_VARIATION_OPTIONS}
         />
       </FormCard>
+      )}
 
+      {formSections.includes('character') && (
       <FormCard title="🧍 Karakter dalam Video">
         <div>
           <FieldLabel>Gaya Talent</FieldLabel>
@@ -209,7 +215,9 @@ export function Step3Creative() {
           </div>
         )}
       </FormCard>
+      )}
 
+      {formSections.includes('visual_audio') && (
       <FormCard title="🎨 Gaya Visual & Audio">
         <SelectField
           label="Gaya Visual / Sinematografi"
@@ -230,8 +238,10 @@ export function Step3Creative() {
           options={NARRATIVE_TONES}
         />
       </FormCard>
+      )}
 
       {/* Advanced Settings */}
+      {formSections.includes('advanced') && (
       <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--vf-border)' }}>
         <button
           type="button"
@@ -301,6 +311,7 @@ export function Step3Creative() {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

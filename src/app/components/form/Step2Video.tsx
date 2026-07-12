@@ -2,7 +2,10 @@ import { useAppStore } from '../../store';
 import { AI_TOOLS, RATIOS, LANGUAGES } from '../../lib/maps';
 import { getLipsyncSpec } from '../../lib/lipsync';
 import { getSceneRoleLabel } from '../../lib/contentStyles';
+import { getContentType, DEFAULT_CONTENT_TYPE_ID } from '../../lib/registry';
 import { FieldLabel, FormCard, SelectField, NumberInput } from './FormFields';
+
+const formSections = getContentType(DEFAULT_CONTENT_TYPE_ID).formSections;
 
 export function Step2Video() {
   const formData = useAppStore(s => s.formData);
@@ -35,6 +38,7 @@ export function Step2Video() {
 
   return (
     <div className="space-y-6">
+      {formSections.includes('video_spec') && (
       <FormCard title="🎬 Spesifikasi Video">
         <div>
           <FieldLabel>AI Video Tool *</FieldLabel>
@@ -89,7 +93,9 @@ export function Step2Video() {
           options={LANGUAGES}
         />
       </FormCard>
+      )}
 
+      {formSections.includes('scene_duration') && (
       <FormCard title="⏱️ Durasi Per Scene">
         <div className="flex gap-4 mb-4">
           <label className="flex items-center gap-2 cursor-pointer">
@@ -160,6 +166,7 @@ export function Step2Video() {
           </span>
         </div>
       </FormCard>
+      )}
     </div>
   );
 }

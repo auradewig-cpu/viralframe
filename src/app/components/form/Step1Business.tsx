@@ -3,7 +3,10 @@ import { Upload, X } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { NICHES, TARGET_AUDIENCES, PLATFORMS, CONTENT_GOALS, GROWTH_ALLOWED_CTAS } from '../../lib/maps';
 import { CONTENT_STYLES } from '../../lib/contentStyles';
+import { getContentType, DEFAULT_CONTENT_TYPE_ID } from '../../lib/registry';
 import { FieldLabel, FormCard, SelectField, TextareaField, InputField } from './FormFields';
+
+const formSections = getContentType(DEFAULT_CONTENT_TYPE_ID).formSections;
 
 export function Step1Business() {
   const formData = useAppStore(s => s.formData);
@@ -63,6 +66,7 @@ export function Step1Business() {
 
   return (
     <div className="space-y-6">
+      {formSections.includes('business_context') && (
       <FormCard title="🏢 Konteks Bisnis">
         <div>
           <FieldLabel>Tujuan Konten *</FieldLabel>
@@ -201,7 +205,9 @@ export function Step1Business() {
           maxLength={200}
         />
       </FormCard>
+      )}
 
+      {formSections.includes('target_distribution') && (
       <FormCard title="🎯 Target & Distribusi">
         <div>
           <FieldLabel>Target Audiens</FieldLabel>
@@ -286,6 +292,7 @@ export function Step1Business() {
           </div>
         </div>
       </FormCard>
+      )}
     </div>
   );
 }
