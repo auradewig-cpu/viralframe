@@ -159,7 +159,9 @@ export interface HistoryRecord {
   formData: FormData;
   masterPrompt: string;
   contentTypeId: string;
-  output: VideoJSON | null;
+  // unknown, bukan VideoJSON — tiap content type (short_video, youtube_long, thumbnail_pack,
+  // content_calendar) punya skema output sendiri. Gunakan contentTypeId untuk narrow di consumer.
+  output: unknown;
 }
 
 export interface Template {
@@ -174,6 +176,8 @@ export interface Template {
   aiTool: string;
   isPreset: boolean;
   formData?: Partial<FormData>;
+  // Opsional untuk backward compat — template lama tanpa field ini diperlakukan sebagai 'short_video'.
+  contentTypeId?: string;
 }
 
 export interface AppSettings {

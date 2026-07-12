@@ -1,7 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { FormData, AppSettings, HistoryRecord, Template, VideoJSON, DEFAULT_FORM, DEFAULT_SETTINGS } from './types';
+import { FormData, AppSettings, HistoryRecord, Template, DEFAULT_FORM, DEFAULT_SETTINGS } from './types';
 import { PRESET_TEMPLATES } from './lib/maps';
+
+// String literal, BUKAN import dari lib/registry — registry entries (mis. youtubeLong.tsx) mengimpor
+// useAppStore dari file ini, jadi mengimpor balik dari registry di sini akan membuat circular import.
+const DEFAULT_CONTENT_TYPE_ID = 'short_video';
 
 export type ProviderKey = 'gemini' | 'groq' | 'openrouter';
 export type ProviderStatus = 'idle' | 'trying' | 'success' | 'failed';
@@ -10,19 +14,21 @@ interface AppState {
   // Form
   formData: FormData;
   currentStep: number;
+  activeContentTypeId: string;
+  setActiveContentTypeId: (id: string) => void;
   setFormData: (data: Partial<FormData>) => void;
   setCurrentStep: (step: number) => void;
   resetForm: () => void;
   loadFormData: (data: FormData) => void;
 
   // Output
-  generatedOutput: { contentTypeId: string; data: VideoJSON } | null;
+  generatedOutput: { contentTypeId: string; data: unknown } | null;
   masterPrompt: string;
   isGenerating: boolean;
   generateProgress: string;
   generateError: string;
   generateWarnings: string;
-  setGeneratedOutput: (contentTypeId: string, data: VideoJSON | null) => void;
+  setGeneratedOutput: (contentTypeId: string, data: unknown) => void;
   setMasterPrompt: (prompt: string) => void;
   setIsGenerating: (v: boolean) => void;
   setGenerateProgress: (msg: string) => void;
@@ -60,9 +66,11 @@ export const useAppStore = create<AppState>()(
     (set) => ({
       formData: { ...DEFAULT_FORM },
       currentStep: 0,
+      activeContentTypeId: DEFAULT_CONTENT_TYPE_ID,
+      setActiveContentTypeId: (id) => set({ activeContentTypeId: id }),
       setFormData: (data) => set((s) => ({ formData: { ...s.formData, ...data } })),
       setCurrentStep: (step) => set({ currentStep: step }),
-      resetForm: () => set({ formData: { ...DEFAULT_FORM }, currentStep: 0, generatedOutput: null, masterPrompt: '', generateError: '', generateWarnings: '', generateProgressPercent: 0, providerStatus: { gemini: 'idle', groq: 'idle', openrouter: 'idle' }, lastUsedProvider: null, groqQuotaPercent: null }),
+      resetForm: () => set({ formData: { ...DEFAULT_FORM }, currentStep: 0, activeContentTypeId: DEFAULT_CONTENT_TYPE_ID, generatedOutput: null, masterPrompt: '', generateError: '', generateWarnings: '', generateProgressPercent: 0, providerStatus: { gemini: 'idle', groq: 'idle', openrouter: 'idle' }, lastUsedProvider: null, groqQuotaPercent: null }),
       loadFormData: (data) => set({
         formData: {
           ...DEFAULT_FORM,
@@ -127,7 +135,7 @@ export const useAppStore = create<AppState>()(
         if (version < 2 && state?.history) {
           state.history = state.history.map((r) => {
             if ('contentTypeId' in r && 'output' in r) return r;
-            const { videoJSON, ...rest } = r as Record<string, unknown> & { videoJSON?: VideoJSON | null };
+            const { videoJSON, ...rest } = r as Record<string, unknown> & { videoJSON?: unknown };
             return { ...rest, contentTypeId: (r.contentTypeId as string) || 'short_video', output: videoJSON ?? null };
           });
         }

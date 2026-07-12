@@ -19,11 +19,13 @@ export function Templates() {
   const removeTemplate = useAppStore(s => s.removeTemplate);
   const loadFormData = useAppStore(s => s.loadFormData);
   const setCurrentStep = useAppStore(s => s.setCurrentStep);
+  const setActiveContentTypeId = useAppStore(s => s.setActiveContentTypeId);
   const navigate = useNavigate();
 
   const handleUsePreset = (preset: typeof PRESET_TEMPLATES[0]) => {
     const nicheLabel = NICHES.find(n => n.value === preset.niche)?.label || preset.niche;
     const aiToolData = AI_TOOLS.find(t => t.value === preset.aiTool);
+    setActiveContentTypeId('short_video');
     loadFormData({
       ...DEFAULT_FORM,
       niche: preset.niche,
@@ -41,6 +43,7 @@ export function Templates() {
   };
 
   const handleUseCustom = (template: typeof customTemplates[0]) => {
+    setActiveContentTypeId(template.contentTypeId || 'short_video');
     if (template.formData) {
       loadFormData({ ...DEFAULT_FORM, ...template.formData });
     }

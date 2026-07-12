@@ -11,6 +11,7 @@ interface SaveTemplateDialogProps {
 export function SaveTemplateDialog({ formData, onClose }: SaveTemplateDialogProps) {
   const [name, setName] = useState('');
   const addTemplate = useAppStore(s => s.addTemplate);
+  const activeContentTypeId = useAppStore(s => s.activeContentTypeId);
   const [saved, setSaved] = useState(false);
 
   const handleSave = () => {
@@ -27,6 +28,7 @@ export function SaveTemplateDialog({ formData, onClose }: SaveTemplateDialogProp
       aiTool: formData.aiTool,
       isPreset: false,
       formData: { ...formData, referencePhotos: [] },
+      contentTypeId: activeContentTypeId,
     });
     setSaved(true);
     setTimeout(onClose, 1200);

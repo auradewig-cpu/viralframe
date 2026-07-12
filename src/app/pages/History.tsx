@@ -3,6 +3,8 @@ import { Trash2, RefreshCw, Eye, Download } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useAppStore } from '../store';
 import { SceneCard } from '../components/output/SceneCard';
+import { getContentType } from '../lib/registry';
+import { VideoJSON } from '../types';
 
 export function History() {
   const history = useAppStore(s => s.history);
@@ -11,6 +13,7 @@ export function History() {
   const loadFormData = useAppStore(s => s.loadFormData);
   const setGeneratedOutput = useAppStore(s => s.setGeneratedOutput);
   const setMasterPrompt = useAppStore(s => s.setMasterPrompt);
+  const setActiveContentTypeId = useAppStore(s => s.setActiveContentTypeId);
   const navigate = useNavigate();
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -20,8 +23,10 @@ export function History() {
   const handleLoad = (id: string) => {
     const record = history.find(r => r.id === id);
     if (!record) return;
+    const contentTypeId = record.contentTypeId || 'short_video';
+    setActiveContentTypeId(contentTypeId);
     loadFormData(record.formData);
-    setGeneratedOutput(record.contentTypeId || 'short_video', record.output);
+    setGeneratedOutput(contentTypeId, record.output);
     setMasterPrompt(record.masterPrompt);
     navigate('/');
   };
@@ -67,23 +72,29 @@ export function History() {
         </div>
       ) : (
         <div className="space-y-3">
-          {history.map(record => (
+          {history.map(record => {
+            const contentTypeId = record.contentTypeId || 'short_video';
+            const isShortVideo = contentTypeId === 'short_video';
+            const contentType = getContentType(contentTypeId);
+            const videoOutput = isShortVideo ? (record.output as VideoJSON | null) : null;
+            return (
             <div key={record.id} className="rounded-xl p-4" style={{ background: 'var(--vf-bg-elevated)', border: '1px solid var(--vf-border)' }}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm truncate" style={{ color: 'var(--vf-text-primary)' }}>{record.label}</p>
                   <div className="flex flex-wrap gap-3 mt-1 text-xs" style={{ color: 'var(--vf-text-muted)' }}>
                     <span>{new Date(record.timestamp).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                    <span>{contentType.emoji} {contentType.label}</span>
                     {record.formData.niche && <span>📂 {record.formData.niche}</span>}
-                    {record.formData.aiTool && <span>🎬 {record.formData.aiTool}</span>}
-                    <span>🎬 {record.formData.sceneCount} scene</span>
+                    {isShortVideo && record.formData.aiTool && <span>🎬 {record.formData.aiTool}</span>}
+                    {isShortVideo && <span>🎬 {record.formData.sceneCount} scene</span>}
                     <span className={record.output ? 'text-green-500' : ''} style={{ color: record.output ? 'var(--vf-accent-success)' : 'var(--vf-text-muted)' }}>
                       {record.output ? '✅ Direct API' : '📋 Manual'}
                     </span>
                   </div>
                 </div>
                 <div className="flex gap-2 shrink-0">
-                  {record.output && (
+                  {videoOutput && (
                     <button
                       onClick={() => setViewingId(viewingId === record.id ? null : record.id)}
                       className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs"
@@ -109,15 +120,16 @@ export function History() {
                 </div>
               </div>
 
-              {viewingId === record.id && record.output && (
+              {viewingId === record.id && videoOutput && (
                 <div className="mt-4 space-y-3">
-                  {record.output.scenes.map((scene, i) => (
-                    <SceneCard key={i} scene={scene} aiTool={record.formData.aiTool} isFirst={i === 0} characterAnchor={record.output?.character_sheet?.description} />
+                  {videoOutput.scenes.map((scene, i) => (
+                    <SceneCard key={i} scene={scene} aiTool={record.formData.aiTool} isFirst={i === 0} characterAnchor={videoOutput.character_sheet?.description} />
                   ))}
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
           <p className="text-center text-xs mt-4" style={{ color: 'var(--vf-text-muted)' }}>
             {history.length}/50 record tersimpan
           </p>

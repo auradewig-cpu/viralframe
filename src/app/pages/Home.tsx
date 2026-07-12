@@ -3,16 +3,32 @@ import { Zap, Loader2, AlertCircle, BookmarkPlus } from 'lucide-react';
 import { useAppStore } from '../store';
 import { generateWithFallback, ApiCallError } from '../lib/apiClient';
 import { validateFormData, getFormWarnings } from '../lib/validation';
-import { getContentType, DEFAULT_CONTENT_TYPE_ID, ContentTypeDefinition } from '../lib/registry';
+import { getContentType, CONTENT_TYPES } from '../lib/registry';
 import { Progress } from '../components/ui/progress';
 import { StepIndicator } from '../components/form/StepIndicator';
 import { Step1Business } from '../components/form/Step1Business';
 import { Step2Video } from '../components/form/Step2Video';
 import { Step3Creative } from '../components/form/Step3Creative';
 import { SaveTemplateDialog } from '../components/output/SaveTemplateDialog';
-import { VideoJSON } from '../types';
 
-const contentType = getContentType(DEFAULT_CONTENT_TYPE_ID) as ContentTypeDefinition<VideoJSON>;
+function ContentTypeSelector({ activeId, onSelect }: { activeId: string; onSelect: (id: string) => void }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto text-left">
+      {CONTENT_TYPES.map(ct => (
+        <button
+          key={ct.id}
+          onClick={() => onSelect(ct.id)}
+          className="p-4 rounded-xl text-left transition-all hover:scale-[1.02]"
+          style={{ background: 'var(--vf-bg-elevated)', border: `2px solid ${activeId === ct.id ? 'var(--vf-accent-primary)' : 'var(--vf-border)'}` }}
+        >
+          <div className="text-2xl mb-2">{ct.emoji}</div>
+          <h3 className="font-semibold text-sm mb-1" style={{ color: 'var(--vf-text-primary)' }}>{ct.label}</h3>
+          <p className="text-xs" style={{ color: 'var(--vf-text-secondary)' }}>{ct.description}</p>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function ModeSelector({ onSelect }: { onSelect: (mode: 'direct' | 'manual') => void }) {
   const settings = useAppStore(s => s.settings);
@@ -91,6 +107,10 @@ export function Home() {
   const setFormData = useAppStore(s => s.setFormData);
   const currentStep = useAppStore(s => s.currentStep);
   const setCurrentStep = useAppStore(s => s.setCurrentStep);
+  const activeContentTypeId = useAppStore(s => s.activeContentTypeId);
+  const setActiveContentTypeId = useAppStore(s => s.setActiveContentTypeId);
+  const contentType = getContentType(activeContentTypeId);
+  const isShortVideo = contentType.id === 'short_video';
   const generatedOutput = useAppStore(s => s.generatedOutput);
   const setGeneratedOutput = useAppStore(s => s.setGeneratedOutput);
   const masterPrompt = useAppStore(s => s.masterPrompt);
@@ -133,6 +153,11 @@ export function Home() {
     else if (currentStep === 1) setCurrentStep(0);
   };
 
+  const handleSelectContentType = (id: string) => {
+    setActiveContentTypeId(id);
+    setCurrentStep(1);
+  };
+
   const handleModeSelect = (mode: 'direct' | 'manual') => {
     setFormData({ mode });
     setShowModeSelector(false);
@@ -140,18 +165,23 @@ export function Home() {
   };
 
   const handleGenerateClick = () => {
-    const errors = validateFormData(formData as unknown as Record<string, unknown>);
-    setFormErrors(errors);
-    if (errors.length > 0) return;
+    // validateFormData/getFormWarnings pakai skema Zod khusus short_video (sceneCount, platforms, dst)
+    // — content type lain punya field yang jauh berbeda sehingga divalidasi longgar (hanya cek API key).
+    if (isShortVideo) {
+      const errors = validateFormData(formData as unknown as Record<string, unknown>);
+      setFormErrors(errors);
+      if (errors.length > 0) return;
 
-    const warnings = getFormWarnings(formData as unknown as Record<string, unknown>);
-    const warningList: string[] = [];
-    if (warnings.hookDurationWarning) warningList.push(warnings.hookDurationWarning);
-    if (warnings.totalDurationWarning) warningList.push(warnings.totalDurationWarning);
+      const warnings = getFormWarnings(formData as unknown as Record<string, unknown>);
+      const warningList: string[] = [];
+      if (warnings.hookDurationWarning) warningList.push(warnings.hookDurationWarning);
+      if (warnings.totalDurationWarning) warningList.push(warnings.totalDurationWarning);
+      const hasApiKey = !!(settings.geminiApiKey || settings.groqApiKey || settings.openrouterApiKey);
+      if (!hasApiKey) warningList.push('API key belum dikonfigurasi. Konfigurasi di Settings atau gunakan Manual Prompt Mode.');
+      setFormWarnings(warningList);
+    }
+
     const hasApiKey = !!(settings.geminiApiKey || settings.groqApiKey || settings.openrouterApiKey);
-    if (!hasApiKey) warningList.push('API key belum dikonfigurasi. Konfigurasi di Settings atau gunakan Manual Prompt Mode.');
-    setFormWarnings(warningList);
-
     if (settings.defaultMode === 'direct' && hasApiKey) {
       handleGenerate('direct');
     } else if (settings.defaultMode === 'manual') {
@@ -256,7 +286,7 @@ export function Home() {
     }
   };
 
-  const handleJsonValidated = (json: VideoJSON) => {
+  const handleJsonValidated = (json: unknown) => {
     contentType.applyPostProcess?.(json, formData);
     setGeneratedOutput(contentType.id, json);
     addHistory({
@@ -406,7 +436,7 @@ export function Home() {
     );
   }
 
-  // Show step 0 - initial screen before form
+  // Show step 0 - pilih jenis konten
   if (currentStep === 0) {
     return (
       <div className="max-w-5xl mx-auto px-4 py-8">
@@ -416,27 +446,51 @@ export function Home() {
           </div>
           <h1 className="mb-4" style={{ color: 'var(--vf-text-primary)' }}>ViralFrame Studio</h1>
           <p className="text-sm mb-8 max-w-md mx-auto" style={{ color: 'var(--vf-text-secondary)' }}>
-            AI Video Scene Generator — generate prompt video viral siap pakai per scene, lengkap dengan narasi, visual direction, dan prompt siap di-paste ke AI video generator.
+            Pilih jenis konten yang mau kamu generate. Tiap jenis punya form dan skema prompt sendiri.
           </p>
-          <button
-            onClick={() => setCurrentStep(1)}
-            className="px-8 py-3 rounded-xl font-semibold text-sm transition-all hover:opacity-90"
-            style={{ background: 'var(--vf-accent-primary)', color: 'white' }}
-          >
-            ⚡ Mulai Generate Video →
-          </button>
-          <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-4 text-left max-w-2xl mx-auto">
-            {[
-              { icon: '📝', title: 'Isi Form 3 Langkah', desc: 'Ceritakan produk, pilih platform, tentukan gaya visual dan karakter.' },
-              { icon: '⚡', title: 'Generate via AI API', desc: 'Gemini/Groq generate JSON per scene otomatis — atau copy prompt ke AI lain.' },
-              { icon: '🎬', title: 'Dapatkan Scene Cards', desc: 'Setiap scene punya narasi, prompt video, brief, dan panduan konsistensi.' },
-            ].map(({ icon, title, desc }) => (
-              <div key={title} className="p-4 rounded-xl" style={{ background: 'var(--vf-bg-elevated)', border: '1px solid var(--vf-border)' }}>
-                <div className="text-2xl mb-2">{icon}</div>
-                <h4 className="text-sm font-semibold mb-1" style={{ color: 'var(--vf-text-primary)' }}>{title}</h4>
-                <p className="text-xs" style={{ color: 'var(--vf-text-muted)' }}>{desc}</p>
-              </div>
-            ))}
+          <ContentTypeSelector activeId={activeContentTypeId} onSelect={handleSelectContentType} />
+        </div>
+      </div>
+    );
+  }
+
+  // Content type non-short_video pakai form single-page (bukan wizard 3 langkah) — field-nya jauh
+  // lebih sedikit sehingga tidak perlu StepIndicator/Step1-2-3.
+  if (!isShortVideo && contentType.FormComponent) {
+    const FormComponent = contentType.FormComponent;
+    return (
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        <div className="max-w-2xl mx-auto">
+          <FormComponent />
+
+          {formWarnings.length > 0 && (
+            <div className="mt-4 p-4 rounded-xl" style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid var(--vf-accent-warning)' }}>
+              {formWarnings.map((w, i) => (
+                <div key={i} className="flex items-start gap-2 text-sm" style={{ color: 'var(--vf-accent-warning)' }}>
+                  <AlertCircle size={14} className="mt-0.5 shrink-0" />
+                  {w}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex justify-between mt-8">
+            <button
+              onClick={() => setCurrentStep(0)}
+              className="px-4 py-2 rounded-lg text-sm"
+              style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-text-secondary)', border: '1px solid var(--vf-border)' }}
+            >
+              ← Ganti Jenis Konten
+            </button>
+            <button
+              onClick={handleGenerateClick}
+              disabled={isGenerating}
+              className="flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-medium transition-all hover:opacity-90 disabled:opacity-50"
+              style={{ background: 'var(--vf-accent-primary)', color: 'white' }}
+            >
+              {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+              ⚡ Generate
+            </button>
           </div>
         </div>
       </div>
