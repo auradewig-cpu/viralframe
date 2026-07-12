@@ -66,6 +66,7 @@ export interface FormData {
   // Thumbnail Pack — hanya dipakai content type 'thumbnail_pack'
   thumbnailTopic: string;
   thumbnailFaceOption: 'with_face' | 'no_face';
+  thumbnailConceptCount: number;
 
   // Content Calendar — hanya dipakai content type 'content_calendar'
   calendarPlatform: string;
@@ -248,6 +249,7 @@ export const DEFAULT_FORM: FormData = {
   channelStyle: 'edukasi',
   thumbnailTopic: '',
   thumbnailFaceOption: 'no_face',
+  thumbnailConceptCount: 3,
   calendarPlatform: 'tiktok',
   calendarDays: 7,
   postsPerDay: 1,
