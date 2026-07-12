@@ -1,6 +1,7 @@
 export type Provider = 'gemini' | 'groq' | 'openrouter';
 export type GenerateMode = 'direct' | 'manual';
 export type DurationMode = 'uniform' | 'manual';
+export type TalentStyle = 'visible_character' | 'faceless_pov' | 'product_only';
 
 export interface FormData {
   // Content Style (menentukan struktur scene keseluruhan)
@@ -28,11 +29,13 @@ export interface FormData {
   ctaKeyword: string;
   captionVariationCount: number;
   useCharacter: boolean;
+  talentStyle: TalentStyle;
   characterGender: string;
   characterAge: number;
   characterEthnicity: string;
   characterStyle: string;
   characterTraits: string;
+  handDescription: string;
   visualAnchor: string;
   expression: string;
   visualStyle: string;
@@ -199,11 +202,13 @@ export const DEFAULT_FORM: FormData = {
   ctaKeyword: '',
   captionVariationCount: 1,
   useCharacter: false,
+  talentStyle: 'product_only',
   characterGender: 'female',
   characterAge: 25,
   characterEthnicity: 'Southeast Asian',
   characterStyle: 'Kasual Modern',
   characterTraits: '',
+  handDescription: '',
   visualAnchor: '',
   expression: 'auto',
   visualStyle: 'auto',

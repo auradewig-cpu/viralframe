@@ -63,7 +63,17 @@ export const useAppStore = create<AppState>()(
       setFormData: (data) => set((s) => ({ formData: { ...s.formData, ...data } })),
       setCurrentStep: (step) => set({ currentStep: step }),
       resetForm: () => set({ formData: { ...DEFAULT_FORM }, currentStep: 0, outputJSON: null, masterPrompt: '', generateError: '', generateWarnings: '', generateProgressPercent: 0, providerStatus: { gemini: 'idle', groq: 'idle', openrouter: 'idle' }, lastUsedProvider: null, groqQuotaPercent: null }),
-      loadFormData: (data) => set({ formData: { ...DEFAULT_FORM, ...data }, currentStep: 0, outputJSON: null, masterPrompt: '' }),
+      loadFormData: (data) => set({
+        formData: {
+          ...DEFAULT_FORM,
+          ...data,
+          // data lama (History/Template) sebelum talentStyle ada — derive dari useCharacter agar tidak crash/berubah perilaku.
+          talentStyle: data.talentStyle ?? (data.useCharacter ? 'visible_character' : 'product_only'),
+        },
+        currentStep: 0,
+        outputJSON: null,
+        masterPrompt: '',
+      }),
 
       outputJSON: null,
       masterPrompt: '',

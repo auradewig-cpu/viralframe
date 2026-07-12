@@ -97,6 +97,12 @@ export const CTA_TYPES = [
   { value: 'klik_keranjang_kuning', label: '🛒 Klik Keranjang Kuning' },
 ];
 
+export const TALENT_STYLES = [
+  { value: 'visible_character', label: '🧑 Karakter Terlihat — wajah & ekspresi tampil' },
+  { value: 'faceless_pov', label: '✋ POV Faceless — tangan review produk, tanpa wajah' },
+  { value: 'product_only', label: '📦 Produk Saja — tanpa talent' },
+];
+
 export const ETHNICITIES = [
   'Asia Tenggara', 'Asia Timur', 'Asia Selatan',
   'Kaukasia', 'Afrika', 'Latin', 'Timur Tengah', 'Mixed',

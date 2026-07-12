@@ -13,6 +13,9 @@ function getSceneDurations(form: FormData): number[] {
 }
 
 function buildCharacterBlock(form: FormData): string {
+  if (form.talentStyle === 'faceless_pov') {
+    return `POV Faceless — hanya tangan talent yang tampil, TIDAK ADA wajah sama sekali. Deskripsi tangan: ${form.handDescription || 'tidak ditentukan'}`;
+  }
   if (!form.useCharacter) {
     return `Tidak ada karakter. Visual anchor: ${form.visualAnchor || 'tidak ditentukan'}`;
   }
@@ -55,6 +58,9 @@ const BAHASA_LABEL: Record<string, string> = {
 };
 
 function buildCharacterAnchor(form: FormData): string {
+  if (form.talentStyle === 'faceless_pov') {
+    return `POV first-person shot, only talent's hand visible, no face visible, no reflection showing face. Hand: ${form.handDescription || 'tidak ditentukan'}`;
+  }
   if (!form.useCharacter) return '';
   const features = ETHNICITY_FEATURES[form.characterEthnicity] || form.characterEthnicity;
   const expr = EXPR_MAP[form.expression] || 'expressive';
@@ -87,6 +93,8 @@ export function compileMasterPrompt(form: FormData, narrationWPM: number = 165):
 
   const characterBlock = buildCharacterBlock(form);
   const characterAnchor = buildCharacterAnchor(form);
+  const isFacelessPov = form.talentStyle === 'faceless_pov';
+  const characterSheetUsed = form.useCharacter || isFacelessPov;
   const hasRefPhotos = form.referencePhotos.length > 0;
   const hasLocation = !!form.locationDescription;
   const refImageFilename = hasRefPhotos ? (form.referenceImageFilename.trim() || 'attached image') : '';
@@ -187,8 +195,8 @@ Tulis narasi seolah diucapkan oleh presenter/talent yang SUPEL, PERCAYA DIRI, de
 
 KARAKTER:
 ${characterBlock}
-${form.useCharacter ? (form.expression === 'auto' ? 'Ekspresi karakter: AI bebas menentukan ekspresi paling sesuai tiap scene.' : `Ekspresi karakter WAJIB: "${EXPRESSIONS.find(e => e.value === form.expression)?.label || form.expression}" sebagai ekspresi DASAR karakter di semua scene (boleh sedikit bervariasi sesuai konteks emosi scene, tapi harus tetap terasa sebagai ekspresi dasar yang sama). PENTING: Tulis deskripsi ekspresi ini dalam kalimat natural di field character_expression (JSON output), JANGAN tulis ulang slug/kode teknis apapun.`) : ''}
-${form.useCharacter ? `\nCHARACTER ANCHOR STRING (copy ini verbatim ke awal setiap ai_ready_prompt):\n'${characterAnchor}'\n\nDefinisi: Setiap ai_ready_prompt di SEMUA scene HARUS dimulai dengan string ini persis, baru kemudian deskripsi aksi scene. Tanpa character anchor yang identik di setiap prompt, AI video tool akan menghasilkan karakter berbeda di setiap scene.` : ''}
+${isFacelessPov ? 'MODE POV FACELESS: character_expression WAJIB diisi dengan deskripsi GESTUR TANGAN (bukan ekspresi wajah) — misal "jari menunjuk detail produk dengan percaya diri", "tangan membuka kemasan perlahan". JANGAN sebutkan ekspresi wajah/mata/senyum apapun, karena wajah TIDAK PERNAH tampil di mode ini.' : (form.useCharacter ? (form.expression === 'auto' ? 'Ekspresi karakter: AI bebas menentukan ekspresi paling sesuai tiap scene.' : `Ekspresi karakter WAJIB: "${EXPRESSIONS.find(e => e.value === form.expression)?.label || form.expression}" sebagai ekspresi DASAR karakter di semua scene (boleh sedikit bervariasi sesuai konteks emosi scene, tapi harus tetap terasa sebagai ekspresi dasar yang sama). PENTING: Tulis deskripsi ekspresi ini dalam kalimat natural di field character_expression (JSON output), JANGAN tulis ulang slug/kode teknis apapun.`) : '')}
+${isFacelessPov ? `\nCHARACTER ANCHOR STRING (copy ini verbatim ke awal setiap ai_ready_prompt):\n'${characterAnchor}'\n\nDefinisi: Setiap ai_ready_prompt di SEMUA scene HARUS dimulai dengan string ini persis, baru kemudian deskripsi aksi scene tangan. Tanpa hand anchor yang identik di setiap prompt, AI video tool akan menghasilkan tangan/aksesori berbeda di setiap scene.\n\nCAMERA DIRECTION WAJIB (POV FIRST-PERSON): Kamera = sudut pandang mata talent sendiri (first-person POV). Tangan talent masuk frame DARI BAWAH/DEPAN layar seolah penonton yang sedang memegang & mereview produk. camera_direction WAJIB eksplisit menyebutkan "first-person POV, hand entering frame from bottom" di setiap scene.\n\nLARANGAN EKSPLISIT (WAJIB dipatuhi SETIAP scene, di visual_description, camera_direction, DAN ai_ready_prompt): "no face visible, no reflection showing face". TIDAK BOLEH ada wajah, cermin/pantulan yang menampilkan wajah, atau bagian tubuh selain tangan/lengan yang teridentifikasi sebagai orang.` : (form.useCharacter ? `\nCHARACTER ANCHOR STRING (copy ini verbatim ke awal setiap ai_ready_prompt):\n'${characterAnchor}'\n\nDefinisi: Setiap ai_ready_prompt di SEMUA scene HARUS dimulai dengan string ini persis, baru kemudian deskripsi aksi scene. Tanpa character anchor yang identik di setiap prompt, AI video tool akan menghasilkan karakter berbeda di setiap scene.` : '')}
 ${hasRefPhotos ? `\nREFERENCE IMAGE INSTRUCTION: User mengupload ${form.referencePhotos.length} foto referensi (nama file: "${refImageFilename}"). Setiap ai_ready_prompt WAJIB sertakan kalimat SINGKAT di [ENVIRONMENT]: "Match uploaded reference photo exactly." — JANGAN pakai kalimat panjang, ini WAJIB dijaga singkat karena ai_ready_prompt punya batas karakter ketat. SELAIN itu, field JSON terstruktur "reference_image" di setiap scene WAJIB diisi persis seperti contoh di OUTPUT JSON SCHEMA — ini yang dibaca engine AI video yang mendukung structured input, jangan sampai kosong atau berbeda antar scene.` : ''}
 ${hasLocation ? `\nLOKASI YANG HARUS DIGUNAKAN: ${form.locationDescription}. Semua scene HARUS menampilkan lokasi/properti yang SAMA dari sudut pandang berbeda.` : ''}
 
@@ -286,10 +294,10 @@ OUTPUT JSON SCHEMA:
     "font_overlay_style": "string"
   },
   "character_sheet": {
-    "used": ${form.useCharacter},
-    "description": "HRUS sama persis dengan CHARACTER ANCHOR STRING dari Blok 3 — ini yang akan di-copy verbatim ke awal setiap ai_ready_prompt.${form.useCharacter ? ` Contoh: '${characterAnchor}'` : ''}",
+    "used": ${characterSheetUsed},
+    "description": "HRUS sama persis dengan CHARACTER ANCHOR STRING dari Blok 3 — ini yang akan di-copy verbatim ke awal setiap ai_ready_prompt.${characterSheetUsed ? ` Contoh: '${characterAnchor}'` : ''}",
     "visual_anchor_note": ${form.visualAnchor ? `"${form.visualAnchor}"` : 'null'},
-    "consistency_note": "EDITOR: Setiap ai_ready_prompt di semua scene WAJIB dimulai dengan character_sheet.description yang SAMA PERSIS kata per kata. Ini KRITIS untuk konsistensi karakter di Veo3 dan AI video tool lain yang tidak mendukung reference image."
+    "consistency_note": "EDITOR: Setiap ai_ready_prompt di semua scene WAJIB dimulai dengan character_sheet.description yang SAMA PERSIS kata per kata.${isFacelessPov ? ' Ini KRITIS untuk konsistensi tangan (warna kulit, kuku, aksesori) di mode POV Faceless — wajah TIDAK BOLEH tampil di scene manapun.' : ' Ini KRITIS untuk konsistensi karakter di Veo3 dan AI video tool lain yang tidak mendukung reference image.'}"
   },
   "scenes": [
     {
@@ -304,9 +312,9 @@ OUTPUT JSON SCHEMA:
       "script_word_count": 0,
       "script_fit_confirmation": "X kata, muat Y detik pace Z",
       "visual_description": "deskripsi visual scene dalam Bahasa Indonesia",
-      "camera_direction": "shot + movement + angle",
+      "camera_direction": "${isFacelessPov ? 'shot + movement + angle — WAJIB sebutkan eksplisit \\"first-person POV, hand entering frame from bottom\\", TANPA wajah/cermin yang menampilkan wajah' : 'shot + movement + angle'}",
       "character_action": "string",
-      "character_expression": "string — deskripsi natural ekspresi wajah/tubuh karakter dalam Bahasa Indonesia, JANGAN gunakan kode/slug teknis",
+      "character_expression": "${isFacelessPov ? 'string — deskripsi natural GESTUR TANGAN (bukan ekspresi wajah) dalam Bahasa Indonesia, JANGAN sebut wajah/ekspresi wajah sama sekali' : 'string — deskripsi natural ekspresi wajah/tubuh karakter dalam Bahasa Indonesia, JANGAN gunakan kode/slug teknis'}",
       "text_overlay": "string dengan timing, atau none",
       "sound_design": "string",
       "transition_to_next": "string",

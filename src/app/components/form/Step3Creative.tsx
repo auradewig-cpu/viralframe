@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useAppStore } from '../../store';
 import {
-  HOOK_TYPES, CTA_TYPES, ETHNICITIES, CHARACTER_STYLES,
+  HOOK_TYPES, CTA_TYPES, ETHNICITIES, CHARACTER_STYLES, TALENT_STYLES,
   EXPRESSIONS, VISUAL_STYLES, BACKSOUNDS, NARRATIVE_TONES, CAPTION_VARIATION_OPTIONS
 } from '../../lib/maps';
+import { TalentStyle } from '../../types';
 import { FieldLabel, FormCard, SelectField, InputField, TagsInput } from './FormFields';
 
 export function Step3Creative() {
@@ -13,7 +14,7 @@ export function Step3Creative() {
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const consistencyScore = () => {
-    if (!formData.useCharacter) return null;
+    if (formData.talentStyle !== 'visible_character') return null;
     let score = 0;
     const fields = [
       formData.characterGender,
@@ -61,35 +62,52 @@ export function Step3Creative() {
       </FormCard>
 
       <FormCard title="🧍 Karakter dalam Video">
-        <div className="flex gap-4">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              checked={!formData.useCharacter}
-              onChange={() => setFormData({ useCharacter: false })}
-              className="accent-indigo-500"
-            />
-            <span className="text-sm" style={{ color: 'var(--vf-text-primary)' }}>Tanpa Karakter</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              checked={formData.useCharacter}
-              onChange={() => setFormData({ useCharacter: true })}
-              className="accent-indigo-500"
-            />
-            <span className="text-sm" style={{ color: 'var(--vf-text-primary)' }}>Gunakan Karakter</span>
-          </label>
+        <div>
+          <FieldLabel>Gaya Talent</FieldLabel>
+          <div className="flex flex-col gap-2 mt-1">
+            {TALENT_STYLES.map(({ value, label }) => (
+              <label key={value} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  checked={formData.talentStyle === value}
+                  onChange={() => setFormData({ talentStyle: value as TalentStyle, useCharacter: value === 'visible_character' })}
+                  className="accent-indigo-500"
+                />
+                <span className="text-sm" style={{ color: 'var(--vf-text-primary)' }}>{label}</span>
+              </label>
+            ))}
+          </div>
         </div>
 
-        {!formData.useCharacter ? (
+        {formData.talentStyle === 'product_only' && (
           <InputField
             label="Visual Anchor (opsional)"
             value={formData.visualAnchor}
             onChange={v => setFormData({ visualAnchor: v })}
             placeholder='Contoh: "tangan model dengan nail art merah", "produk selalu pojok kanan bawah"'
           />
-        ) : (
+        )}
+
+        {formData.talentStyle === 'faceless_pov' && (
+          <div className="space-y-3">
+            <InputField
+              label="Deskripsi Tangan *"
+              value={formData.handDescription}
+              onChange={v => setFormData({ handDescription: v })}
+              placeholder='Contoh: "kulit sawo matang, kuku pendek natural, memakai cincin perak tipis di jari manis, jam tangan hitam di pergelangan kiri"'
+            />
+            <p className="text-xs" style={{ color: 'var(--vf-text-muted)' }}>
+              Deskripsi ini (warna kulit, kuku, aksesori seperti cincin/jam) akan di-lock identik di setiap scene demi konsistensi tangan talent — wajah tidak akan tampil (mode POV first-person).
+            </p>
+            {!formData.handDescription && (
+              <div className="p-3 rounded-lg text-xs" style={{ background: 'rgba(245,158,11,0.1)', color: 'var(--vf-accent-warning)', border: '1px solid var(--vf-accent-warning)' }}>
+                ⚠️ Isi deskripsi tangan agar tangan talent konsisten di semua scene.
+              </div>
+            )}
+          </div>
+        )}
+
+        {formData.talentStyle === 'visible_character' && (
           <div className="space-y-4">
             <div>
               <FieldLabel>Jenis Kelamin</FieldLabel>
