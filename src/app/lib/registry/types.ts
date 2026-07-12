@@ -21,6 +21,7 @@ export type FormSectionId =
 
 export interface DirectRendererProps<TOutput> {
   data: TOutput;
+  form: FormData;
   onRegenerate: () => void;
   onEdit: () => void;
   referencePhotos?: string[];

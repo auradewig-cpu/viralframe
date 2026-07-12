@@ -50,9 +50,15 @@ interface AppState {
 
   // History
   history: HistoryRecord[];
+  currentHistoryId: string | null;
+  setCurrentHistoryId: (id: string | null) => void;
   addHistory: (record: HistoryRecord) => void;
   removeHistory: (id: string) => void;
   clearHistory: () => void;
+  // Dipakai regenerate per-scene (Tugas 1) — update output record history yang sedang ditampilkan
+  // tanpa membuat record baru. Kalau tidak ada currentHistoryId yang cocok (mis. history dihapus
+  // manual di tab lain), diam-diam no-op — generatedOutput di store tetap ter-update duluan oleh caller.
+  updateHistoryOutput: (id: string, output: unknown) => void;
 
   // Templates
   customTemplates: Template[];
@@ -109,16 +115,21 @@ export const useAppStore = create<AppState>()(
       setSettings: (s) => set((prev) => ({ settings: { ...prev.settings, ...s } })),
 
       history: [],
+      currentHistoryId: null,
+      setCurrentHistoryId: (id) => set({ currentHistoryId: id }),
       addHistory: (record) => set((s) => {
         const cleanRecord = {
           ...record,
           formData: { ...record.formData, referencePhotos: [] },
         };
         const updated = [cleanRecord, ...s.history].slice(0, 50);
-        return { history: updated };
+        return { history: updated, currentHistoryId: record.id };
       }),
       removeHistory: (id) => set((s) => ({ history: s.history.filter(r => r.id !== id) })),
       clearHistory: () => set({ history: [] }),
+      updateHistoryOutput: (id, output) => set((s) => ({
+        history: s.history.map(r => r.id === id ? { ...r, output } : r),
+      })),
 
       customTemplates: [],
       addTemplate: (t) => set((s) => ({ customTemplates: [...s.customTemplates, t] })),

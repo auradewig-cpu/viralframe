@@ -10,8 +10,8 @@ import { ContentTypeDefinition, DirectRendererProps, ManualRendererProps } from 
 // Pure refactor — bungkus perilaku yang sudah ada (masterPrompt.ts + jsonParser.ts + policyCheck.ts +
 // contentStyles.ts + DirectPanel/ManualPanel) tanpa mengubah output sama sekali.
 
-function ShortVideoDirectRenderer({ data, onRegenerate, onEdit, referencePhotos }: DirectRendererProps<VideoJSON>) {
-  return <DirectPanel json={data} onRegenerate={onRegenerate} onEdit={onEdit} referencePhotos={referencePhotos} />;
+function ShortVideoDirectRenderer({ data, form, onRegenerate, onEdit, referencePhotos }: DirectRendererProps<VideoJSON>) {
+  return <DirectPanel json={data} form={form} onRegenerate={onRegenerate} onEdit={onEdit} referencePhotos={referencePhotos} />;
 }
 
 function ShortVideoManualRenderer({ masterPrompt, form, onValidated }: ManualRendererProps<VideoJSON>) {

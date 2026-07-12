@@ -14,6 +14,7 @@ export function History() {
   const setGeneratedOutput = useAppStore(s => s.setGeneratedOutput);
   const setMasterPrompt = useAppStore(s => s.setMasterPrompt);
   const setActiveContentTypeId = useAppStore(s => s.setActiveContentTypeId);
+  const setCurrentHistoryId = useAppStore(s => s.setCurrentHistoryId);
   const navigate = useNavigate();
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -28,6 +29,7 @@ export function History() {
     loadFormData(record.formData);
     setGeneratedOutput(contentTypeId, record.output);
     setMasterPrompt(record.masterPrompt);
+    setCurrentHistoryId(record.id);
     navigate('/');
   };
 

@@ -1,15 +1,28 @@
 import { useState } from 'react';
 import { Copy, Check, Download, RefreshCw, Edit } from 'lucide-react';
 import JSZip from 'jszip';
-import { VideoJSON } from '../../types';
+import { VideoJSON, FormData } from '../../types';
 import { SceneCard } from './SceneCard';
 import { useAppStore } from '../../store';
+import { generateWithFallback, ApiCallError } from '../../lib/apiClient';
+import {
+  buildSceneRegenPrompt, buildSceneRegenRepairPrompt, validateSceneData,
+  getSceneRegenExpectation, parseSceneResponse,
+} from '../../lib/sceneRegen';
+import { getSceneTypeSlug } from '../../lib/contentStyles';
 
 interface DirectPanelProps {
   json: VideoJSON;
+  form: FormData;
   onRegenerate: () => void;
   onEdit: () => void;
   referencePhotos?: string[];
+}
+
+interface SceneRegenState {
+  loading: boolean;
+  error: string | null;
+  justRegenerated: boolean;
 }
 
 function CopyAllButton({ json }: { json: VideoJSON }) {
@@ -118,11 +131,72 @@ function ViralScoreMeter({ score }: { score: string }) {
   );
 }
 
-export function DirectPanel({ json, onRegenerate, onEdit, referencePhotos }: DirectPanelProps) {
+export function DirectPanel({ json, form, onRegenerate, onEdit, referencePhotos }: DirectPanelProps) {
   const lastUsedProvider = useAppStore(s => s.lastUsedProvider);
+  const settings = useAppStore(s => s.settings);
+  const generatedOutput = useAppStore(s => s.generatedOutput);
+  const setGeneratedOutput = useAppStore(s => s.setGeneratedOutput);
+  const currentHistoryId = useAppStore(s => s.currentHistoryId);
+  const updateHistoryOutput = useAppStore(s => s.updateHistoryOutput);
   const totalDuration = json.video_metadata.total_duration_seconds;
   const scoreStr = json.video_metadata.viral_score_estimate || '0/100';
   const aiTool = json.video_metadata.ai_video_tool;
+
+  const [sceneRegen, setSceneRegen] = useState<Record<number, SceneRegenState>>({});
+
+  const patchSceneRegenState = (index: number, patch: Partial<SceneRegenState>) => {
+    setSceneRegen(prev => ({ ...prev, [index]: { loading: false, error: null, justRegenerated: false, ...prev[index], ...patch } }));
+  };
+
+  const regenerateScene = async (sceneIndex: number) => {
+    patchSceneRegenState(sceneIndex, { loading: true, error: null, justRegenerated: false });
+    try {
+      const narrationWPM = settings.narrationWPM || 165;
+      const keys = { gemini: settings.geminiApiKey, groq: settings.groqApiKey, openrouter: settings.openrouterApiKey };
+      const expectation = getSceneRegenExpectation(json, sceneIndex, form, narrationWPM);
+      const geminiModel = settings.geminiModel || 'gemini-3.5-flash';
+
+      const prompt = buildSceneRegenPrompt(json, sceneIndex, form, narrationWPM);
+      let scene = await generateWithFallback(prompt, keys, parseSceneResponse, () => {}, undefined, geminiModel);
+      let validation = validateSceneData(scene, expectation);
+
+      // Repair loop 1x — pola sama dengan repair loop full-video di Home.tsx.
+      if (!validation.valid || validation.warnings.length > 0) {
+        const problems = [...validation.errors, ...validation.warnings];
+        try {
+          const repairPrompt = buildSceneRegenRepairPrompt(scene, problems, expectation);
+          const repaired = await generateWithFallback(repairPrompt, keys, parseSceneResponse, () => {}, undefined, geminiModel);
+          const revalidation = validateSceneData(repaired, expectation);
+          if (revalidation.valid) {
+            scene = repaired;
+            validation = revalidation;
+          }
+        } catch {
+          // Repair gagal — evaluasi hasil pertama apa adanya di bawah.
+        }
+      }
+
+      if (!validation.valid) {
+        patchSceneRegenState(sceneIndex, { loading: false, error: validation.errors.join(' ') });
+        return;
+      }
+
+      scene.scene_type = getSceneTypeSlug(form.contentStyle, sceneIndex, json.scenes.length);
+
+      const newScenes = [...json.scenes];
+      newScenes[sceneIndex] = scene;
+      const newVideoJSON: VideoJSON = { ...json, scenes: newScenes };
+
+      setGeneratedOutput(generatedOutput?.contentTypeId || 'short_video', newVideoJSON);
+      if (currentHistoryId) updateHistoryOutput(currentHistoryId, newVideoJSON);
+
+      patchSceneRegenState(sceneIndex, { loading: false, error: null, justRegenerated: true });
+      setTimeout(() => patchSceneRegenState(sceneIndex, { justRegenerated: false }), 5000);
+    } catch (e: unknown) {
+      const err = e as ApiCallError;
+      patchSceneRegenState(sceneIndex, { loading: false, error: err.message || 'Gagal regenerate scene ini.' });
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -193,7 +267,19 @@ export function DirectPanel({ json, onRegenerate, onEdit, referencePhotos }: Dir
       {/* Scene Cards */}
       <div className="space-y-4">
         {json.scenes.map((scene, i) => (
-          <SceneCard key={i} scene={scene} aiTool={aiTool} isFirst={i === 0} isLast={i === json.scenes.length - 1} characterAnchor={json.character_sheet?.description} referencePhotos={referencePhotos} />
+          <SceneCard
+            key={i}
+            scene={scene}
+            aiTool={aiTool}
+            isFirst={i === 0}
+            isLast={i === json.scenes.length - 1}
+            characterAnchor={json.character_sheet?.description}
+            referencePhotos={referencePhotos}
+            onRegenerateScene={() => regenerateScene(i)}
+            regenLoading={sceneRegen[i]?.loading || false}
+            regenError={sceneRegen[i]?.error || null}
+            justRegenerated={sceneRegen[i]?.justRegenerated || false}
+          />
         ))}
       </div>
     </div>

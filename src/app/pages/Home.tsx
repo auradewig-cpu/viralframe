@@ -419,7 +419,7 @@ export function Home() {
           </div>
         )}
         {!isGenerating && !generateError && formData.mode === 'direct' && generatedOutput?.data && (
-          <contentType.DirectRenderer data={generatedOutput.data} onRegenerate={handleRegenerate} onEdit={handleEdit} referencePhotos={formData.referencePhotos} />
+          <contentType.DirectRenderer data={generatedOutput.data} form={formData} onRegenerate={handleRegenerate} onEdit={handleEdit} referencePhotos={formData.referencePhotos} />
         )}
 
         {!isGenerating && !generateError && formData.mode === 'manual' && (

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Copy, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { Copy, Check, ChevronDown, ChevronUp, RefreshCw, Loader2, AlertCircle } from 'lucide-react';
 import { SceneData } from '../../types';
 import { AI_TOOLS } from '../../lib/maps';
 
@@ -10,6 +10,12 @@ interface SceneCardProps {
   isLast?: boolean;
   characterAnchor?: string;
   referencePhotos?: string[];
+  // Regenerate per-scene (Tugas 1) — opsional, hanya tersedia saat SceneCard dirender dari
+  // DirectPanel (context videoJSON + form lengkap tersedia). ManualPanel/History tidak mengisi ini.
+  onRegenerateScene?: () => void;
+  regenLoading?: boolean;
+  regenError?: string | null;
+  justRegenerated?: boolean;
 }
 
 function CopyButton({ text, label = 'Copy' }: { text: string; label?: string }) {
@@ -83,7 +89,7 @@ function RefGuide({ aiTool, sceneNumber, isFirst }: { aiTool: string; sceneNumbe
   );
 }
 
-export function SceneCard({ scene, aiTool, isFirst, isLast = false, characterAnchor, referencePhotos }: SceneCardProps) {
+export function SceneCard({ scene, aiTool, isFirst, isLast = false, characterAnchor, referencePhotos, onRegenerateScene, regenLoading = false, regenError = null, justRegenerated = false }: SceneCardProps) {
   const [refOpen, setRefOpen] = useState(false);
   const [briefOpen, setBriefOpen] = useState(false);
 
@@ -106,16 +112,39 @@ export function SceneCard({ scene, aiTool, isFirst, isLast = false, characterAnc
   return (
     <div className="rounded-xl overflow-hidden" style={{ border: `1px solid var(--vf-border)`, borderLeft: `4px solid ${sceneColor}` }}>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3" style={{ background: 'var(--vf-bg-elevated)' }}>
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between px-4 py-3 flex-wrap gap-2" style={{ background: 'var(--vf-bg-elevated)' }}>
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="px-2 py-0.5 rounded-full text-xs font-bold" style={{ background: sceneColor, color: 'white' }}>
             {sceneEmoji} SCENE {scene.scene_number} — {sceneLabel}
           </span>
           <span className="text-xs" style={{ color: 'var(--vf-text-muted)' }}>
             {scene.duration_seconds}s · {scene.speech_pace} · maks {scene.max_words} kata
           </span>
+          {justRegenerated && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(16,185,129,0.15)', color: 'var(--vf-accent-success)' }}>
+              🔄 Baru diregenerate
+            </span>
+          )}
         </div>
+        {onRegenerateScene && (
+          <button
+            onClick={onRegenerateScene}
+            disabled={regenLoading}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all disabled:opacity-60"
+            style={{ background: 'var(--vf-bg-secondary)', color: 'var(--vf-text-secondary)', border: '1px solid var(--vf-border)' }}
+          >
+            {regenLoading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+            {regenLoading ? 'Regenerating...' : '🔄 Regenerate scene ini'}
+          </button>
+        )}
       </div>
+
+      {regenError && (
+        <div className="flex items-start gap-2 px-4 py-2.5 text-xs" style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--vf-accent-danger)', borderBottom: '1px solid var(--vf-border)' }}>
+          <AlertCircle size={14} className="shrink-0 mt-0.5" />
+          <span>Gagal regenerate scene ini: {regenError}. Scene lama tetap dipakai.</span>
+        </div>
+      )}
 
       <div className="p-4 space-y-4" style={{ background: 'var(--vf-bg-secondary)' }}>
         {/* Script narration */}
