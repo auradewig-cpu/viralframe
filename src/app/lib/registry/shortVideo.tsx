@@ -39,8 +39,8 @@ export const shortVideoContentType: ContentTypeDefinition<VideoJSON> = {
   ],
   buildMasterPrompt: (form, narrationWPM) => compileMasterPrompt(form, narrationWPM),
   parseOutput: (rawText) => parseAiResponse(rawText),
-  validateOutput: (json, form) => validateVideoJSON(json, form.sceneCount, form.captionVariationCount, form.aiTool, form.referencePhotos.length > 0),
-  buildRepairPrompt: (json, problems, form) => buildVideoRepairPrompt(json, problems, form.sceneCount, form.captionVariationCount, form.aiTool),
+  validateOutput: (json, form) => validateVideoJSON(json, form.sceneCount, form.captionVariationCount, form.aiTool, form.referencePhotos.length > 0, form),
+  buildRepairPrompt: (json, problems, form) => buildVideoRepairPrompt(json, problems, form.sceneCount, form.captionVariationCount, form.aiTool, form),
   checkPolicy: (json, form) => formatPolicyViolations(checkPolicyCompliance(json, form.contentGoal)),
   applyPostProcess: (json, form) => {
     if (json.scenes && Array.isArray(json.scenes)) applySceneTypeSlugs(json.scenes, form.contentStyle);

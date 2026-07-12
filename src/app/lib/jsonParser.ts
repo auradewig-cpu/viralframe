@@ -1,5 +1,6 @@
 import { AI_TOOLS } from './maps';
-import { VideoJSON } from '../types';
+import { VideoJSON, FormData } from '../types';
+import { getValidLocationRefs, getSceneLocationRef, buildReferenceImageJson, buildBindingSentence } from './locationRefs';
 
 export function parseAiResponse(rawText: string): VideoJSON | null {
   // Step 1: try direct parse
@@ -26,7 +27,7 @@ export function countWords(text: string | null | undefined): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
-export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number, expectedCaptionCount: number = 1, expectedAiTool?: string, expectHasRefImage: boolean = false): ValidationResult {
+export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number, expectedCaptionCount: number = 1, expectedAiTool?: string, expectHasRefImage: boolean = false, form?: FormData): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -34,6 +35,8 @@ export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number, e
   const aiTool = expectedAiTool || json.video_metadata?.ai_video_tool || '';
   const toolInfo = AI_TOOLS.find(t => t.value === aiTool);
   const charLimit = toolInfo?.charLimit || 400;
+  // form opsional (ManualPanel belum melewatkan form penuh) — kalau tidak ada, cek locationRefs di-skip.
+  const validLocationRefs = form ? getValidLocationRefs(form) : [];
 
   if (!json.video_metadata) errors.push('Field "video_metadata" tidak ditemukan.');
   if (!json.global_style) errors.push('Field "global_style" tidak ditemukan.');
@@ -70,6 +73,12 @@ export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number, e
       if (expectHasRefImage && !scene.reference_image) {
         warnings.push(`Scene ${i + 1}: field "reference_image" kosong padahal ada foto referensi diupload — engine AI video terstruktur mungkin mengabaikan foto referensi.`);
       }
+      if (validLocationRefs.length > 0) {
+        const expectedRef = getSceneLocationRef(validLocationRefs, scene.scene_number);
+        if (expectedRef && scene.reference_image?.file?.trim() !== expectedRef.file.trim()) {
+          warnings.push(`Scene ${i + 1}: seharusnya pakai reference_image.file "${expectedRef.file.trim()}" (ditugaskan via Referensi Lokasi/Produk), tapi hasilnya "${scene.reference_image?.file || '(kosong)'}" — foto referensi mungkin diabaikan AI video tool.`);
+        }
+      }
     });
   }
   if (!json.production_notes) {
@@ -96,9 +105,18 @@ export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number, e
 
 // Repair loop: satu retry tertarget jauh lebih murah daripada regenerate penuh.
 // Kirim JSON bermasalah + daftar pelanggaran, minta AI memperbaiki HANYA field yang bermasalah.
-export function buildRepairPrompt(json: VideoJSON, problems: string[], expectedSceneCount: number, expectedCaptionCount: number, aiToolValue: string): string {
+export function buildRepairPrompt(json: VideoJSON, problems: string[], expectedSceneCount: number, expectedCaptionCount: number, aiToolValue: string, form?: FormData): string {
   const toolInfo = AI_TOOLS.find(t => t.value === aiToolValue);
   const charLimit = toolInfo?.charLimit || 400;
+  const validLocationRefs = form ? getValidLocationRefs(form) : [];
+  const locationRefRules = validLocationRefs.length > 0
+    ? `\n- reference_image per scene WAJIB ikuti penugasan ini persis (BOLEH BERBEDA antar scene, JANGAN disalin rata):\n${Array.from({ length: expectedSceneCount }, (_, i) => {
+        const ref = getSceneLocationRef(validLocationRefs, i + 1);
+        return ref
+          ? `  Scene ${i + 1}: reference_image = ${buildReferenceImageJson(ref)}, ai_ready_prompt sertakan kalimat: "${buildBindingSentence(ref)}"`
+          : `  Scene ${i + 1}: reference_image = null`;
+      }).join('\n')}`
+    : '';
   return `Kamu sebelumnya menghasilkan JSON video berikut, tetapi validator menemukan masalah.
 
 DAFTAR MASALAH YANG HARUS DIPERBAIKI:
@@ -109,7 +127,7 @@ ATURAN PERBAIKAN:
 - Total scene HARUS PERSIS ${expectedSceneCount}. Total caption_variations HARUS PERSIS ${expectedCaptionCount}.
 - Setiap ai_ready_prompt maksimal ${charLimit} karakter dan (jika ada karakter) WAJIB diawali character_sheet.description verbatim.
 - Setiap script_narration: jumlah kata aktual antara 85%–100% dari max_words scene tersebut.
-- Semua klaim absolut/medis/testimonial di-rewrite menjadi observasi netral yang policy-safe.
+- Semua klaim absolut/medis/testimonial di-rewrite menjadi observasi netral yang policy-safe.${locationRefRules}
 - Output kamu HANYA JSON lengkap yang sudah diperbaiki, dengan struktur identik. Mulai dengan { dan akhiri dengan }. Tanpa penjelasan, tanpa markdown.
 
 JSON YANG HARUS DIPERBAIKI:

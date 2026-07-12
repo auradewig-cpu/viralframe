@@ -1,6 +1,7 @@
 import { VideoJSON, FormData } from '../types';
 import { countWords } from './jsonParser';
 import { checkPolicyCompliance, PolicyViolation } from './policyCheck';
+import { getValidLocationRefs, getSceneLocationRef } from './locationRefs';
 
 // Status per-scene SELALU derived — tidak pernah disimpan ke JSON output/history. Dihitung ulang
 // dari videoJSON + form setiap kali dibutuhkan (badge Flagged/OK di SceneCard), supaya tetap akurat
@@ -13,6 +14,8 @@ export function getSceneIssuesMap(json: VideoJSON, form: FormData): Record<numbe
     map[sceneNumber].push(issue);
   };
 
+  const validLocationRefs = getValidLocationRefs(form);
+
   (json.scenes || []).forEach(scene => {
     if (scene.script_narration && scene.max_words > 0) {
       const actual = countWords(scene.script_narration);
@@ -20,6 +23,12 @@ export function getSceneIssuesMap(json: VideoJSON, form: FormData): Record<numbe
         addIssue(scene.scene_number, `Narasi ${actual} kata, melebihi batas lipsync ${scene.max_words} kata.`);
       } else if (actual < Math.ceil(scene.max_words * 0.6)) {
         addIssue(scene.scene_number, `Narasi ${actual} kata, jauh di bawah target 85% dari ${scene.max_words} kata.`);
+      }
+    }
+    if (validLocationRefs.length > 0) {
+      const expectedRef = getSceneLocationRef(validLocationRefs, scene.scene_number);
+      if (expectedRef && scene.reference_image?.file?.trim() !== expectedRef.file.trim()) {
+        addIssue(scene.scene_number, `reference_image.file seharusnya "${expectedRef.file.trim()}" (ditugaskan via Referensi Lokasi/Produk), tapi hasilnya "${scene.reference_image?.file || '(kosong)'}".`);
       }
     }
   });

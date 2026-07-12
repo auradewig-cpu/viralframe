@@ -2,9 +2,12 @@ import { FormData, VideoJSON, SceneData } from '../types';
 import { getLipsyncSpec } from './lipsync';
 import { AI_TOOLS, NICHE_DATA, AI_TOOL_FORMAT } from './maps';
 import { CONTENT_STYLES } from './contentStyles';
-import { NEGATIVE_PROMPT_BLOCK } from './negativePrompt';
+import { NEGATIVE_PROMPT_BLOCK, CAMERA_REF_RULE } from './negativePrompt';
 import { countWords, ValidationResult } from './jsonParser';
 import { parseJsonResponse } from './registry/shared';
+import {
+  getValidLocationRefs, getSceneLocationRef, buildReferenceImageJson, buildBindingSentence, ResolvedLocationRef,
+} from './locationRefs';
 
 // Fondasi Tugas 1 — regenerate SATU scene tanpa membakar quota untuk scene lain yang sudah bagus.
 // Bukan bagian dari registry/shortVideo.tsx supaya bisa dipakai langsung dari komponen output
@@ -16,6 +19,7 @@ export interface SceneRegenExpectation {
   maxWords: number;
   charLimit: number;
   characterAnchor: string;
+  locationRef: ResolvedLocationRef | null;
 }
 
 export function getSceneRegenExpectation(videoJSON: VideoJSON, sceneIndex: number, form: FormData, narrationWPM: number): SceneRegenExpectation {
@@ -23,12 +27,14 @@ export function getSceneRegenExpectation(videoJSON: VideoJSON, sceneIndex: numbe
   const spec = getLipsyncSpec(scene.duration_seconds, narrationWPM);
   const toolInfo = AI_TOOLS.find(t => t.value === (form.aiTool || videoJSON.video_metadata?.ai_video_tool));
   const characterAnchor = videoJSON.character_sheet?.used ? (videoJSON.character_sheet.description || '').trim() : '';
+  const locationRef = getSceneLocationRef(getValidLocationRefs(form), scene.scene_number);
   return {
     sceneNumber: scene.scene_number,
     durationSeconds: scene.duration_seconds,
     maxWords: spec.maxWords,
     charLimit: toolInfo?.charLimit || 400,
     characterAnchor,
+    locationRef,
   };
 }
 
@@ -89,7 +95,10 @@ cliffhanger_to_next pada scene baru WAJIB mengarah masuk akal ke scene ini — j
 visual/lighting/wardrobe supaya transisi ke scene ini tetap mulus.` : '[Scene ini adalah scene TERAKHIR — tidak ada scene sesudahnya.]'}
 
 [REFERENCE IMAGE]
-${scene.reference_image ? `WAJIB disalin verbatim persis seperti ini ke field "reference_image" scene baru:\n${JSON.stringify(scene.reference_image, null, 2)}` : 'Tidak ada reference_image di scene ini — field "reference_image" tetap null.'}
+${exp.locationRef
+    ? `Scene ini WAJIB pakai reference_image PERSIS: ${buildReferenceImageJson(exp.locationRef)}\nai_ready_prompt WAJIB sertakan kalimat singkat: "${buildBindingSentence(exp.locationRef)}". Deskripsi ${exp.locationRef.role === 'environment' ? 'lokasi' : 'produk'} HANYA boleh dari keterangan ini + label scene, JANGAN mengarang detail generik di luar itu.`
+    : (scene.reference_image ? `WAJIB disalin verbatim persis seperti ini ke field "reference_image" scene baru:\n${JSON.stringify(scene.reference_image, null, 2)}` : 'Tidak ada reference_image di scene ini — field "reference_image" tetap null.')}
+${exp.locationRef?.role === 'environment' ? `\n${CAMERA_REF_RULE}` : ''}
 
 ---
 
@@ -118,7 +127,7 @@ ${NEGATIVE_PROMPT_BLOCK}
   "transition_to_next": "string",
   "viral_element_in_scene": "string",
   "cliffhanger_to_next": "string",
-  "reference_image": ${scene.reference_image ? JSON.stringify(scene.reference_image) : 'null'}
+  "reference_image": ${exp.locationRef ? buildReferenceImageJson(exp.locationRef) : (scene.reference_image ? JSON.stringify(scene.reference_image) : 'null')}
 }
 
 GUARDRAIL: scene_number, duration_seconds, dan max_words TIDAK BOLEH berubah dari nilai di atas.
@@ -150,6 +159,13 @@ export function validateSceneData(scene: SceneData, expectation: SceneRegenExpec
     }
     if (expectation.characterAnchor && !scene.ai_ready_prompt.startsWith(expectation.characterAnchor)) {
       warnings.push('ai_ready_prompt tidak diawali CHARACTER ANCHOR verbatim — konsistensi karakter berisiko rusak.');
+    }
+  }
+
+  if (expectation.locationRef) {
+    const expectedFile = expectation.locationRef.file.trim();
+    if (scene.reference_image?.file?.trim() !== expectedFile) {
+      warnings.push(`Scene ${expectation.sceneNumber} seharusnya pakai reference_image.file "${expectedFile}" (ditugaskan via Referensi Lokasi/Produk), tapi hasilnya "${scene.reference_image?.file || '(kosong)'}" — foto referensi mungkin diabaikan AI video tool.`);
     }
   }
 
