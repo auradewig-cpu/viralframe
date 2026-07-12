@@ -89,6 +89,10 @@ export function compileMasterPrompt(form: FormData, narrationWPM: number = 165):
   const characterAnchor = buildCharacterAnchor(form);
   const hasRefPhotos = form.referencePhotos.length > 0;
   const hasLocation = !!form.locationDescription;
+  const refImageFilename = hasRefPhotos ? (form.referenceImageFilename.trim() || 'attached image') : '';
+  const refImageJson = hasRefPhotos
+    ? `{ "file": "${refImageFilename}", "instruction": "Match the attached reference image exactly. Keep original shape, color, and proportions. Must be consistent across all scenes. Do not redesign the product." }`
+    : 'null';
 
   let langInstruction = '';
   if (form.language === 'id') langInstruction = 'BAHASA: script_narration HARUS dalam Bahasa Indonesia. script_subtitle = null.';
@@ -185,7 +189,7 @@ KARAKTER:
 ${characterBlock}
 ${form.useCharacter ? (form.expression === 'auto' ? 'Ekspresi karakter: AI bebas menentukan ekspresi paling sesuai tiap scene.' : `Ekspresi karakter WAJIB: "${EXPRESSIONS.find(e => e.value === form.expression)?.label || form.expression}" sebagai ekspresi DASAR karakter di semua scene (boleh sedikit bervariasi sesuai konteks emosi scene, tapi harus tetap terasa sebagai ekspresi dasar yang sama). PENTING: Tulis deskripsi ekspresi ini dalam kalimat natural di field character_expression (JSON output), JANGAN tulis ulang slug/kode teknis apapun.`) : ''}
 ${form.useCharacter ? `\nCHARACTER ANCHOR STRING (copy ini verbatim ke awal setiap ai_ready_prompt):\n'${characterAnchor}'\n\nDefinisi: Setiap ai_ready_prompt di SEMUA scene HARUS dimulai dengan string ini persis, baru kemudian deskripsi aksi scene. Tanpa character anchor yang identik di setiap prompt, AI video tool akan menghasilkan karakter berbeda di setiap scene.` : ''}
-${hasRefPhotos ? `\nREFERENCE IMAGE INSTRUCTION: User mengupload ${form.referencePhotos.length} foto referensi. Setiap ai_ready_prompt WAJIB sertakan kalimat SINGKAT di [ENVIRONMENT]: "Match uploaded reference photo exactly." — JANGAN pakai kalimat panjang, ini WAJIB dijaga singkat karena ai_ready_prompt punya batas karakter ketat.` : ''}
+${hasRefPhotos ? `\nREFERENCE IMAGE INSTRUCTION: User mengupload ${form.referencePhotos.length} foto referensi (nama file: "${refImageFilename}"). Setiap ai_ready_prompt WAJIB sertakan kalimat SINGKAT di [ENVIRONMENT]: "Match uploaded reference photo exactly." — JANGAN pakai kalimat panjang, ini WAJIB dijaga singkat karena ai_ready_prompt punya batas karakter ketat. SELAIN itu, field JSON terstruktur "reference_image" di setiap scene WAJIB diisi persis seperti contoh di OUTPUT JSON SCHEMA — ini yang dibaca engine AI video yang mendukung structured input, jangan sampai kosong atau berbeda antar scene.` : ''}
 ${hasLocation ? `\nLOKASI YANG HARUS DIGUNAKAN: ${form.locationDescription}. Semua scene HARUS menampilkan lokasi/properti yang SAMA dari sudut pandang berbeda.` : ''}
 
 GAYA VISUAL: ${form.visualStyle === 'auto' ? 'AI bebas menentukan gaya visual paling sesuai niche & platform.' : `WAJIB gunakan gaya visual "${VISUAL_STYLES.find(v => v.value === form.visualStyle)?.label || form.visualStyle}" di SETIAP scene tanpa kecuali — cerminkan gaya ini secara eksplisit dalam kalimat natural di visual_description, camera_direction, dan field "visual_style" pada global_style. JANGAN tulis ulang slug/kode teknis apapun ke output JSON.`}
@@ -307,9 +311,11 @@ OUTPUT JSON SCHEMA:
       "sound_design": "string",
       "transition_to_next": "string",
       "viral_element_in_scene": "string",
-      "cliffhanger_to_next": "string"
+      "cliffhanger_to_next": "string",
+      "reference_image": ${refImageJson}
     }
     // ... repeat for all ${form.sceneCount} scenes, scene_type sesuai PERAN TIAP SCENE di atas (contoh scene terakhir: "${effectiveStyle.getSceneRole(form.sceneCount - 1, form.sceneCount).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')}")
+    // "reference_image" WAJIB IDENTIK PERSIS (copy verbatim) di SETIAP scene — field ini bukan konten kreatif, jangan diubah-ubah antar scene.
   ],
   "production_notes": {
     "caption_variations": [

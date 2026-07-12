@@ -26,7 +26,7 @@ export function countWords(text: string | null | undefined): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
-export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number, expectedCaptionCount: number = 1, expectedAiTool?: string): ValidationResult {
+export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number, expectedCaptionCount: number = 1, expectedAiTool?: string, expectHasRefImage: boolean = false): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -65,6 +65,10 @@ export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number, e
         } else if (actual < Math.ceil(scene.max_words * 0.6)) {
           warnings.push(`Scene ${i + 1}: narasi aktual ${actual} kata, jauh di bawah target 85% dari ${scene.max_words} kata — pacing akan terasa kosong.`);
         }
+      }
+      // reference_image bersifat opsional/nullable — tidak ada di project lama, jangan jadikan error.
+      if (expectHasRefImage && !scene.reference_image) {
+        warnings.push(`Scene ${i + 1}: field "reference_image" kosong padahal ada foto referensi diupload — engine AI video terstruktur mungkin mengabaikan foto referensi.`);
       }
     });
   }

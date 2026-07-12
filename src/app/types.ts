@@ -50,6 +50,7 @@ export interface FormData {
 
   // Reference Photos & Location
   referencePhotos: string[];
+  referenceImageFilename: string;
   locationDescription: string;
 
   // Mode
@@ -76,6 +77,7 @@ export interface SceneData {
   viral_element_in_scene: string;
   cliffhanger_to_next: string;
   ai_ready_prompt: string;
+  reference_image?: { file: string; instruction: string } | null;
 }
 
 export interface VideoJSON {
@@ -215,6 +217,7 @@ export const DEFAULT_FORM: FormData = {
   brandColor: '',
   avoidColor: '',
   referencePhotos: [],
+  referenceImageFilename: '',
   locationDescription: '',
   mode: 'direct',
 };

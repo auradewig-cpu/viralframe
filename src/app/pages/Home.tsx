@@ -208,7 +208,7 @@ export function Home() {
         applySceneTypeSlugs(json.scenes, formData.contentStyle);
       }
 
-      let validation = validateVideoJSON(json, formData.sceneCount, formData.captionVariationCount, formData.aiTool);
+      let validation = validateVideoJSON(json, formData.sceneCount, formData.captionVariationCount, formData.aiTool, formData.referencePhotos.length > 0);
       let policyMsgs = formatPolicyViolations(checkPolicyCompliance(json));
 
       // Repair loop: satu retry tertarget untuk memperbaiki HANYA field yang bermasalah,
@@ -222,7 +222,7 @@ export function Home() {
           const repaired = await generateWithFallback(repairPrompt, keys, () => {}, undefined, settings.geminiModel || 'gemini-3.5-flash');
           if (repaired && repaired.scenes && Array.isArray(repaired.scenes)) {
             applySceneTypeSlugs(repaired.scenes, formData.contentStyle);
-            const revalidation = validateVideoJSON(repaired, formData.sceneCount, formData.captionVariationCount, formData.aiTool);
+            const revalidation = validateVideoJSON(repaired, formData.sceneCount, formData.captionVariationCount, formData.aiTool, formData.referencePhotos.length > 0);
             const rePolicyMsgs = formatPolicyViolations(checkPolicyCompliance(repaired));
             const before = problems.length;
             const after = revalidation.errors.length + revalidation.warnings.length + rePolicyMsgs.length;

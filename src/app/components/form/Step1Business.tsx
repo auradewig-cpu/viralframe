@@ -149,6 +149,19 @@ export function Step1Business() {
               ))}
             </div>
           )}
+          {formData.referencePhotos.length > 0 && (
+            <div className="mt-3">
+              <InputField
+                label="Nama File Foto Referensi (Opsional)"
+                value={formData.referenceImageFilename}
+                onChange={v => setFormData({ referenceImageFilename: v })}
+                placeholder='Contoh: "image (5).jpeg"'
+              />
+              <p className="text-xs mt-1" style={{ color: 'var(--vf-text-muted)' }}>
+                Isi persis nama file yang akan kamu lampirkan di AI video tool. Nama ini akan ditulis eksplisit di setiap field "reference_image" pada JSON output, supaya AI video tool tidak mengabaikan foto referensimu.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* 📍 Deskripsi Lokasi */}
