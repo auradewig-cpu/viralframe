@@ -97,7 +97,7 @@ export function compileMasterPrompt(form: FormData, narrationWPM: number = 165):
   const characterSheetUsed = form.useCharacter || isFacelessPov;
   const hasRefPhotos = form.referencePhotos.length > 0;
   const hasLocation = !!form.locationDescription;
-  const refImageFilename = hasRefPhotos ? (form.referenceImageFilename.trim() || 'attached image') : '';
+  const refImageFilename = hasRefPhotos ? (form.referenceImageFilename.trim().replace(/"/g, '') || 'attached image') : '';
   const refImageJson = hasRefPhotos
     ? `{ "file": "${refImageFilename}", "instruction": "Match the attached reference image exactly. Keep original shape, color, and proportions. Must be consistent across all scenes. Do not redesign the product." }`
     : 'null';
