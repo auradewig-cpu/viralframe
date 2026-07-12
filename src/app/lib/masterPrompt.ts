@@ -2,6 +2,7 @@ import { FormData } from '../types';
 import { getLipsyncSpec } from './lipsync';
 import { NICHE_DATA, AI_TOOL_FORMAT, PLATFORM_BEHAVIOR, AI_TOOLS, EXPRESSIONS, VISUAL_STYLES, BACKSOUNDS, NARRATIVE_TONES } from './maps';
 import { CONTENT_STYLES } from './contentStyles';
+import { NEGATIVE_PROMPT_BLOCK } from './negativePrompt';
 
 function getSceneDurations(form: FormData): number[] {
   if (form.durationMode === 'uniform') {
@@ -263,6 +264,10 @@ WAJIB rewrite klaim jadi observasi netral:
 - TAPI: "Kebijakan retur tersedia untuk kenyamanan belanja"
 
 REWRITE TEST: Sebelum menulis ai_ready_prompt, tanyakan: "Apakah prompt ini akan ditolak Google Flow?" Jika ya, rewrite.
+
+---
+
+${NEGATIVE_PROMPT_BLOCK}
 
 ---
 
