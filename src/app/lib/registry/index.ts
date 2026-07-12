@@ -2,11 +2,13 @@ import { ContentTypeDefinition } from './types';
 import { shortVideoContentType } from './shortVideo';
 import { youtubeLongContentType } from './youtubeLong';
 import { thumbnailPackContentType } from './thumbnailPack';
+import { contentCalendarContentType } from './contentCalendar';
 
 export const CONTENT_TYPES: ContentTypeDefinition<unknown>[] = [
   shortVideoContentType as ContentTypeDefinition<unknown>,
   youtubeLongContentType as unknown as ContentTypeDefinition<unknown>,
   thumbnailPackContentType as unknown as ContentTypeDefinition<unknown>,
+  contentCalendarContentType as unknown as ContentTypeDefinition<unknown>,
 ];
 
 export const DEFAULT_CONTENT_TYPE_ID = 'short_video';
