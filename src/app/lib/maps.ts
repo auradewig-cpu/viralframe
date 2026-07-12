@@ -97,11 +97,19 @@ export const CTA_TYPES = [
   { value: 'klik_keranjang_kuning', label: '🛒 Klik Keranjang Kuning' },
 ];
 
+export const CONTENT_GOALS = [
+  { value: 'conversion', label: '💰 Konversi — jualan/direct-response' },
+  { value: 'growth', label: '🌱 Growth Akun — kejar follow/save/share, NOL jualan' },
+  { value: 'engagement', label: '💬 Engagement — komentar & interaksi' },
+];
+
 export const TALENT_STYLES = [
   { value: 'visible_character', label: '🧑 Karakter Terlihat — wajah & ekspresi tampil' },
   { value: 'faceless_pov', label: '✋ POV Faceless — tangan review produk, tanpa wajah' },
   { value: 'product_only', label: '📦 Produk Saja — tanpa talent' },
 ];
+
+export const GROWTH_ALLOWED_CTAS = ['follow_more', 'save_for_later', 'share_tag_friend', 'double_tap_agree', 'comment_keyword'];
 
 export const ETHNICITIES = [
   'Asia Tenggara', 'Asia Timur', 'Asia Selatan',

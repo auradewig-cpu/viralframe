@@ -209,7 +209,7 @@ export function Home() {
       }
 
       let validation = validateVideoJSON(json, formData.sceneCount, formData.captionVariationCount, formData.aiTool, formData.referencePhotos.length > 0);
-      let policyMsgs = formatPolicyViolations(checkPolicyCompliance(json));
+      let policyMsgs = formatPolicyViolations(checkPolicyCompliance(json, formData.contentGoal));
 
       // Repair loop: satu retry tertarget untuk memperbaiki HANYA field yang bermasalah,
       // jauh lebih murah dan lebih andal daripada regenerate penuh.
@@ -223,7 +223,7 @@ export function Home() {
           if (repaired && repaired.scenes && Array.isArray(repaired.scenes)) {
             applySceneTypeSlugs(repaired.scenes, formData.contentStyle);
             const revalidation = validateVideoJSON(repaired, formData.sceneCount, formData.captionVariationCount, formData.aiTool, formData.referencePhotos.length > 0);
-            const rePolicyMsgs = formatPolicyViolations(checkPolicyCompliance(repaired));
+            const rePolicyMsgs = formatPolicyViolations(checkPolicyCompliance(repaired, formData.contentGoal));
             const before = problems.length;
             const after = revalidation.errors.length + revalidation.warnings.length + rePolicyMsgs.length;
             // Pakai hasil repair hanya jika benar-benar lebih baik.

@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Upload, X } from 'lucide-react';
 import { useAppStore } from '../../store';
-import { NICHES, TARGET_AUDIENCES, PLATFORMS } from '../../lib/maps';
+import { NICHES, TARGET_AUDIENCES, PLATFORMS, CONTENT_GOALS, GROWTH_ALLOWED_CTAS } from '../../lib/maps';
 import { CONTENT_STYLES } from '../../lib/contentStyles';
 import { FieldLabel, FormCard, SelectField, TextareaField, InputField } from './FormFields';
 
@@ -64,6 +64,34 @@ export function Step1Business() {
   return (
     <div className="space-y-6">
       <FormCard title="🏢 Konteks Bisnis">
+        <div>
+          <FieldLabel>Tujuan Konten *</FieldLabel>
+          <div className="flex flex-col gap-2 mt-1">
+            {CONTENT_GOALS.map(({ value, label }) => (
+              <label key={value} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  checked={formData.contentGoal === value}
+                  onChange={() => {
+                    const updates: Partial<typeof formData> = { contentGoal: value as typeof formData.contentGoal };
+                    if (value === 'growth' && !GROWTH_ALLOWED_CTAS.includes(formData.ctaType)) {
+                      updates.ctaType = 'follow_more';
+                    }
+                    setFormData(updates);
+                  }}
+                  className="accent-indigo-500"
+                />
+                <span className="text-sm" style={{ color: 'var(--vf-text-primary)' }}>{label}</span>
+              </label>
+            ))}
+          </div>
+          {formData.contentGoal === 'growth' && (
+            <p className="text-xs mt-2 p-2 rounded" style={{ background: 'var(--vf-bg-secondary)', color: 'var(--vf-text-secondary)' }}>
+              🌱 Mode Growth: NOL bahasa jualan (beli, checkout, promo, diskon). Konten murni value-first (edukasi/rekomendasi jujur), CTA hanya seputar follow/save/share.
+            </p>
+          )}
+        </div>
+
         <SelectField
           label="Gaya Konten *"
           value={formData.contentStyle}

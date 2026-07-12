@@ -2,10 +2,12 @@ export type Provider = 'gemini' | 'groq' | 'openrouter';
 export type GenerateMode = 'direct' | 'manual';
 export type DurationMode = 'uniform' | 'manual';
 export type TalentStyle = 'visible_character' | 'faceless_pov' | 'product_only';
+export type ContentGoal = 'conversion' | 'growth' | 'engagement';
 
 export interface FormData {
   // Content Style (menentukan struktur scene keseluruhan)
   contentStyle: string;
+  contentGoal: ContentGoal;
 
   // Step 1
   niche: string;
@@ -185,6 +187,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 
 export const DEFAULT_FORM: FormData = {
   contentStyle: 'direct_response',
+  contentGoal: 'conversion',
   niche: '',
   productDescription: '',
   usp: '',

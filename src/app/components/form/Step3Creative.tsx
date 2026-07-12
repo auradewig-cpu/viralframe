@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useAppStore } from '../../store';
 import {
   HOOK_TYPES, CTA_TYPES, ETHNICITIES, CHARACTER_STYLES, TALENT_STYLES,
-  EXPRESSIONS, VISUAL_STYLES, BACKSOUNDS, NARRATIVE_TONES, CAPTION_VARIATION_OPTIONS
+  EXPRESSIONS, VISUAL_STYLES, BACKSOUNDS, NARRATIVE_TONES, CAPTION_VARIATION_OPTIONS,
+  GROWTH_ALLOWED_CTAS
 } from '../../lib/maps';
 import { TalentStyle } from '../../types';
 import { FieldLabel, FormCard, SelectField, InputField, TagsInput } from './FormFields';
@@ -12,6 +13,16 @@ export function Step3Creative() {
   const formData = useAppStore(s => s.formData);
   const setFormData = useAppStore(s => s.setFormData);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  const isGrowthGoal = formData.contentGoal === 'growth';
+  const ctaOptions = isGrowthGoal ? CTA_TYPES.filter(c => GROWTH_ALLOWED_CTAS.includes(c.value)) : CTA_TYPES;
+
+  useEffect(() => {
+    if (isGrowthGoal && !GROWTH_ALLOWED_CTAS.includes(formData.ctaType)) {
+      setFormData({ ctaType: GROWTH_ALLOWED_CTAS[0] });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isGrowthGoal]);
 
   const consistencyScore = () => {
     if (formData.talentStyle !== 'visible_character') return null;
@@ -43,8 +54,13 @@ export function Step3Creative() {
           label="Call to Action (Scene Terakhir)"
           value={formData.ctaType}
           onChange={v => setFormData({ ctaType: v })}
-          options={CTA_TYPES}
+          options={ctaOptions}
         />
+        {isGrowthGoal && (
+          <p className="text-xs -mt-2" style={{ color: 'var(--vf-text-muted)' }}>
+            🌱 Mode Growth aktif: pilihan CTA dibatasi ke follow/save/share/comment — CTA jualan disembunyikan.
+          </p>
+        )}
         {formData.ctaType === 'comment_keyword' && (
           <InputField
             label="Keyword untuk CTA *"

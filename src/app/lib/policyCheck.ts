@@ -17,6 +17,14 @@ interface PolicyRule {
   suggestion: string;
 }
 
+const GROWTH_MODE_RULES: PolicyRule[] = [
+  {
+    pattern: /\b(beli(?:lah)?|checkout|check ?out|keranjang|link (?:di )?bio|promo|diskon|harga (?:spesial|khusus)|order sekarang|gratis ongkir|cod|flash sale)\b/gi,
+    category: 'Bahasa komersial (Mode Growth)',
+    suggestion: 'Mode Growth melarang bahasa jualan — ganti dengan ajakan follow/save/share atau hapus, akun belum boleh berjualan.',
+  },
+];
+
 const POLICY_RULES: PolicyRule[] = [
   {
     pattern: /\b(dijamin|jamin(?:an)? 100%|pasti (?:untung|berhasil|sembuh|naik)|100% (?:aman|berhasil|ampuh|original)|terbaik|nomor (?:1|satu)|no\.? ?1|paling (?:murah|ampuh|efektif|bagus))\b/gi,
@@ -45,10 +53,10 @@ const POLICY_RULES: PolicyRule[] = [
   },
 ];
 
-function scanText(text: string | null | undefined): { match: string; category: string; suggestion: string }[] {
+function scanText(text: string | null | undefined, extraRules: PolicyRule[] = []): { match: string; category: string; suggestion: string }[] {
   if (!text) return [];
   const found: { match: string; category: string; suggestion: string }[] = [];
-  for (const rule of POLICY_RULES) {
+  for (const rule of [...POLICY_RULES, ...extraRules]) {
     rule.pattern.lastIndex = 0;
     let m: RegExpExecArray | null;
     while ((m = rule.pattern.exec(text)) !== null) {
@@ -58,8 +66,9 @@ function scanText(text: string | null | undefined): { match: string; category: s
   return found;
 }
 
-export function checkPolicyCompliance(json: VideoJSON): PolicyViolation[] {
+export function checkPolicyCompliance(json: VideoJSON, contentGoal: 'conversion' | 'growth' | 'engagement' = 'conversion'): PolicyViolation[] {
   const violations: PolicyViolation[] = [];
+  const extraRules = contentGoal === 'growth' ? GROWTH_MODE_RULES : [];
 
   (json.scenes || []).forEach(scene => {
     const fields: [string, string | null | undefined][] = [
@@ -68,14 +77,14 @@ export function checkPolicyCompliance(json: VideoJSON): PolicyViolation[] {
       ['text_overlay', scene.text_overlay],
     ];
     for (const [field, text] of fields) {
-      for (const hit of scanText(text)) {
+      for (const hit of scanText(text, extraRules)) {
         violations.push({ sceneNumber: scene.scene_number, field, ...hit });
       }
     }
   });
 
   (json.production_notes?.caption_variations || []).forEach((cv, i) => {
-    for (const hit of scanText(cv.caption_text)) {
+    for (const hit of scanText(cv.caption_text, extraRules)) {
       violations.push({ sceneNumber: null, field: `caption_variations[${i + 1}]`, ...hit });
     }
   });

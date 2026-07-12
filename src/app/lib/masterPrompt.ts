@@ -108,6 +108,18 @@ export function compileMasterPrompt(form: FormData, narrationWPM: number = 165):
   if (form.language === 'id_en') langInstruction = 'BAHASA: script_narration dalam Bahasa Indonesia, script_subtitle dalam English.';
   if (form.language === 'en_id') langInstruction = 'BAHASA: script_narration dalam English, script_subtitle dalam Bahasa Indonesia.';
 
+  const contentGoalBlock = form.contentGoal === 'growth'
+    ? `TUJUAN KONTEN: 🌱 GROWTH AKUN — akun masih baru, WAJIB kejar follow/save/share, TANPA bahasa jualan sama sekali.
+WAJIB DIPATUHI di SEMUA script_narration, ai_ready_prompt, text_overlay, dan caption_variations:
+✗ DILARANG KERAS kata/frasa komersial: "beli", "checkout", "keranjang", "link bio", "promo", "diskon", "harga", "order", "cod", "COD", "gratis ongkir", atau ajakan transaksi apapun.
+✓ Format WAJIB value-first: edukasi jujur, rekomendasi/review netral, tips bermanfaat — BUKAN pitch jualan.
+✓ Hook WAJIB diorientasikan ke rasa ingin SAVE (menyimpan info) atau FOLLOW (ingin konten berikutnya), bukan ke urgensi beli.
+✓ Caption TANPA hashtag jualan (dilarang: #tiktokshop, #racuntiktokshop, #jualan, #promo, #diskon, dsb.) — ganti dengan hashtag niche/edukasi yang relevan dengan topik konten.
+✓ CTA HANYA boleh berupa ajakan follow/save/share/comment (lihat CTA TYPE di bawah) — TIDAK ADA CTA transaksi.`
+    : form.contentGoal === 'engagement'
+      ? `TUJUAN KONTEN: 💬 ENGAGEMENT — prioritaskan komentar & interaksi. Hook dan CTA diarahkan memancing penonton berkomentar (pertanyaan terbuka, opini, ajakan "vote di komentar"). Bahasa jualan tetap boleh ringan sesuai gaya konten, tapi fokus utama adalah memancing diskusi.`
+      : `TUJUAN KONTEN: 💰 KONVERSI — perilaku standar sesuai GAYA KONTEN dan INTENSITAS CTA di bawah.`;
+
   let advancedBlocks = '';
   if (form.requiredKeywords.length > 0) advancedBlocks += `KATA KUNCI WAJIB: ${form.requiredKeywords.join(', ')}\n`;
   if (form.blacklistWords.length > 0) advancedBlocks += `KATA DILARANG: ${form.blacklistWords.join(', ')}\n`;
@@ -172,6 +184,7 @@ ${advancedBlocks}
 [BLOK 3: SPESIFIKASI VIDEO]
 
 AI TOOL: ${form.aiTool} | RASIO: ${form.ratio} | TOTAL SCENE: ${form.sceneCount}
+${contentGoalBlock}
 GAYA KONTEN: ${effectiveStyle.label} — ${effectiveStyle.description}
 STRUKTUR: ${effectiveStyle.structureDescription}
 GAYA BAHASA NARASI UNTUK GAYA KONTEN INI: ${effectiveStyle.narrativeVoiceGuidance}
