@@ -16,6 +16,8 @@ interface SceneCardProps {
   regenLoading?: boolean;
   regenError?: string | null;
   justRegenerated?: boolean;
+  // Status badge (Tugas 2) — derived dari lib/sceneStatus.ts, TIDAK disimpan di JSON output.
+  issues?: string[];
 }
 
 function CopyButton({ text, label = 'Copy' }: { text: string; label?: string }) {
@@ -89,9 +91,11 @@ function RefGuide({ aiTool, sceneNumber, isFirst }: { aiTool: string; sceneNumbe
   );
 }
 
-export function SceneCard({ scene, aiTool, isFirst, isLast = false, characterAnchor, referencePhotos, onRegenerateScene, regenLoading = false, regenError = null, justRegenerated = false }: SceneCardProps) {
+export function SceneCard({ scene, aiTool, isFirst, isLast = false, characterAnchor, referencePhotos, onRegenerateScene, regenLoading = false, regenError = null, justRegenerated = false, issues = [] }: SceneCardProps) {
   const [refOpen, setRefOpen] = useState(false);
   const [briefOpen, setBriefOpen] = useState(false);
+  const [issuesOpen, setIssuesOpen] = useState(false);
+  const isFlagged = issues.length > 0;
 
   const tool = AI_TOOLS.find(t => t.value === aiTool);
   const charLimit = tool?.charLimit || 400;
@@ -120,9 +124,22 @@ export function SceneCard({ scene, aiTool, isFirst, isLast = false, characterAnc
           <span className="text-xs" style={{ color: 'var(--vf-text-muted)' }}>
             {scene.duration_seconds}s · {scene.speech_pace} · maks {scene.max_words} kata
           </span>
-          {justRegenerated && (
+          {justRegenerated ? (
             <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(16,185,129,0.15)', color: 'var(--vf-accent-success)' }}>
               🔄 Baru diregenerate
+            </span>
+          ) : isFlagged ? (
+            <button
+              onClick={() => setIssuesOpen(!issuesOpen)}
+              title={issues.join('\n')}
+              className="text-[10px] px-1.5 py-0.5 rounded-full cursor-pointer"
+              style={{ background: 'rgba(245,158,11,0.15)', color: 'var(--vf-accent-warning)' }}
+            >
+              ⚠️ Flagged ({issues.length})
+            </button>
+          ) : (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(16,185,129,0.15)', color: 'var(--vf-accent-success)' }}>
+              ✅ OK
             </span>
           )}
         </div>
@@ -143,6 +160,17 @@ export function SceneCard({ scene, aiTool, isFirst, isLast = false, characterAnc
         <div className="flex items-start gap-2 px-4 py-2.5 text-xs" style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--vf-accent-danger)', borderBottom: '1px solid var(--vf-border)' }}>
           <AlertCircle size={14} className="shrink-0 mt-0.5" />
           <span>Gagal regenerate scene ini: {regenError}. Scene lama tetap dipakai.</span>
+        </div>
+      )}
+
+      {issuesOpen && isFlagged && (
+        <div className="px-4 py-2.5 text-xs space-y-1" style={{ background: 'rgba(245,158,11,0.08)', borderBottom: '1px solid var(--vf-border)' }}>
+          {issues.map((issue, i) => (
+            <div key={i} className="flex items-start gap-2" style={{ color: 'var(--vf-accent-warning)' }}>
+              <AlertCircle size={12} className="shrink-0 mt-0.5" />
+              <span>{issue}</span>
+            </div>
+          ))}
         </div>
       )}
 

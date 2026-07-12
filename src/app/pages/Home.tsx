@@ -4,6 +4,8 @@ import { useAppStore } from '../store';
 import { generateWithFallback, ApiCallError } from '../lib/apiClient';
 import { validateFormData, getFormWarnings } from '../lib/validation';
 import { getContentType, CONTENT_TYPES } from '../lib/registry';
+import { getSceneIssuesMap } from '../lib/sceneStatus';
+import { VideoJSON } from '../types';
 import { Progress } from '../components/ui/progress';
 import { StepIndicator } from '../components/form/StepIndicator';
 import { Step1Business } from '../components/form/Step1Business';
@@ -123,6 +125,7 @@ export function Home() {
   const setGenerateError = useAppStore(s => s.setGenerateError);
   const generateWarnings = useAppStore(s => s.generateWarnings);
   const setGenerateWarnings = useAppStore(s => s.setGenerateWarnings);
+  const setGenerateWarningsByScene = useAppStore(s => s.setGenerateWarningsByScene);
   const generateProgressPercent = useAppStore(s => s.generateProgressPercent);
   const setGenerateProgressPercent = useAppStore(s => s.setGenerateProgressPercent);
   const providerStatus = useAppStore(s => s.providerStatus);
@@ -268,6 +271,8 @@ export function Home() {
       setGeneratedOutput(contentType.id, json);
       const allMsgs = [...validation.errors, ...validation.warnings, ...policyMsgs];
       setGenerateWarnings(allMsgs.length > 0 ? allMsgs.join('\n') : '');
+      // Badge Flagged/OK per scene (Tugas 2) — derived, hanya berlaku untuk short_video (skema VideoJSON).
+      setGenerateWarningsByScene(contentType.id === 'short_video' ? getSceneIssuesMap(json as VideoJSON, formData) : {});
       addHistory({
         id: Date.now().toString(),
         timestamp: Date.now(),
@@ -289,6 +294,7 @@ export function Home() {
   const handleJsonValidated = (json: unknown) => {
     contentType.applyPostProcess?.(json, formData);
     setGeneratedOutput(contentType.id, json);
+    setGenerateWarningsByScene(contentType.id === 'short_video' ? getSceneIssuesMap(json as VideoJSON, formData) : {});
     addHistory({
       id: Date.now().toString(),
       timestamp: Date.now(),

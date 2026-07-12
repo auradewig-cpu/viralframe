@@ -10,6 +10,7 @@ import {
   getSceneRegenExpectation, parseSceneResponse,
 } from '../../lib/sceneRegen';
 import { getSceneTypeSlug } from '../../lib/contentStyles';
+import { getSceneIssuesMap } from '../../lib/sceneStatus';
 
 interface DirectPanelProps {
   json: VideoJSON;
@@ -138,6 +139,8 @@ export function DirectPanel({ json, form, onRegenerate, onEdit, referencePhotos 
   const setGeneratedOutput = useAppStore(s => s.setGeneratedOutput);
   const currentHistoryId = useAppStore(s => s.currentHistoryId);
   const updateHistoryOutput = useAppStore(s => s.updateHistoryOutput);
+  const generateWarningsByScene = useAppStore(s => s.generateWarningsByScene);
+  const setGenerateWarningsByScene = useAppStore(s => s.setGenerateWarningsByScene);
   const totalDuration = json.video_metadata.total_duration_seconds;
   const scoreStr = json.video_metadata.viral_score_estimate || '0/100';
   const aiTool = json.video_metadata.ai_video_tool;
@@ -189,6 +192,7 @@ export function DirectPanel({ json, form, onRegenerate, onEdit, referencePhotos 
 
       setGeneratedOutput(generatedOutput?.contentTypeId || 'short_video', newVideoJSON);
       if (currentHistoryId) updateHistoryOutput(currentHistoryId, newVideoJSON);
+      setGenerateWarningsByScene(getSceneIssuesMap(newVideoJSON, form));
 
       patchSceneRegenState(sceneIndex, { loading: false, error: null, justRegenerated: true });
       setTimeout(() => patchSceneRegenState(sceneIndex, { justRegenerated: false }), 5000);
@@ -279,6 +283,7 @@ export function DirectPanel({ json, form, onRegenerate, onEdit, referencePhotos 
             regenLoading={sceneRegen[i]?.loading || false}
             regenError={sceneRegen[i]?.error || null}
             justRegenerated={sceneRegen[i]?.justRegenerated || false}
+            issues={generateWarningsByScene[scene.scene_number] || []}
           />
         ))}
       </div>

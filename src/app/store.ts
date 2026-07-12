@@ -28,12 +28,17 @@ interface AppState {
   generateProgress: string;
   generateError: string;
   generateWarnings: string;
+  // Struktur per-scene (scene_number -> daftar masalah) — dipakai badge Flagged/OK di SceneCard
+  // (Tugas 2). generateWarnings (string gabungan) TETAP ada & dipakai banner warning yang sudah ada;
+  // dua-duanya diisi dari sumber yang sama saat generate selesai, tidak saling menggantikan.
+  generateWarningsByScene: Record<number, string[]>;
   setGeneratedOutput: (contentTypeId: string, data: unknown) => void;
   setMasterPrompt: (prompt: string) => void;
   setIsGenerating: (v: boolean) => void;
   setGenerateProgress: (msg: string) => void;
   setGenerateError: (err: string) => void;
   setGenerateWarnings: (w: string) => void;
+  setGenerateWarningsByScene: (m: Record<number, string[]>) => void;
   generateProgressPercent: number;
   setGenerateProgressPercent: (percent: number) => void;
   providerStatus: Record<ProviderKey, ProviderStatus>;
@@ -76,7 +81,7 @@ export const useAppStore = create<AppState>()(
       setActiveContentTypeId: (id) => set({ activeContentTypeId: id }),
       setFormData: (data) => set((s) => ({ formData: { ...s.formData, ...data } })),
       setCurrentStep: (step) => set({ currentStep: step }),
-      resetForm: () => set({ formData: { ...DEFAULT_FORM }, currentStep: 0, activeContentTypeId: DEFAULT_CONTENT_TYPE_ID, generatedOutput: null, masterPrompt: '', generateError: '', generateWarnings: '', generateProgressPercent: 0, providerStatus: { gemini: 'idle', groq: 'idle', openrouter: 'idle' }, lastUsedProvider: null, groqQuotaPercent: null }),
+      resetForm: () => set({ formData: { ...DEFAULT_FORM }, currentStep: 0, activeContentTypeId: DEFAULT_CONTENT_TYPE_ID, generatedOutput: null, masterPrompt: '', generateError: '', generateWarnings: '', generateWarningsByScene: {}, generateProgressPercent: 0, providerStatus: { gemini: 'idle', groq: 'idle', openrouter: 'idle' }, lastUsedProvider: null, groqQuotaPercent: null }),
       loadFormData: (data) => set({
         formData: {
           ...DEFAULT_FORM,
@@ -87,6 +92,7 @@ export const useAppStore = create<AppState>()(
         currentStep: 0,
         generatedOutput: null,
         masterPrompt: '',
+        generateWarningsByScene: {},
       }),
 
       generatedOutput: null,
@@ -95,12 +101,14 @@ export const useAppStore = create<AppState>()(
       generateProgress: '',
       generateError: '',
       generateWarnings: '',
+      generateWarningsByScene: {},
       setGeneratedOutput: (contentTypeId, data) => set({ generatedOutput: data ? { contentTypeId, data } : null }),
       setMasterPrompt: (prompt) => set({ masterPrompt: prompt }),
       setIsGenerating: (v) => set({ isGenerating: v }),
       setGenerateProgress: (msg) => set({ generateProgress: msg }),
       setGenerateError: (err) => set({ generateError: err }),
       setGenerateWarnings: (w) => set({ generateWarnings: w }),
+      setGenerateWarningsByScene: (m) => set({ generateWarningsByScene: m }),
       generateProgressPercent: 0,
       setGenerateProgressPercent: (percent) => set({ generateProgressPercent: percent }),
       providerStatus: { gemini: 'idle', groq: 'idle', openrouter: 'idle' },
