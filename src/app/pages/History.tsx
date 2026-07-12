@@ -9,7 +9,7 @@ export function History() {
   const removeHistory = useAppStore(s => s.removeHistory);
   const clearHistory = useAppStore(s => s.clearHistory);
   const loadFormData = useAppStore(s => s.loadFormData);
-  const setOutputJSON = useAppStore(s => s.setOutputJSON);
+  const setGeneratedOutput = useAppStore(s => s.setGeneratedOutput);
   const setMasterPrompt = useAppStore(s => s.setMasterPrompt);
   const navigate = useNavigate();
   const [viewingId, setViewingId] = useState<string | null>(null);
@@ -21,7 +21,7 @@ export function History() {
     const record = history.find(r => r.id === id);
     if (!record) return;
     loadFormData(record.formData);
-    setOutputJSON(record.videoJSON);
+    setGeneratedOutput(record.contentTypeId || 'short_video', record.output);
     setMasterPrompt(record.masterPrompt);
     navigate('/');
   };
@@ -77,13 +77,13 @@ export function History() {
                     {record.formData.niche && <span>📂 {record.formData.niche}</span>}
                     {record.formData.aiTool && <span>🎬 {record.formData.aiTool}</span>}
                     <span>🎬 {record.formData.sceneCount} scene</span>
-                    <span className={record.videoJSON ? 'text-green-500' : ''} style={{ color: record.videoJSON ? 'var(--vf-accent-success)' : 'var(--vf-text-muted)' }}>
-                      {record.videoJSON ? '✅ Direct API' : '📋 Manual'}
+                    <span className={record.output ? 'text-green-500' : ''} style={{ color: record.output ? 'var(--vf-accent-success)' : 'var(--vf-text-muted)' }}>
+                      {record.output ? '✅ Direct API' : '📋 Manual'}
                     </span>
                   </div>
                 </div>
                 <div className="flex gap-2 shrink-0">
-                  {record.videoJSON && (
+                  {record.output && (
                     <button
                       onClick={() => setViewingId(viewingId === record.id ? null : record.id)}
                       className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs"
@@ -109,10 +109,10 @@ export function History() {
                 </div>
               </div>
 
-              {viewingId === record.id && record.videoJSON && (
+              {viewingId === record.id && record.output && (
                 <div className="mt-4 space-y-3">
-                  {record.videoJSON.scenes.map((scene, i) => (
-                    <SceneCard key={i} scene={scene} aiTool={record.formData.aiTool} isFirst={i === 0} characterAnchor={record.videoJSON?.character_sheet?.description} />
+                  {record.output.scenes.map((scene, i) => (
+                    <SceneCard key={i} scene={scene} aiTool={record.formData.aiTool} isFirst={i === 0} characterAnchor={record.output?.character_sheet?.description} />
                   ))}
                 </div>
               )}

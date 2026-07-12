@@ -1,6 +1,3 @@
-import { VideoJSON } from '../types';
-import { parseAiResponse } from './jsonParser';
-
 const PROVIDER_CONFIGS = {
   gemini: {
     maxTokens: 32768,
@@ -152,13 +149,16 @@ export interface ApiKeys {
 
 export type ProgressCallback = (msg: string) => void;
 
-export async function generateWithFallback(
+// apiClient generik terhadap content type — tidak tahu bentuk JSON output.
+// Parsing teks mentah -> struktur data didelegasikan ke pemanggil (registry content type).
+export async function generateWithFallback<T>(
   prompt: string,
   keys: ApiKeys,
+  parseOutput: (text: string) => T | null,
   onProgress: ProgressCallback,
   onGroqQuota?: (percent: number | null) => void,
   geminiModel: string = 'gemini-3.5-flash'
-): Promise<VideoJSON> {
+): Promise<T> {
   const TIMEOUT = 90_000;
   let lastError: ApiCallError | null = null;
 
@@ -167,7 +167,7 @@ export async function generateWithFallback(
       onProgress('Memanggil Gemini Flash API...');
       const text = await callWithTimeout((signal) => callGemini(keys.gemini, prompt, geminiModel, signal), TIMEOUT);
       onProgress('Mengurai JSON dari respons Gemini...');
-      const json = parseAiResponse(text);
+      const json = parseOutput(text);
       if (json) { onProgress('Menyiapkan Scene Cards...'); return json; }
       throw new ApiCallError('JSON_PARSE_ERROR', 'JSON tidak valid dari Gemini.');
     } catch (e: unknown) {
@@ -178,7 +178,7 @@ export async function generateWithFallback(
         onProgress(`Gemini gagal (${err.code}), mencoba ulang...`);
         try {
           const text = await callWithTimeout((signal) => callGemini(keys.gemini, prompt, geminiModel, signal), TIMEOUT);
-          const json = parseAiResponse(text);
+          const json = parseOutput(text);
           if (json) { onProgress('Menyiapkan Scene Cards...'); return json; }
         } catch (e2: unknown) {
           lastError = e2 instanceof ApiCallError ? e2 : lastError;
@@ -194,7 +194,7 @@ export async function generateWithFallback(
       onProgress('Beralih ke Groq Llama 3.3 70B...');
       const text = await callWithTimeout((signal) => callGroq(keys.groq, prompt, signal, onGroqQuota), TIMEOUT);
       onProgress('Mengurai JSON dari respons Groq...');
-      const json = parseAiResponse(text);
+      const json = parseOutput(text);
       if (json) { onProgress('Menyiapkan Scene Cards...'); return json; }
       throw new ApiCallError('JSON_PARSE_ERROR', 'JSON tidak valid dari Groq.');
     } catch (e: unknown) {
@@ -209,7 +209,7 @@ export async function generateWithFallback(
       onProgress('Memanggil OpenRouter API...');
       const text = await callWithTimeout((signal) => callOpenRouter(keys.openrouter, prompt, signal), TIMEOUT);
       onProgress('Mengurai JSON dari respons OpenRouter...');
-      const json = parseAiResponse(text);
+      const json = parseOutput(text);
       if (json) { onProgress('Menyiapkan Scene Cards...'); return json; }
       throw new ApiCallError('JSON_PARSE_ERROR', 'JSON tidak valid dari OpenRouter.');
     } catch (e: unknown) {

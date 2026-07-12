@@ -142,7 +142,8 @@ export interface HistoryRecord {
   label: string;
   formData: FormData;
   masterPrompt: string;
-  videoJSON: VideoJSON | null;
+  contentTypeId: string;
+  output: VideoJSON | null;
 }
 
 export interface Template {

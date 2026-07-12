@@ -1,21 +1,18 @@
 import { useState, useRef } from 'react';
 import { Zap, Loader2, AlertCircle, BookmarkPlus } from 'lucide-react';
 import { useAppStore } from '../store';
-import { compileMasterPrompt } from '../lib/masterPrompt';
-import { applySceneTypeSlugs } from '../lib/contentStyles';
 import { generateWithFallback, ApiCallError } from '../lib/apiClient';
 import { validateFormData, getFormWarnings } from '../lib/validation';
-import { validateVideoJSON, buildRepairPrompt } from '../lib/jsonParser';
-import { checkPolicyCompliance, formatPolicyViolations } from '../lib/policyCheck';
+import { getContentType, DEFAULT_CONTENT_TYPE_ID, ContentTypeDefinition } from '../lib/registry';
 import { Progress } from '../components/ui/progress';
 import { StepIndicator } from '../components/form/StepIndicator';
 import { Step1Business } from '../components/form/Step1Business';
 import { Step2Video } from '../components/form/Step2Video';
 import { Step3Creative } from '../components/form/Step3Creative';
-import { DirectPanel } from '../components/output/DirectPanel';
-import { ManualPanel } from '../components/output/ManualPanel';
 import { SaveTemplateDialog } from '../components/output/SaveTemplateDialog';
 import { VideoJSON } from '../types';
+
+const contentType = getContentType(DEFAULT_CONTENT_TYPE_ID) as ContentTypeDefinition<VideoJSON>;
 
 function ModeSelector({ onSelect }: { onSelect: (mode: 'direct' | 'manual') => void }) {
   const settings = useAppStore(s => s.settings);
@@ -94,8 +91,8 @@ export function Home() {
   const setFormData = useAppStore(s => s.setFormData);
   const currentStep = useAppStore(s => s.currentStep);
   const setCurrentStep = useAppStore(s => s.setCurrentStep);
-  const outputJSON = useAppStore(s => s.outputJSON);
-  const setOutputJSON = useAppStore(s => s.setOutputJSON);
+  const generatedOutput = useAppStore(s => s.generatedOutput);
+  const setGeneratedOutput = useAppStore(s => s.setGeneratedOutput);
   const masterPrompt = useAppStore(s => s.masterPrompt);
   const setMasterPrompt = useAppStore(s => s.setMasterPrompt);
   const isGenerating = useAppStore(s => s.isGenerating);
@@ -175,7 +172,7 @@ export function Home() {
     currentProviderRef.current = null;
     setFormErrors([]);
 
-    const prompt = compileMasterPrompt({ ...formData, mode }, settings.narrationWPM || 165);
+    const prompt = contentType.buildMasterPrompt({ ...formData, mode }, settings.narrationWPM || 165);
     setMasterPrompt(prompt);
 
     if (mode === 'manual') {
@@ -203,13 +200,11 @@ export function Home() {
         }
         if (mapped.percent !== null) setGenerateProgressPercent(mapped.percent);
       };
-      let json = await generateWithFallback(prompt, keys, onProgress, (percent) => setGroqQuotaPercent(percent), settings.geminiModel || 'gemini-3.5-flash');
-      if (json && json.scenes && Array.isArray(json.scenes)) {
-        applySceneTypeSlugs(json.scenes, formData.contentStyle);
-      }
+      let json = await generateWithFallback(prompt, keys, contentType.parseOutput, onProgress, (percent) => setGroqQuotaPercent(percent), settings.geminiModel || 'gemini-3.5-flash');
+      if (json) contentType.applyPostProcess?.(json, formData);
 
-      let validation = validateVideoJSON(json, formData.sceneCount, formData.captionVariationCount, formData.aiTool, formData.referencePhotos.length > 0);
-      let policyMsgs = formatPolicyViolations(checkPolicyCompliance(json, formData.contentGoal));
+      let validation = contentType.validateOutput(json, formData);
+      let policyMsgs = contentType.checkPolicy(json, formData);
 
       // Repair loop: satu retry tertarget untuk memperbaiki HANYA field yang bermasalah,
       // jauh lebih murah dan lebih andal daripada regenerate penuh.
@@ -218,12 +213,12 @@ export function Home() {
         try {
           setGenerateProgress('Memperbaiki output yang tidak sesuai aturan...');
           setGenerateProgressPercent(96);
-          const repairPrompt = buildRepairPrompt(json, problems, formData.sceneCount, formData.captionVariationCount, formData.aiTool);
-          const repaired = await generateWithFallback(repairPrompt, keys, () => {}, undefined, settings.geminiModel || 'gemini-3.5-flash');
-          if (repaired && repaired.scenes && Array.isArray(repaired.scenes)) {
-            applySceneTypeSlugs(repaired.scenes, formData.contentStyle);
-            const revalidation = validateVideoJSON(repaired, formData.sceneCount, formData.captionVariationCount, formData.aiTool, formData.referencePhotos.length > 0);
-            const rePolicyMsgs = formatPolicyViolations(checkPolicyCompliance(repaired, formData.contentGoal));
+          const repairPrompt = contentType.buildRepairPrompt(json, problems, formData);
+          const repaired = await generateWithFallback(repairPrompt, keys, contentType.parseOutput, () => {}, undefined, settings.geminiModel || 'gemini-3.5-flash');
+          if (repaired) {
+            contentType.applyPostProcess?.(repaired, formData);
+            const revalidation = contentType.validateOutput(repaired, formData);
+            const rePolicyMsgs = contentType.checkPolicy(repaired, formData);
             const before = problems.length;
             const after = revalidation.errors.length + revalidation.warnings.length + rePolicyMsgs.length;
             // Pakai hasil repair hanya jika benar-benar lebih baik.
@@ -240,7 +235,7 @@ export function Home() {
 
       setGenerateProgressPercent(100);
       if (currentProviderRef.current) setLastUsedProvider(currentProviderRef.current);
-      setOutputJSON(json);
+      setGeneratedOutput(contentType.id, json);
       const allMsgs = [...validation.errors, ...validation.warnings, ...policyMsgs];
       setGenerateWarnings(allMsgs.length > 0 ? allMsgs.join('\n') : '');
       addHistory({
@@ -249,7 +244,8 @@ export function Home() {
         label: formData.productDescription.slice(0, 50) || 'Generate tanpa judul',
         formData: { ...formData, mode },
         masterPrompt: prompt,
-        videoJSON: json,
+        contentTypeId: contentType.id,
+        output: json,
       });
     } catch (e: unknown) {
       const err = e as ApiCallError;
@@ -261,29 +257,28 @@ export function Home() {
   };
 
   const handleJsonValidated = (json: VideoJSON) => {
-    if (json.scenes && Array.isArray(json.scenes)) {
-      applySceneTypeSlugs(json.scenes, formData.contentStyle);
-    }
-    setOutputJSON(json);
+    contentType.applyPostProcess?.(json, formData);
+    setGeneratedOutput(contentType.id, json);
     addHistory({
       id: Date.now().toString(),
       timestamp: Date.now(),
       label: formData.productDescription.slice(0, 50) || 'Generate Manual Mode',
       formData: { ...formData },
       masterPrompt,
-      videoJSON: json,
+      contentTypeId: contentType.id,
+      output: json,
     });
   };
 
   const handleRegenerate = () => {
-    setOutputJSON(null);
+    setGeneratedOutput(contentType.id, null);
     setGenerateWarnings('');
     setShowOutput(false);
     handleGenerate(formData.mode);
   };
 
   const handleEdit = () => {
-    setOutputJSON(null);
+    setGeneratedOutput(contentType.id, null);
     setShowOutput(false);
     setCurrentStep(1);
   };
@@ -393,8 +388,8 @@ export function Home() {
             </div>
           </div>
         )}
-        {!isGenerating && !generateError && formData.mode === 'direct' && outputJSON && (
-          <DirectPanel json={outputJSON} onRegenerate={handleRegenerate} onEdit={handleEdit} referencePhotos={formData.referencePhotos} />
+        {!isGenerating && !generateError && formData.mode === 'direct' && generatedOutput?.data && (
+          <contentType.DirectRenderer data={generatedOutput.data} onRegenerate={handleRegenerate} onEdit={handleEdit} referencePhotos={formData.referencePhotos} />
         )}
 
         {!isGenerating && !generateError && formData.mode === 'manual' && (
@@ -403,15 +398,7 @@ export function Home() {
               <h3 className="font-semibold" style={{ color: 'var(--vf-text-primary)' }}>📋 Manual Prompt Mode</h3>
             </div>
             <div className="p-4">
-              <ManualPanel
-                masterPrompt={masterPrompt}
-                sceneCount={formData.sceneCount}
-                aiTool={formData.aiTool}
-                contentStyle={formData.contentStyle}
-                onJsonValidated={handleJsonValidated}
-                referencePhotos={formData.referencePhotos}
-                captionVariationCount={formData.captionVariationCount}
-              />
+              <contentType.ManualRenderer masterPrompt={masterPrompt} form={formData} onValidated={handleJsonValidated} />
             </div>
           </div>
         )}

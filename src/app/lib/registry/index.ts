@@ -1,0 +1,14 @@
+import { ContentTypeDefinition } from './types';
+import { shortVideoContentType } from './shortVideo';
+
+export const CONTENT_TYPES: ContentTypeDefinition<unknown>[] = [
+  shortVideoContentType as ContentTypeDefinition<unknown>,
+];
+
+export const DEFAULT_CONTENT_TYPE_ID = 'short_video';
+
+export function getContentType(id: string): ContentTypeDefinition<unknown> {
+  return CONTENT_TYPES.find(ct => ct.id === id) || (shortVideoContentType as ContentTypeDefinition<unknown>);
+}
+
+export * from './types';

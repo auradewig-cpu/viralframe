@@ -16,13 +16,13 @@ interface AppState {
   loadFormData: (data: FormData) => void;
 
   // Output
-  outputJSON: VideoJSON | null;
+  generatedOutput: { contentTypeId: string; data: VideoJSON } | null;
   masterPrompt: string;
   isGenerating: boolean;
   generateProgress: string;
   generateError: string;
   generateWarnings: string;
-  setOutputJSON: (json: VideoJSON | null) => void;
+  setGeneratedOutput: (contentTypeId: string, data: VideoJSON | null) => void;
   setMasterPrompt: (prompt: string) => void;
   setIsGenerating: (v: boolean) => void;
   setGenerateProgress: (msg: string) => void;
@@ -62,7 +62,7 @@ export const useAppStore = create<AppState>()(
       currentStep: 0,
       setFormData: (data) => set((s) => ({ formData: { ...s.formData, ...data } })),
       setCurrentStep: (step) => set({ currentStep: step }),
-      resetForm: () => set({ formData: { ...DEFAULT_FORM }, currentStep: 0, outputJSON: null, masterPrompt: '', generateError: '', generateWarnings: '', generateProgressPercent: 0, providerStatus: { gemini: 'idle', groq: 'idle', openrouter: 'idle' }, lastUsedProvider: null, groqQuotaPercent: null }),
+      resetForm: () => set({ formData: { ...DEFAULT_FORM }, currentStep: 0, generatedOutput: null, masterPrompt: '', generateError: '', generateWarnings: '', generateProgressPercent: 0, providerStatus: { gemini: 'idle', groq: 'idle', openrouter: 'idle' }, lastUsedProvider: null, groqQuotaPercent: null }),
       loadFormData: (data) => set({
         formData: {
           ...DEFAULT_FORM,
@@ -71,17 +71,17 @@ export const useAppStore = create<AppState>()(
           talentStyle: data.talentStyle ?? (data.useCharacter ? 'visible_character' : 'product_only'),
         },
         currentStep: 0,
-        outputJSON: null,
+        generatedOutput: null,
         masterPrompt: '',
       }),
 
-      outputJSON: null,
+      generatedOutput: null,
       masterPrompt: '',
       isGenerating: false,
       generateProgress: '',
       generateError: '',
       generateWarnings: '',
-      setOutputJSON: (json) => set({ outputJSON: json }),
+      setGeneratedOutput: (contentTypeId, data) => set({ generatedOutput: data ? { contentTypeId, data } : null }),
       setMasterPrompt: (prompt) => set({ masterPrompt: prompt }),
       setIsGenerating: (v) => set({ isGenerating: v }),
       setGenerateProgress: (msg) => set({ generateProgress: msg }),
@@ -119,6 +119,20 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'viralframe-store',
+      version: 2,
+      // v1 -> v2: HistoryRecord.videoJSON berganti nama jadi { contentTypeId, output }.
+      // Record lama tanpa contentTypeId diperlakukan sebagai 'short_video' — history/template lama tetap terbaca.
+      migrate: (persistedState, version) => {
+        const state = persistedState as { history?: Array<Record<string, unknown>> } | undefined;
+        if (version < 2 && state?.history) {
+          state.history = state.history.map((r) => {
+            if ('contentTypeId' in r && 'output' in r) return r;
+            const { videoJSON, ...rest } = r as Record<string, unknown> & { videoJSON?: VideoJSON | null };
+            return { ...rest, contentTypeId: (r.contentTypeId as string) || 'short_video', output: videoJSON ?? null };
+          });
+        }
+        return state;
+      },
       partialize: (s) => ({
         settings: s.settings,
         history: s.history,
