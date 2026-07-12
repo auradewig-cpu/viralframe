@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Copy, Check, ChevronDown, ChevronUp, RefreshCw, Loader2, AlertCircle } from 'lucide-react';
+import { Copy, Check, ChevronDown, ChevronUp, RefreshCw, Loader2, AlertCircle, Sparkles } from 'lucide-react';
 import { SceneData } from '../../types';
 import { AI_TOOLS } from '../../lib/maps';
 
@@ -18,6 +18,12 @@ interface SceneCardProps {
   justRegenerated?: boolean;
   // Status badge (Tugas 2) — derived dari lib/sceneStatus.ts, TIDAK disimpan di JSON output.
   issues?: string[];
+  // Auto-rephrase (Tugas 3) — hanya tampil kalau scene flagged KARENA pelanggaran policy.
+  hasPolicyIssue?: boolean;
+  onAutoFixScene?: () => void;
+  autoFixLoading?: boolean;
+  autoFixError?: string | null;
+  autoFixRemainingWarning?: string | null;
 }
 
 function CopyButton({ text, label = 'Copy' }: { text: string; label?: string }) {
@@ -91,7 +97,11 @@ function RefGuide({ aiTool, sceneNumber, isFirst }: { aiTool: string; sceneNumbe
   );
 }
 
-export function SceneCard({ scene, aiTool, isFirst, isLast = false, characterAnchor, referencePhotos, onRegenerateScene, regenLoading = false, regenError = null, justRegenerated = false, issues = [] }: SceneCardProps) {
+export function SceneCard({
+  scene, aiTool, isFirst, isLast = false, characterAnchor, referencePhotos,
+  onRegenerateScene, regenLoading = false, regenError = null, justRegenerated = false, issues = [],
+  hasPolicyIssue = false, onAutoFixScene, autoFixLoading = false, autoFixError = null, autoFixRemainingWarning = null,
+}: SceneCardProps) {
   const [refOpen, setRefOpen] = useState(false);
   const [briefOpen, setBriefOpen] = useState(false);
   const [issuesOpen, setIssuesOpen] = useState(false);
@@ -143,23 +153,50 @@ export function SceneCard({ scene, aiTool, isFirst, isLast = false, characterAnc
             </span>
           )}
         </div>
-        {onRegenerateScene && (
-          <button
-            onClick={onRegenerateScene}
-            disabled={regenLoading}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all disabled:opacity-60"
-            style={{ background: 'var(--vf-bg-secondary)', color: 'var(--vf-text-secondary)', border: '1px solid var(--vf-border)' }}
-          >
-            {regenLoading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-            {regenLoading ? 'Regenerating...' : '🔄 Regenerate scene ini'}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {hasPolicyIssue && onAutoFixScene && (
+            <button
+              onClick={onAutoFixScene}
+              disabled={autoFixLoading}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all disabled:opacity-60"
+              style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--vf-accent-primary)', border: '1px solid var(--vf-accent-primary)' }}
+            >
+              {autoFixLoading ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+              {autoFixLoading ? 'Memperbaiki...' : '✨ Perbaiki otomatis'}
+            </button>
+          )}
+          {onRegenerateScene && (
+            <button
+              onClick={onRegenerateScene}
+              disabled={regenLoading}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all disabled:opacity-60"
+              style={{ background: 'var(--vf-bg-secondary)', color: 'var(--vf-text-secondary)', border: '1px solid var(--vf-border)' }}
+            >
+              {regenLoading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+              {regenLoading ? 'Regenerating...' : '🔄 Regenerate scene ini'}
+            </button>
+          )}
+        </div>
       </div>
 
       {regenError && (
         <div className="flex items-start gap-2 px-4 py-2.5 text-xs" style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--vf-accent-danger)', borderBottom: '1px solid var(--vf-border)' }}>
           <AlertCircle size={14} className="shrink-0 mt-0.5" />
           <span>Gagal regenerate scene ini: {regenError}. Scene lama tetap dipakai.</span>
+        </div>
+      )}
+
+      {autoFixError && (
+        <div className="flex items-start gap-2 px-4 py-2.5 text-xs" style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--vf-accent-danger)', borderBottom: '1px solid var(--vf-border)' }}>
+          <AlertCircle size={14} className="shrink-0 mt-0.5" />
+          <span>Gagal memperbaiki otomatis: {autoFixError}. Scene lama tetap dipakai.</span>
+        </div>
+      )}
+
+      {!autoFixError && autoFixRemainingWarning && (
+        <div className="flex items-start gap-2 px-4 py-2.5 text-xs" style={{ background: 'rgba(245,158,11,0.1)', color: 'var(--vf-accent-warning)', borderBottom: '1px solid var(--vf-border)' }}>
+          <AlertCircle size={14} className="shrink-0 mt-0.5" />
+          <span>Sebagian pelanggaran masih tersisa setelah 1x percobaan perbaikan: {autoFixRemainingWarning}</span>
         </div>
       )}
 

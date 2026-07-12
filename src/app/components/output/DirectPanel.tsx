@@ -10,7 +10,11 @@ import {
   getSceneRegenExpectation, parseSceneResponse,
 } from '../../lib/sceneRegen';
 import { getSceneTypeSlug } from '../../lib/contentStyles';
-import { getSceneIssuesMap } from '../../lib/sceneStatus';
+import { getSceneIssuesMap, getScenePolicyViolations, getCaptionPolicyViolations } from '../../lib/sceneStatus';
+import {
+  buildSceneRephrasePrompt, validateSceneRephrase, parseSceneRephraseResponse,
+  buildCaptionRephrasePrompt, validateCaptionRephrase, parseCaptionRephraseResponse, CaptionVariation,
+} from '../../lib/autoRephrase';
 
 interface DirectPanelProps {
   json: VideoJSON;
@@ -24,6 +28,12 @@ interface SceneRegenState {
   loading: boolean;
   error: string | null;
   justRegenerated: boolean;
+}
+
+interface AutoFixState {
+  loading: boolean;
+  error: string | null;
+  remainingWarning: string | null;
 }
 
 function CopyAllButton({ json }: { json: VideoJSON }) {
@@ -107,6 +117,19 @@ function HashtagCopyButton({ text, label }: { text: string; label: string }) {
   );
 }
 
+function AutoFixButton({ onClick, loading }: { onClick: () => void; loading: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={loading}
+      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs transition-all disabled:opacity-60"
+      style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--vf-accent-primary)', border: '1px solid var(--vf-accent-primary)' }}
+    >
+      {loading ? 'Memperbaiki...' : '✨ Perbaiki otomatis'}
+    </button>
+  );
+}
+
 function ViralScoreMeter({ score }: { score: string }) {
   const num = parseInt(score) || 0;
   const color = num >= 80 ? '#10B981' : num >= 60 ? '#F59E0B' : '#EF4444';
@@ -146,9 +169,98 @@ export function DirectPanel({ json, form, onRegenerate, onEdit, referencePhotos 
   const aiTool = json.video_metadata.ai_video_tool;
 
   const [sceneRegen, setSceneRegen] = useState<Record<number, SceneRegenState>>({});
+  const [sceneAutoFix, setSceneAutoFix] = useState<Record<number, AutoFixState>>({});
+  const [captionAutoFix, setCaptionAutoFix] = useState<Record<number, AutoFixState>>({});
 
   const patchSceneRegenState = (index: number, patch: Partial<SceneRegenState>) => {
     setSceneRegen(prev => ({ ...prev, [index]: { loading: false, error: null, justRegenerated: false, ...prev[index], ...patch } }));
+  };
+
+  const patchSceneAutoFix = (index: number, patch: Partial<AutoFixState>) => {
+    setSceneAutoFix(prev => ({ ...prev, [index]: { loading: false, error: null, remainingWarning: null, ...prev[index], ...patch } }));
+  };
+
+  const patchCaptionAutoFix = (index: number, patch: Partial<AutoFixState>) => {
+    setCaptionAutoFix(prev => ({ ...prev, [index]: { loading: false, error: null, remainingWarning: null, ...prev[index], ...patch } }));
+  };
+
+  const scenePolicyMap = getScenePolicyViolations(json, form);
+  const captionPolicyMap = getCaptionPolicyViolations(json, form);
+
+  const geminiModel = settings.geminiModel || 'gemini-3.5-flash';
+  const apiKeys = { gemini: settings.geminiApiKey, groq: settings.groqApiKey, openrouter: settings.openrouterApiKey };
+
+  // Auto-rephrase (Tugas 3) — HANYA satu percobaan, tidak retry-loop. Kalau masih melanggar setelah
+  // rephrase, hasil TETAP di-splice (biasanya sudah lebih baik dari sebelumnya) dan sisa pelanggaran
+  // ditampilkan sebagai warning — beda dengan regenerate (Tugas 1) yang membuang hasil kalau invalid.
+  const autoFixScene = async (sceneIndex: number) => {
+    const scene = json.scenes[sceneIndex];
+    const violations = scenePolicyMap[scene.scene_number] || [];
+    if (violations.length === 0) return;
+    patchSceneAutoFix(sceneIndex, { loading: true, error: null, remainingWarning: null });
+    try {
+      const narrationWPM = settings.narrationWPM || 165;
+      const prompt = buildSceneRephrasePrompt(json, sceneIndex, violations, form, narrationWPM);
+      const rephrased = await generateWithFallback(prompt, apiKeys, parseSceneRephraseResponse, () => {}, undefined, geminiModel);
+      const expectation = getSceneRegenExpectation(json, sceneIndex, form, narrationWPM);
+      const validation = validateSceneRephrase(rephrased, expectation, json, form);
+
+      if (!validation.valid) {
+        patchSceneAutoFix(sceneIndex, { loading: false, error: validation.errors.join(' ') });
+        return;
+      }
+
+      rephrased.scene_type = getSceneTypeSlug(form.contentStyle, sceneIndex, json.scenes.length);
+      const newScenes = [...json.scenes];
+      newScenes[sceneIndex] = rephrased;
+      const newVideoJSON: VideoJSON = { ...json, scenes: newScenes };
+
+      setGeneratedOutput(generatedOutput?.contentTypeId || 'short_video', newVideoJSON);
+      if (currentHistoryId) updateHistoryOutput(currentHistoryId, newVideoJSON);
+      setGenerateWarningsByScene(getSceneIssuesMap(newVideoJSON, form));
+
+      patchSceneAutoFix(sceneIndex, {
+        loading: false,
+        error: null,
+        remainingWarning: validation.warnings.length > 0 ? validation.warnings.join(' ') : null,
+      });
+    } catch (e: unknown) {
+      const err = e as ApiCallError;
+      patchSceneAutoFix(sceneIndex, { loading: false, error: err.message || 'Gagal memperbaiki scene ini.' });
+    }
+  };
+
+  const autoFixCaption = async (captionIndex: number) => {
+    const cv = json.production_notes.caption_variations[captionIndex];
+    const violations = captionPolicyMap[captionIndex] || [];
+    if (violations.length === 0) return;
+    patchCaptionAutoFix(captionIndex, { loading: true, error: null, remainingWarning: null });
+    try {
+      const prompt = buildCaptionRephrasePrompt(json, captionIndex, violations, form);
+      const rephrased: CaptionVariation = await generateWithFallback(prompt, apiKeys, parseCaptionRephraseResponse, () => {}, undefined, geminiModel);
+      const validation = validateCaptionRephrase(rephrased, cv.hashtags.length, json, captionIndex, form);
+
+      if (!validation.valid) {
+        patchCaptionAutoFix(captionIndex, { loading: false, error: validation.errors.join(' ') });
+        return;
+      }
+
+      const newCaptions = [...json.production_notes.caption_variations];
+      newCaptions[captionIndex] = rephrased;
+      const newVideoJSON: VideoJSON = { ...json, production_notes: { ...json.production_notes, caption_variations: newCaptions } };
+
+      setGeneratedOutput(generatedOutput?.contentTypeId || 'short_video', newVideoJSON);
+      if (currentHistoryId) updateHistoryOutput(currentHistoryId, newVideoJSON);
+
+      patchCaptionAutoFix(captionIndex, {
+        loading: false,
+        error: null,
+        remainingWarning: validation.warnings.length > 0 ? validation.warnings.join(' ') : null,
+      });
+    } catch (e: unknown) {
+      const err = e as ApiCallError;
+      patchCaptionAutoFix(captionIndex, { loading: false, error: err.message || 'Gagal memperbaiki caption ini.' });
+    }
   };
 
   const regenerateScene = async (sceneIndex: number) => {
@@ -249,18 +361,39 @@ export function DirectPanel({ json, form, onRegenerate, onEdit, referencePhotos 
               <div className="md:col-span-2">
                 <span className="text-xs font-medium" style={{ color: 'var(--vf-text-muted)' }}>Variasi Captions & Hashtag</span>
                 <div className="mt-2 space-y-3">
-                  {json.production_notes.caption_variations.map((cv, i) => (
+                  {json.production_notes.caption_variations.map((cv, i) => {
+                    const isFlagged = (captionPolicyMap[i]?.length || 0) > 0;
+                    return (
                     <div key={i} className="p-3 rounded-lg" style={{ background: 'var(--vf-bg-secondary)' }}>
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-medium flex-1" style={{ color: 'var(--vf-text-primary)' }}>Variasi {i + 1}: "{cv.caption_text}"</p>
+                        <p className="text-sm font-medium flex-1" style={{ color: 'var(--vf-text-primary)' }}>
+                          Variasi {i + 1}: "{cv.caption_text}"
+                          {isFlagged && (
+                            <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(245,158,11,0.15)', color: 'var(--vf-accent-warning)' }}>
+                              ⚠️ Flagged
+                            </span>
+                          )}
+                        </p>
                         <HashtagCopyButton text={cv.caption_text} label="Copy Caption" />
                       </div>
                       <div className="mt-2 flex items-center gap-2">
                         <p className="flex-1 text-xs" style={{ color: 'var(--vf-text-secondary)' }}>{(cv.hashtags || []).join(' ')}</p>
                         <HashtagCopyButton text={(cv.hashtags || []).join(' ')} label="Copy Hashtag" />
                       </div>
+                      {isFlagged && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <AutoFixButton onClick={() => autoFixCaption(i)} loading={captionAutoFix[i]?.loading || false} />
+                        </div>
+                      )}
+                      {captionAutoFix[i]?.error && (
+                        <p className="mt-1 text-xs" style={{ color: 'var(--vf-accent-danger)' }}>Gagal memperbaiki: {captionAutoFix[i]?.error}</p>
+                      )}
+                      {captionAutoFix[i]?.remainingWarning && (
+                        <p className="mt-1 text-xs" style={{ color: 'var(--vf-accent-warning)' }}>Sebagian masih perlu ditinjau manual: {captionAutoFix[i]?.remainingWarning}</p>
+                      )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -284,6 +417,11 @@ export function DirectPanel({ json, form, onRegenerate, onEdit, referencePhotos 
             regenError={sceneRegen[i]?.error || null}
             justRegenerated={sceneRegen[i]?.justRegenerated || false}
             issues={generateWarningsByScene[scene.scene_number] || []}
+            hasPolicyIssue={(scenePolicyMap[scene.scene_number]?.length || 0) > 0}
+            onAutoFixScene={() => autoFixScene(i)}
+            autoFixLoading={sceneAutoFix[i]?.loading || false}
+            autoFixError={sceneAutoFix[i]?.error || null}
+            autoFixRemainingWarning={sceneAutoFix[i]?.remainingWarning || null}
           />
         ))}
       </div>

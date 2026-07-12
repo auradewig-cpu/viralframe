@@ -1,6 +1,6 @@
 import { VideoJSON, FormData } from '../types';
 import { countWords } from './jsonParser';
-import { checkPolicyCompliance } from './policyCheck';
+import { checkPolicyCompliance, PolicyViolation } from './policyCheck';
 
 // Status per-scene SELALU derived — tidak pernah disimpan ke JSON output/history. Dihitung ulang
 // dari videoJSON + form setiap kali dibutuhkan (badge Flagged/OK di SceneCard), supaya tetap akurat
@@ -42,6 +42,32 @@ export function getCaptionIssues(json: VideoJSON, form: FormData): Record<number
     const idx = match ? Number(match[1]) - 1 : 0;
     if (!map[idx]) map[idx] = [];
     map[idx].push(`[${v.category}] "${v.match}" — ${v.suggestion}`);
+  });
+  return map;
+}
+
+// Pelanggaran policy MENTAH (bukan string terformat) per scene — dipakai Tugas 3 untuk membedakan
+// scene yang flagged KARENA policy (punya tombol "✨ Perbaiki otomatis") vs flagged hanya karena
+// word-count (tidak ada yang bisa di-rephrase otomatis untuk itu).
+export function getScenePolicyViolations(json: VideoJSON, form: FormData): Record<number, PolicyViolation[]> {
+  const map: Record<number, PolicyViolation[]> = {};
+  checkPolicyCompliance(json, form.contentGoal).forEach(v => {
+    if (v.sceneNumber === null) return;
+    if (!map[v.sceneNumber]) map[v.sceneNumber] = [];
+    map[v.sceneNumber].push(v);
+  });
+  return map;
+}
+
+// Pelanggaran policy MENTAH per index caption_variations — pasangan dari getScenePolicyViolations.
+export function getCaptionPolicyViolations(json: VideoJSON, form: FormData): Record<number, PolicyViolation[]> {
+  const map: Record<number, PolicyViolation[]> = {};
+  checkPolicyCompliance(json, form.contentGoal).forEach(v => {
+    if (v.sceneNumber !== null) return;
+    const match = /caption_variations\[(\d+)\]/.exec(v.field);
+    const idx = match ? Number(match[1]) - 1 : 0;
+    if (!map[idx]) map[idx] = [];
+    map[idx].push(v);
   });
   return map;
 }
