@@ -2,183 +2,207 @@ import { useState } from 'react';
 
 const sections = [
   {
-    id: 'cara-kerja',
-    title: '1. Cara Kerja ViralFrame Studio',
-    content: `ViralFrame Studio adalah AI Video Scene Generator yang bekerja dalam 3 tahap:
+    id: 'jenis-konten',
+    title: '1. Jenis Konten',
+    content: `ViralFrame Studio mendukung 4 jenis konten. Output masing-masing berbeda:
 
-**Tahap 1 — Form Input:**
-Kamu mengisi form 3 langkah yang mengumpulkan semua parameter video — niche bisnis, deskripsi produk, platform distribusi, AI tool yang digunakan, jumlah scene, durasi, karakter, gaya visual, hingga CTA.
+**📱 Short Video — Video Pendek Viral (Default)**
+Output: JSON Scene Cards (narasi, prompt video per scene, visual description) untuk video 15–90 detik. Format TikTok/Reels/Shorts. Menghasilkan master prompt → dikirim ke AI (Direct API Mode) → output JSON per-scene → siap di-generate ke AI video tool.
 
-**Tahap 2 — AI Generate:**
-• **Direct API Mode** (Direkomendasikan): App memanggil Google Gemini API (atau Groq sebagai fallback) secara otomatis dari browser. Output JSON per scene langsung muncul di dalam app sebagai Scene Cards.
-• **Manual Prompt Mode** (Fallback): App menghasilkan Master Prompt teks yang bisa kamu copy-paste ke ChatGPT, Claude, atau Gemini secara manual.
+**🎬 YouTube Long Form — Video Panjang**
+Output: JSON chapter + segmen untuk video 5–30 menit. Form khusus: target durasi menit, jumlah chapter, channel style. Skema output punya chapters[], segmen per chapter, caption hook, dan production notes khusus long-form.
 
-**Tahap 3 — Scene Cards:**
-Setiap scene ditampilkan sebagai card dengan: narasi, prompt video (siap di-paste ke AI video tool), visual brief, dan Reference Frame Guide untuk menjaga konsistensi antar scene.`,
+**🖼️ Thumbnail Pack — Paket Thumbnail**
+Output: 3–5 konsep thumbnail dengan prompt gambar (siap di-paste ke Midjourney/DALL·E/Gen-3), psikologi CTR, teks overlay saran. Form khusus: topik, opsi wajah (with_face / no_face), jumlah konsep.
+
+**📅 Content Calendar — Kalender Konten**
+Output: Strategi positioning, pilar konten, jadwal hari + post, dan production prompt untuk setiap konten. Form khusus: platform, jumlah hari, posts per hari, insight akun.`,
   },
   {
-    id: 'api-key',
-    title: '2. Cara Mendapatkan API Key Gratis',
-    content: `**Google Gemini API Key (Direkomendasikan):**
-1. Kunjungi https://ai.google.dev
-2. Klik "Get API Key" → Sign in dengan Google account
-3. Buat API key baru → Copy
-4. Paste di ViralFrame → Settings → API Configuration → Gemini API Key
-5. Tidak perlu kartu kredit. Gratis selamanya dengan limit harian.
+    id: 'tujuan-konten',
+    title: '2. Tujuan Konten',
+    content: `Tujuan konten mempengaruhi seluruh tone narasi, CTA, dan struktur prompt:
 
-**Limit Gratis Gemini:** 250 request/hari · 1.000.000 token/hari
-→ Setara ~85 generate video 20-scene per hari!
+**💰 Konversi — jualan/direct-response (Default)**
+Perilaku standar. Hook kuat, Body bangun minat, CTA keras di akhir. Boleh bahasa jualan penuh.
 
-**Groq API Key (Backup Otomatis):**
-1. Kunjungi https://console.groq.com
-2. Sign up gratis → Settings → API Keys → Create API Key
-3. Paste di ViralFrame → Settings → Groq API Key
+**🌱 Growth Akun — kejar follow/save/share**
+Akun masih baru, WAJIB kejar engagement (follow/save/share) TANPA bahasa jualan sama sekali.
+DILARANG KERAS: kata "beli", "checkout", "keranjang", "link bio", "promo", "diskon", "harga", "order", "COD", atau ajakan transaksi apapun.
+Format WAJIB value-first: edukasi jujur, rekomendasi netral, tips bermanfaat.
+CTA otomatis dibatasi hanya ke follow_more, save_for_later, share_tag_friend, double_tap_agree, comment_keyword.
+**Kenapa CTA jualan terkunci?** Aturan TikTok Affiliate 600 follower: akun dengan <600 follower TIDAK boleh memuat konten jualan langsung. Mode Growth membantu kamu tetap grow secara aman.
 
-Groq digunakan sebagai fallback otomatis jika Gemini gagal atau quota habis.`,
+**💬 Engagement — komentar & interaksi**
+Hook dan CTA diarahkan memancing komentar (pertanyaan terbuka, opini, ajakan vote). Bahasa jualan tetap boleh ringan.`,
   },
   {
-    id: 'isi-form',
-    title: '3. Cara Mengisi Form',
-    content: `**Step 1 — Konteks Bisnis:**
-• **Jenis Bisnis**: Pilih niche yang paling sesuai. Niche menentukan psikografis dan pain point yang diinjeksikan ke prompt.
-• **Deskripsi Produk**: Semakin detail semakin baik. Sebutkan nama produk, harga, keunggulan, bukti sosial, dan target pain point.
-• **USP**: Satu keunggulan TERBESAR. AI akan menegaskan ini minimal 2x dalam video.
-• **Platform**: Platform pertama yang dipilih = Platform Primer yang mempengaruhi format dan behavior.
+    id: 'talent-style',
+    title: '3. Talent Style',
+    content: `Pilih bagaimana talent tampil di video:
 
-**Step 2 — Spesifikasi Video:**
-• **AI Tool**: Pilih tool yang akan kamu pakai untuk generate video. Setiap tool punya batas karakter prompt yang berbeda.
-• **Jumlah Scene**: Scene 1 = Hook, Scene terakhir = CTA, scene di antaranya = Body.
-• **Durasi Scene**: Durasi menentukan batas kata narasi. Scene 3 detik = maks 8 kata!
+**🧑 Karakter Terlihat — wajah & ekspresi tampil**
+Talent/wajah tampil penuh di semua scene. Isi detail karakter: gender, usia, etnis, gaya pakaian, dan Ciri Fisik Khusus (misal: kemeja → button-up collared shirt, bedak → pressed powder). Bahasa Indonesia otomatis diterjemahkan ke English presisi di prompt — contoh: "kuku dicat merah" → "red-painted nails", "gelang emas" → "gold bracelet".
 
-**Step 3 — Parameter Kreatif:**
-• **Hook**: "Auto" biasanya bagus. Coba "Shocking Fact" atau "Pain Point Attack" untuk produk konsumer.
-• **CTA**: Sesuaikan dengan tujuan campaign. "Link di Bio" untuk traffic, "Komen KEYWORD" untuk engagement.
-• **Karakter**: Semakin detail karakter → semakin konsisten tampilannya antar scene.`,
+**✋ POV Faceless — tangan review produk, tanpa wajah**
+Hanya tangan talent yang tampil, kamera first-person POV. Wajah TIDAK BOLEH tampil di scene manapun. Deskripsi tangan (hand description) WAJIB diisi.
+
+**📦 Produk Saja — tanpa talent**
+Produk ditampilkan langsung tanpa karakter. Visual anchor opsional.`,
+  },
+  {
+    id: 'referensi-visual',
+    title: '4. 🖼️ Referensi Visual (Pipeline Lengkap)',
+    content: `Referensi Visual adalah sistem untuk memberi AI video tool foto-foto produk/lokasi yang harus di-match persis di setiap scene. Foto TIDAK dikirim ke AI generate — kamu upload di sini hanya untuk identifikasi, lalu lampirkan isi ZIP-nya langsung di AI video tool.
+
+**Alur Inti:**
+
+1️⃣ Upload — Nama file BEBAS. Format jpg/png/webp, maks 5MB per file, maks 15 file total.
+
+2️⃣ Identifikasi — Sistem auto-guess scene dari pola "scene3_foto.jpg" → Scene 3. Kalau tidak ada angka, entry baru ditugaskan ke scene terkecil yang belum terisi. Pilih identitas ruangan (kamar tidur, dapur, fasad, dll.) dari daftar preset atau custom.
+
+3️⃣ Penamaan Kanonik Otomatis — Setelah kamu pilih identitas + scene, sistem menamai ulang otomatis: karakter → "karakter.jpg", lokasi per-scene → "scene3_kamar_tidur.jpg", "Semua scene" → "produk_fasad.jpg". Nama inilah yang disebut di prompt AI.
+
+4️⃣ ⬇️ Download Bahan (ZIP) — Tombol di Step 1 (Konteks Bisnis). ZIP berisi semua foto dengan NAMA KANONIK. Lampirkan isi ZIP langsung di AI video tool (Google Flow, Kling, Runway, dll.) saat generate video.
+
+**🔑 Kenapa nama file harus persis?**
+Di setiap ai_ready_prompt, ada kalimat binding seperti: 'location matches reference photo scene3_kamar_tidur.jpg: kamar utama luas 4x5 meter' — AI video tool mencocokkan nama file yang disebut di teks prompt dengan file yang kamu attach. Kalau namanya berbeda, binding tidak bekerja dan AI mengabaikan foto referensi — hasilnya produk/lokasi bisa berubah bentuk di setiap scene.
+
+**📸 Penyimpanan Foto:**
+Foto asli yang kamu upload disimpan di IndexedDB browser (database: viralframe-ref-images). Ketika kamu reload halaman, sistem otomatis mengembalikan foto dari IndexedDB ke tampilan preview (hydrate). Kamu bisa membersihkan semua foto tersimpan di Settings → Referensi Visual → Bersihkan Semua Foto Tersimpan. Operasi ini TIDAK mempengaruhi history/template yang sudah tersimpan.`,
+  },
+  {
+    id: 'property-tour',
+    title: '5. Gaya Konten Khusus: Property Tour',
+    content: `Property Tour adalah gaya konten spesifik untuk niche properti/real estate — tur properti terpandu bersama agen.
+
+**Struktur Scene:**
+• Scene 1 = Hook Fasad — establishing shot fasad properti + hook angka mengejutkan/pertanyaan dalam 5 detik pertama narasi. BUKAN basa-bisi sapaan.
+• Scene tengah = Tur Ruangan — 1 scene = 1 ruangan sesuai Referensi Lokasi/Produk. Urutan tur mengikuti locationRefs persis. Setiap narasi ruangan WAJIB menyebut minimal 1 fakta konkret (luas, jumlah kamar, material) — bukan pujian kosong.
+• Scene terakhir = CTA Agen — rekap 1 kalimat + ajakan kontak/DM/site visit.
+
+**Transisi:** Antar ruangan WAJIB bergaya walk-through berkelanjutan (whip-pan / walk-and-talk melewati pintu/lorong) supaya terasa satu kunjungan utuh, BUKAN cut terpisah-pisah.
+
+**Karakter** (jika ada) berperan sebagai agen yang memandu, gaya selfie-vlog/walk-and-talk.
+
+**Foto Referensi:** WAJIB upload foto per ruangan. Scene type akan otomatis menjadi "tour_kamar_tidur", "tour_dapur", dll. sesuai identitas yang kamu pilih.`,
+  },
+  {
+    id: 'ciri-fisik-khusus',
+    title: '6. Ciri Fisik Khusus & Terjemahan Bahasa',
+    content: `Di Step 3 (Parameter Kreatif), ada field "Ciri Fisik Khusus" — kamu boleh menulis dalam Bahasa Indonesia. Sistem menerjemahkan ke English presisi di prompt.
+
+**Contoh terjemahan yang WAJIB diikuti AI:**
+• "kemeja" → "button-up collared shirt" (BUKAN "shirt" saja, BUKAN "t-shirt")
+• "kaos" → "t-shirt"
+• "kuku dicat merah" → "red-painted nails"
+• "gelang emas" → "gold bracelet"
+• "bedak" → "pressed powder"
+
+**Mengapa tidak diterjemahkan harfiah?** AI video tool (Google Flow, Kling, Runway) bekerja dengan deskripsi visual English yang presisi. "Kemeja" bisa berarti banyak jenis atasan — "button-up collared shirt" tidak ambigu. Terjemahan Inggris yang presisi inilah yang akan di-copy verbatim ke awal SETIAP ai_ready_prompt di semua scene, memastikan konsistensi karakter antar scene.`,
   },
   {
     id: 'scene-cards',
-    title: '4. Memahami Scene Cards',
-    content: `Setiap Scene Card berisi:
+    title: '7. Scene Cards — Output & Aksi',
+    content: `Setelah AI selesai generate, setiap scene ditampilkan sebagai Scene Card dengan:
 
-**📝 Script Narasi:** Teks yang dibacakan/dubbing. Sudah dihitung masuk dalam durasi scene (lipsync).
+**Badge Status:**
+• ✅ OK — Scene lolos semua validasi
+• ⚠️ Flagged (N) — Ada N masalah (policy violation / caption mismatch / durasi tidak sesuai). Klik badge untuk lihat detail.
 
-**🎥 Prompt Video:** Teks siap di-paste ke AI video tool. Tombol ⎘ Copy untuk copy langsung. Cek indikator chars (misal: 432/500 ✅).
+**Aksi per Scene:**
+• 🔄 Regenerate — Generate ulang SATU scene tertentu saja melalui API, tanpa mengubah scene lain. Hasil baru langsung di-splice ke output.
+• ✨ Perbaiki otomatis — Untuk scene yang melanggar policy compliance, AI otomatis me-rewrite HANYA field yang bermasalah (ai_ready_prompt / script_narration) tanpa regenerate seluruh scene.
+• ⎘ Copy — Salin ai_ready_prompt ke clipboard. Indikator chars (contoh: 432/500 ✅/❌) menunjukkan apakah prompt muat batas karakter AI tool.
 
-**🎬 Visual Brief:** Deskripsi scene dalam Bahasa Indonesia untuk membantu kamu memahami dan brief team. Termasuk kamera, audio, dan transisi.
+**⬇️ Download Bahan Lengkap (ZIP):**
+Tombol di bagian bawah output. ZIP berisi:
+• File JSON output
+• File TXT master prompt
+• Subfolder foto referensi (dengan nama kanonik)
+Cocok untuk disimpan sebagai arsip atau dikirim ke tim produksi.
 
-**🔗 Reference Frame Guide:** Panduan step-by-step cara menjaga konsistensi karakter dari scene ke scene berikutnya. Berbeda per AI tool.
-
-**Badge Warna Scene:**
-• 🟡 Amber = HOOK
-• 🔵 Cyan = BODY
-• 🟣 Ungu = CTA`,
+**Warna Scene:**
+• 🟡 Amber = Scene pertama (Hook/Opening — tergantung gaya konten)
+• 🔵 Cyan = Scene tengah (Body/Tur/Konten)
+• 🟣 Ungu = Scene terakhir (CTA/Closing)`,
   },
   {
-    id: 'generate-scene',
-    title: '5. Cara Generate Video Per Scene',
-    content: `**Google Veo 3 / OpenAI Sora (Tidak support Reference Image):**
-→ Copy prompt setiap scene, paste ke platform. Konsistensi dijaga via deskripsi karakter identik.
+    id: 'tips-konsistensi',
+    title: '8. Tips Konsistensi Hasil di AI Video Tool',
+    content: `AI video tool (Google Flow, Kling, Runway, dll.) menghasilkan setiap scene secara independen — tanpa panduan, karakter/produk bisa berubah di setiap scene. Ikuti tips berikut:
 
-**Kling AI 2.0:**
-1. Generate Scene 1, pilih frame terbaik
-2. Klik "..." → "Save Frame"
-3. Klik "Image to Video" → Upload frame Scene 1 sebagai Start Frame
-4. Paste prompt Scene 2 → Generate
+**📎 Lampirkan foto dari ZIP:**
+Saat generate scene di AI video tool, attach foto referensi yang sudah ada di ZIP Download Bahan. Nama file di ZIP sudah cocok dengan nama yang disebut di ai_ready_prompt — AI akan match secara otomatis.
 
-**Runway Gen-4:**
-1. Generate Scene 1, download hasilnya
-2. Pilih "Gen-4" → klik "Reference Image"
-3. Upload frame Scene 1 → Paste prompt Scene 2 → Generate
+**🎥 Gerakan kamera lambat untuk establishing shot:**
+Untuk scene pertama (establishing lokasi/properti), gunakan camera movement lambat (slow pan / gentle dolly). Ini memberi AI waktu untuk "membaca" environment dengan stabil.
 
-**Luma Dream Machine:**
-1. Generate Scene 1, ambil frame terakhir
-2. Klik "Keyframe" atau "Image to Video"
-3. Upload frame → Paste prompt → Generate
+**🔤 Angka ditulis bentuk lisan:**
+Angka dalam script_narration WAJIB ditulis dalam bentuk lisan/terucap, bukan numerik. Contoh:
+• ✅ "seratus ribu rupiah" — bukan "Rp100.000"
+• ✅ "hanya dua langkah" — bukan "hanya 2 langkah"
+• ✅ "sudah terjual lebih dari sepuluh ribu" — bukan "10.000+"
+Ini karena TTS/AI voice membaca teks apa adanya — "Rp100.000" akan dibaca kaku.
 
-**Pika Labs 2.0:**
-1. Generate Scene 1, download frame
-2. Klik "+" → "Upload Image" → Upload frame Scene 1
-3. Paste prompt Scene 2 → Generate`,
+**🔄 Reference Frame (jika tool tidak support ref image):**
+Untuk tool yang tidak support reference image (Veo 3, Sora):
+1. Generate Scene 1
+2. Screenshot/Download frame terbaik
+3. Upload sebagai reference image/keyframe untuk Scene 2
+4. Ulangi setiap scene — frame terakhir scene N jadi referensi scene N+1`,
   },
   {
-    id: 'gabung-scene',
-    title: '6. Cara Menggabungkan Scene Menjadi Video Utuh',
-    content: `**Tools yang Direkomendasikan:**
-• **CapCut** (Gratis, mudah) — Import semua clip, susun urutan, tambah teks overlay
-• **DaVinci Resolve** (Gratis, profesional) — Color grading, audio mix
-• **Adobe Premiere** (Berbayar) — Full control
+    id: 'cara-generate',
+    title: '9. Cara Generate (Direct vs Manual)',
+    content: `**⚡ Direct API Mode (Direkomendasikan):**
+App memanggil AI (Gemini → Groq → OpenRouter) secara otomatis dari browser. API key disimpan hanya di localStorage — tidak pernah dikirim ke server ViralFrame.
+• Gemini: 250 request/hari gratis, model gemini-2.5-flash
+• Groq: Fallback otomatis jika Gemini gagal/quota habis (Llama 3.3)
+• OpenRouter: Fallback terakhir
+• Setiap output melewati repair loop — 1x retry tertarget jika ada pelanggaran policy/validasi
 
-**Tips Color Grading:**
-• Gunakan LUT yang sama untuk semua scene (rekomendasi ada di Production Notes)
-• Pastikan color temperature konsisten — scene siang tidak dicampur malam
-• Vibrance +15–20 untuk konten TikTok/Reels
+**📋 Manual Prompt Mode (Fallback):**
+App menghasilkan Master Prompt teks yang bisa kamu copy-paste ke ChatGPT, Claude, atau Gemini secara manual. Paste hasil JSON-nya kembali ke app. Validasi & policy check tetap berjalan sama seperti Direct Mode.
 
-**Tips Audio Mix:**
-• Musik: -12dB to -15dB (background)
-• Narasi: -3dB to -6dB (foreground)
-• SFX: -8dB to -10dB
-• Pastikan bass cut di narasi untuk clarity`,
-  },
-  {
-    id: 'tips-viral',
-    title: '7. Tips Viral 2025',
-    content: `**1. 3-Second Rule yang Sebenarnya:**
-Hook kamu harus memaksa penonton BERHENTI scroll dalam 1.5 detik pertama — bukan 3 detik. Gunakan gerakan mendadak, teks mengejutkan, atau suara tak terduga di frame pertama.
-
-**2. Watch Time > Likes:**
-Algoritma TikTok dan Reels 2025 sangat memprioritaskan completion rate dan re-watch rate. Buat ending yang membuat penonton ingin menonton ulang dari awal.
-
-**3. Micro-Hooks Setiap 3 Detik:**
-Setiap 3 detik, berikan alasan baru untuk tetap menonton. Pertanyaan tersirat, informasi mengejutkan, atau perubahan visual mendadak.
-
-**4. Social Proof dengan Angka Spesifik:**
-"10.000+" lebih kuat dari "ribuan". "98% berhasil" lebih kuat dari "hampir semua berhasil". Angka spesifik = otoritas.
-
-**5. CTA yang Jelas dan Urgency:**
-Penonton perlu tahu PERSIS apa yang harus dilakukan. "Klik link di bio" lebih lemah dari "Klik link di bio SEKARANG — stok terbatas!". Tambahkan urgency nyata.
-
-**8 Elemen Viral yang Digunakan ViralFrame:**
-1. Pattern Interrupt (sesuatu tak terduga di 0–2 detik)
-2. Curiosity Gap (penonton harus ingin tahu kelanjutannya)
-3. Emotional Trigger (minimal 1 emosi kuat)
-4. Social Proof (angka atau bukti nyata)
-5. Micro-Hooks (alasan baru setiap 3–5 detik)
-6. Cliffhanger (akhir body scene menarik ke scene berikutnya)
-7. Sensory Language (deskripsi yang bisa "dirasakan")
-8. Unexpected Twist (1 momen mengejutkan)`,
+**Cara Setting API Key:**
+Settings → API Configuration → Masukkan Gemini API Key (dari aistudio.google.com) atau Groq API Key (dari console.groq.com).`,
   },
   {
     id: 'faq',
-    title: '8. FAQ',
+    title: '10. FAQ',
     content: `**Q: Kenapa AI tidak mengeluarkan JSON?**
-A: AI kadang menambah teks sebelum/sesudah JSON. ViralFrame sudah memiliki auto-strip yang mengekstrak JSON secara otomatis. Jika gagal, coba regenerate sekali lagi.
+A: AI kadang menambah teks sebelum/sesudah JSON. ViralFrame sudah memiliki auto-strip parser yang mengekstrak JSON secara otomatis. Jika gagal, coba regenerate sekali lagi.
 
 **Q: Boleh pakai AI model mana saja?**
-A: Direct API Mode mendukung Gemini 2.5 Flash, Groq Llama 3.3, dan OpenRouter. Manual Prompt Mode bisa dipakai dengan AI apapun yang mendukung prompt panjang.
+A: Direct API Mode mendukung Gemini (gemini-2.5-flash), Groq (Llama 3.3), dan OpenRouter. Manual Prompt Mode bisa dipakai dengan AI apapun yang mendukung prompt panjang.
 
 **Q: API key aman?**
-A: Ya. API key disimpan hanya di localStorage browser kamu. Tidak pernah dikirim ke server ViralFrame — hanya langsung ke Google/Groq saat generate.
+A: Ya. API key disimpan hanya di localStorage browser kamu. Tidak pernah dikirim ke server ViralFrame — hanya langsung ke penyedia API (Google/Groq/OpenRouter) saat generate.
 
 **Q: Berapa scene yang disarankan?**
 A: 4–6 scene untuk video 15–45 detik adalah sweet spot. Hook (1) + Body (2–4) + CTA (1). Lebih dari 10 scene bisa membuat video terlalu panjang.
 
 **Q: Kenapa ada batas kata per scene?**
-A: Ini untuk lipsync — narasi harus muat dalam durasi scene. Scene 3 detik = maksimal 8 kata. Jika narasi terlalu panjang, dubber/TTS akan terpotong atau terdengar terlalu cepat.
+A: Lipsync — narasi harus muat dalam durasi scene. Scene 3 detik = maks ~8 kata (kecepatan 165 WPM). Jika narasi terlalu panjang, dubber/TTS akan terpotong atau terdengar terlalu cepat.
 
-**Q: Apa itu Reference Frame?**
-A: AI video tool generate setiap scene secara independen. Tanpa referensi, karakter bisa berubah penampilan antar scene. Reference Frame = screenshot frame terakhir scene sebelumnya yang di-upload ke AI tool sebagai panduan konsistensi.`,
+**Q: Data tersimpan di mana?**
+A: Settings, riwayat generate, dan template kustom tersimpan di localStorage (key: viralframe-store). Foto referensi tersimpan di IndexedDB. Tidak ada backend server. Semua data bisa dibersihkan di Settings atau via tombol Reset Data Aplikasi di layar error.
+
+**Q: Error render muncul terus setelah reload?**
+A: Bisa jadi state persist korup. Buka layar error (app akan menampilkan ErrorBoundary) → klik "🗑️ Reset Data Aplikasi" → konfirmasi. History, template, dan settings akan terhapus, tapi foto IndexedDB tetap aman.`,
   },
 ];
 
 export function Guide() {
-  const [openSection, setOpenSection] = useState<string | null>('cara-kerja');
+  const [openSection, setOpenSection] = useState<string | null>('jenis-konten');
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
       <div className="mb-8">
         <h1 style={{ color: 'var(--vf-text-primary)' }}>📖 Panduan Penggunaan</h1>
         <p className="text-sm mt-1" style={{ color: 'var(--vf-text-secondary)' }}>
-          Panduan lengkap untuk memaksimalkan ViralFrame Studio.
+          Panduan lengkap fitur aktual ViralFrame Studio.
         </p>
       </div>
 
