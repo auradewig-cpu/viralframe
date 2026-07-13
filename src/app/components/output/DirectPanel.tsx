@@ -210,7 +210,7 @@ export function DirectPanel({ json, form, onRegenerate, onEdit, referencePhotos 
         return;
       }
 
-      rephrased.scene_type = getSceneTypeSlug(form.contentStyle, sceneIndex, json.scenes.length);
+      rephrased.scene_type = getSceneTypeSlug(form.contentStyle, sceneIndex, json.scenes.length, form);
       const newScenes = [...json.scenes];
       newScenes[sceneIndex] = rephrased;
       const newVideoJSON: VideoJSON = { ...json, scenes: newScenes };
@@ -296,7 +296,7 @@ export function DirectPanel({ json, form, onRegenerate, onEdit, referencePhotos 
         return;
       }
 
-      scene.scene_type = getSceneTypeSlug(form.contentStyle, sceneIndex, json.scenes.length);
+      scene.scene_type = getSceneTypeSlug(form.contentStyle, sceneIndex, json.scenes.length, form);
 
       const newScenes = [...json.scenes];
       newScenes[sceneIndex] = scene;

@@ -43,7 +43,7 @@ export const shortVideoContentType: ContentTypeDefinition<VideoJSON> = {
   buildRepairPrompt: (json, problems, form) => buildVideoRepairPrompt(json, problems, form.sceneCount, form.captionVariationCount, form.aiTool, form),
   checkPolicy: (json, form) => formatPolicyViolations(checkPolicyCompliance(json, form.contentGoal)),
   applyPostProcess: (json, form) => {
-    if (json.scenes && Array.isArray(json.scenes)) applySceneTypeSlugs(json.scenes, form.contentStyle);
+    if (json.scenes && Array.isArray(json.scenes)) applySceneTypeSlugs(json.scenes, form.contentStyle, form);
   },
   DirectRenderer: ShortVideoDirectRenderer,
   ManualRenderer: ShortVideoManualRenderer,

@@ -1,9 +1,14 @@
+import { FormData } from '../types';
+import { getValidLocationRefs, getSceneLocationRef } from './locationRefs';
+
 export interface ContentStyleConfig {
   value: string;
   label: string;
   description: string;
   structureDescription: string;
-  getSceneRole: (index: number, total: number) => string;
+  // form opsional — HANYA dipakai property_tour untuk menurunkan scene_type "tour_<identitas>" dari
+  // locationRefs (lihat lib/locationRefs.ts). 8 gaya lain mengabaikan parameter ini.
+  getSceneRole: (index: number, total: number, form?: FormData) => string;
   ctaIntensity: 'hard' | 'soft' | 'none';
   narrativeVoiceGuidance: string;
   viralElementEmphasis: string[];
@@ -90,23 +95,45 @@ export const CONTENT_STYLES: ContentStyleConfig[] = [
     narrativeVoiceGuidance: 'Scene terakhir WAJIB diakhiri dengan open loop yang genuinely earned (bukan clickbait kosong) — beri alasan kuat untuk follow/nunggu part berikutnya. Sebutkan eksplisit "part 1 dari beberapa" kalau relevan.',
     viralElementEmphasis: ['cliffhanger', 'curiosity_gap', 'micro_hooks'],
   },
+  {
+    value: 'property_tour',
+    label: '🏡 Property Tour — tur properti bersama agen',
+    description: 'Tur properti terpandu bersama agen — fasad dulu untuk hook, lalu jelajahi ruangan satu per satu mengikuti foto referensi lokasi, tutup dengan CTA agen. Cocok untuk niche properti.',
+    structureDescription: 'Scene 1 = Hook Fasad (establishing shot fasad + hook properti dalam 5 detik pertama narasi) → Scene tengah = Tur Ruangan (1 scene = 1 ruangan, urutan & identitas ikut Referensi Lokasi/Produk) → Scene terakhir = CTA Agen (rekap 1 kalimat + ajakan kontak/DM/site visit)',
+    getSceneRole: (i, total, form) => {
+      if (i === 0) return 'Hook Fasad';
+      if (i === total - 1) return 'CTA Agen';
+      if (form) {
+        const ref = getSceneLocationRef(getValidLocationRefs(form), i + 1);
+        if (ref) {
+          const base = (ref.identity && ref.identity !== 'custom') ? ref.identity : ref.file.replace(/\.[^/.]+$/, '');
+          if (base.trim()) return `Tour ${base.trim()}`;
+        }
+      }
+      return `Tour Ruangan ${i}`;
+    },
+    ctaIntensity: 'hard',
+    narrativeVoiceGuidance: 'Gaya agen properti yang antusias tapi kredibel — FAKTA dulu (luas, jumlah kamar, material, lokasi), baru kekaguman. JANGAN pujian kosong ("bagus banget", "keren abis") tanpa fakta konkret di belakangnya. Tiap scene tur ruangan WAJIB menyebut MINIMAL 1 fakta konkret dari deskripsi produk/keterangan foto. Transisi antar ruangan bergaya walk-through berkelanjutan (whip-pan/walk-and-talk melewati pintu/lorong) supaya terasa satu kunjungan utuh, BUKAN cut terpisah-pisah. Karakter (jika ada) berperan sebagai agen yang memandu, gaya selfie-vlog/walk-and-talk.',
+    viralElementEmphasis: ['social_proof', 'sensory_language', 'pattern_interrupt', 'micro_hooks'],
+  },
 ];
 
 // Sanitasi terpusat: overwrite scene_type dari AI dengan slug aman turunan gaya konten.
 // Dipakai Direct mode DAN Manual mode agar nama folder ZIP selalu aman & konsisten.
-export function applySceneTypeSlugs(scenes: { scene_type: string }[], contentStyleValue: string): void {
+// form opsional — teruskan kalau tersedia supaya property_tour dapat scene_type "tour_<identitas>".
+export function applySceneTypeSlugs(scenes: { scene_type: string }[], contentStyleValue: string, form?: FormData): void {
   scenes.forEach((scene, i) => {
-    scene.scene_type = getSceneTypeSlug(contentStyleValue, i, scenes.length);
+    scene.scene_type = getSceneTypeSlug(contentStyleValue, i, scenes.length, form);
   });
 }
 
-export function getSceneRoleLabel(contentStyleValue: string, index: number, total: number): string {
+export function getSceneRoleLabel(contentStyleValue: string, index: number, total: number, form?: FormData): string {
   const style = CONTENT_STYLES.find(cs => cs.value === contentStyleValue) || CONTENT_STYLES.find(cs => cs.value === 'direct_response')!;
-  return style.getSceneRole(index, total);
+  return style.getSceneRole(index, total, form);
 }
 
-export function getSceneTypeSlug(contentStyleValue: string, index: number, total: number): string {
+export function getSceneTypeSlug(contentStyleValue: string, index: number, total: number, form?: FormData): string {
   const style = CONTENT_STYLES.find(cs => cs.value === contentStyleValue) || CONTENT_STYLES.find(cs => cs.value === 'direct_response')!;
-  const role = style.getSceneRole(index, total);
+  const role = style.getSceneRole(index, total, form);
   return role.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 }

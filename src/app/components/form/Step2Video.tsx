@@ -32,7 +32,7 @@ export function Step2Video() {
   const durations = getSceneDurations();
   const totalDuration = durations.reduce((a, b) => a + b, 0);
 
-  const getSceneType = (i: number) => getSceneRoleLabel(formData.contentStyle, i, sceneCount);
+  const getSceneType = (i: number) => getSceneRoleLabel(formData.contentStyle, i, sceneCount, formData);
 
   const selectedTool = AI_TOOLS.find(t => t.value === formData.aiTool);
 
