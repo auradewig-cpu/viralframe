@@ -23,7 +23,9 @@ export function inferExtension(sourceName?: string, blob?: Blob | null): string 
   return 'jpg';
 }
 
-function slugify(text: string, maxLength: number): string {
+// Diekspor supaya reusable di luar rename kanonik — dipakai juga untuk slug nama file ZIP bundle
+// (lib/referenceZip.ts, DirectPanel.tsx) dari judul video.
+export function slugify(text: string, maxLength: number): string {
   return text
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '_')

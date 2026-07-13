@@ -8,6 +8,7 @@ import { ROOM_IDENTITIES } from '../../lib/roomIdentities';
 import { getContentType, DEFAULT_CONTENT_TYPE_ID } from '../../lib/registry';
 import { LocationRef } from '../../types';
 import { buildCanonicalName, inferExtension, resolveUniqueCanonicalName, CanonicalNameInput } from '../../lib/canonicalRefNames';
+import { getReferenceEntries, addReferenceSectionToZip } from '../../lib/referenceZip';
 import { FieldLabel, FormCard, SelectField, TextareaField, InputField } from './FormFields';
 import { RoomIdentityCombobox, ComboboxOption } from './RoomIdentityCombobox';
 
@@ -282,32 +283,12 @@ export function Step1Business() {
   const hasVisualRefs = formData.characterRefFile.trim() || formData.locationRefs.length > 0;
 
   // === Download Bahan (ZIP) — Tugas 4 ===
-  const downloadableCount =
-    (formData.characterRefFile.trim() && getBlob(formData.characterRefSourceName) ? 1 : 0) +
-    formData.locationRefs.filter(r => r.identity && getBlob(r.sourceName)).length;
+  const downloadableCount = getReferenceEntries(formData).filter(e => getBlob(e.sourceName)).length;
 
   const downloadBahan = async () => {
     if (downloadableCount === 0) return;
     const zip = new JSZip();
-    const mappingLines: string[] = [];
-
-    const characterBlob = getBlob(formData.characterRefSourceName);
-    if (formData.characterRefFile.trim() && characterBlob) {
-      zip.file(formData.characterRefFile, characterBlob);
-      mappingLines.push(`${formData.characterRefFile} ← ${formData.characterRefSourceName} — Karakter — semua scene`);
-    }
-
-    formData.locationRefs.forEach(ref => {
-      if (!ref.identity) return;
-      const blob = getBlob(ref.sourceName);
-      if (!blob) return;
-      zip.file(ref.file, blob);
-      const identityLabel = ROOM_IDENTITIES.find(r => r.value === ref.identity)?.label || ref.identity;
-      const sceneLabel = ref.sceneNumber === null ? 'semua scene' : `scene ${ref.sceneNumber}`;
-      mappingLines.push(`${ref.file} ← ${ref.sourceName} — ${identityLabel} — ${sceneLabel}`);
-    });
-
-    zip.file('bahan_mapping.txt', mappingLines.join('\n') + '\n');
+    addReferenceSectionToZip(zip, formData, getBlob);
     const blob = await zip.generateAsync({ type: 'blob' });
     const dateStr = new Date().toISOString().slice(0, 10);
     const url = URL.createObjectURL(blob);

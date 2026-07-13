@@ -4,6 +4,8 @@ import JSZip from 'jszip';
 import { VideoJSON, FormData } from '../../types';
 import { SceneCard } from './SceneCard';
 import { useAppStore } from '../../store';
+import { addReferenceSectionToZip } from '../../lib/referenceZip';
+import { slugify } from '../../lib/canonicalRefNames';
 import { generateWithFallback, ApiCallError } from '../../lib/apiClient';
 import {
   buildSceneRegenPrompt, buildSceneRegenRepairPrompt, validateSceneData,
@@ -66,35 +68,58 @@ function DownloadJSONButton({ json }: { json: VideoJSON }) {
   );
 }
 
-function DownloadZIPButton({ json }: { json: VideoJSON }) {
+function addScenesSectionToZip(zip: JSZip, json: VideoJSON) {
+  json.scenes.forEach(scene => {
+    const folderName = `scenes/scene_${String(scene.scene_number).padStart(2, '0')}_${scene.scene_type}`;
+    const folder = zip.folder(folderName);
+    if (!folder) return;
+    folder.file('prompt.txt', scene.ai_ready_prompt || '');
+    folder.file('narasi.txt', [
+      scene.script_narration,
+      scene.script_subtitle ? `\nSUBTITLE: ${scene.script_subtitle}` : ''
+    ].join(''));
+    folder.file('brief.txt', [
+      scene.visual_description,
+      `\nKamera: ${scene.camera_direction}`,
+      `\nAudio: ${scene.sound_design}`,
+      `\nTransisi: ${scene.transition_to_next}`,
+    ].join('\n'));
+    folder.file('reference_guide.txt', `Scene ${scene.scene_number} — ${scene.scene_type.toUpperCase()}\n\nGunakan frame terbaik dari scene sebelumnya sebagai referensi.`);
+  });
+}
+
+function buildCaptionsHashtagsText(json: VideoJSON): string {
+  const variations = json.production_notes?.caption_variations || [];
+  return variations.map((cv, i) => [
+    `=== CAPTION VARIASI ${i + 1} ===`,
+    cv.caption_text,
+    (cv.hashtags || []).join(' '),
+    '',
+  ].join('\n')).join('\n');
+}
+
+function DownloadBundleButton({ json, form }: { json: VideoJSON; form: FormData }) {
+  const referenceFiles = useAppStore(s => s.referenceFiles);
+  const getBlob = (sourceName?: string) => (sourceName ? referenceFiles[sourceName]?.blob : undefined);
+
   const download = async () => {
     const zip = new JSZip();
-    json.scenes.forEach(scene => {
-      const folderName = `scene_${String(scene.scene_number).padStart(2, '0')}_${scene.scene_type}`;
-      const folder = zip.folder(folderName);
-      if (!folder) return;
-      folder.file('prompt.txt', scene.ai_ready_prompt || '');
-      folder.file('narasi.txt', [
-        scene.script_narration,
-        scene.script_subtitle ? `\nSUBTITLE: ${scene.script_subtitle}` : ''
-      ].join(''));
-      folder.file('brief.txt', [
-        scene.visual_description,
-        `\nKamera: ${scene.camera_direction}`,
-        `\nAudio: ${scene.sound_design}`,
-        `\nTransisi: ${scene.transition_to_next}`,
-      ].join('\n'));
-      folder.file('reference_guide.txt', `Scene ${scene.scene_number} — ${scene.scene_type.toUpperCase()}\n\nGunakan frame terbaik dari scene sebelumnya sebagai referensi.`);
-    });
+    addReferenceSectionToZip(zip, form, getBlob, 'referensi');
+    addScenesSectionToZip(zip, json);
+    zip.file('captions_hashtags.txt', buildCaptionsHashtagsText(json));
+    zip.file('video_full.json', JSON.stringify(json, null, 2));
+
     const blob = await zip.generateAsync({ type: 'blob' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = 'viralframe-scenes.zip'; a.click();
+    const titleSlug = slugify(json.video_metadata?.title || '', 40) || 'video';
+    const dateStr = new Date().toISOString().slice(0, 10);
+    a.href = url; a.download = `viralframe_bahan_${titleSlug}_${dateStr}.zip`; a.click();
     URL.revokeObjectURL(url);
   };
   return (
     <button onClick={download} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm" style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-text-secondary)', border: '1px solid var(--vf-border)' }}>
-      <Download size={14} /> ↓ Download ZIP Per Scene
+      <Download size={14} /> ⬇️ Download Bahan Lengkap (ZIP)
     </button>
   );
 }
@@ -333,7 +358,7 @@ export function DirectPanel({ json, form, onRegenerate, onEdit, referencePhotos 
         <div className="flex flex-wrap gap-2">
           <CopyAllButton json={json} />
           <DownloadJSONButton json={json} />
-          <DownloadZIPButton json={json} />
+          <DownloadBundleButton json={json} form={form} />
           <button onClick={onRegenerate} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm" style={{ background: 'var(--vf-accent-primary)', color: 'white' }}>
             <RefreshCw size={14} /> 🔄 Regenerate
           </button>
