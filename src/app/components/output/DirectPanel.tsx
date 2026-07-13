@@ -206,15 +206,15 @@ export function DirectPanel({ json, form, onRegenerate, onEdit, referencePhotos 
   const [captionAutoFix, setCaptionAutoFix] = useState<Record<number, AutoFixState>>({});
 
   const patchSceneRegenState = (index: number, patch: Partial<SceneRegenState>) => {
-    setSceneRegen(prev => ({ ...prev, [index]: { loading: false, error: null, justRegenerated: false, ...prev[index], ...patch } }));
+    setSceneRegen(prev => ({ ...prev, [index]: { ...prev[index], loading: false, error: null, justRegenerated: false, ...patch } }));
   };
 
   const patchSceneAutoFix = (index: number, patch: Partial<AutoFixState>) => {
-    setSceneAutoFix(prev => ({ ...prev, [index]: { loading: false, error: null, remainingWarning: null, ...prev[index], ...patch } }));
+    setSceneAutoFix(prev => ({ ...prev, [index]: { ...prev[index], loading: false, error: null, remainingWarning: null, ...patch } }));
   };
 
   const patchCaptionAutoFix = (index: number, patch: Partial<AutoFixState>) => {
-    setCaptionAutoFix(prev => ({ ...prev, [index]: { loading: false, error: null, remainingWarning: null, ...prev[index], ...patch } }));
+    setCaptionAutoFix(prev => ({ ...prev, [index]: { ...prev[index], loading: false, error: null, remainingWarning: null, ...patch } }));
   };
 
   const scenePolicyMap = getScenePolicyViolations(json, form);

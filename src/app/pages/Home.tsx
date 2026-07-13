@@ -375,7 +375,7 @@ export function Home() {
               {(['gemini', 'groq', 'openrouter'] as const).map((p) => {
                 const status = providerStatus[p];
                 let color = status === 'success' ? 'var(--vf-accent-success)' : status === 'trying' ? 'var(--vf-accent-warning)' : status === 'failed' ? 'var(--vf-accent-danger)' : 'var(--vf-border)';
-                let title = status;
+                let title: string = status;
                 if (p === 'groq' && groqQuotaPercent !== null && (status === 'success' || status === 'idle')) {
                   if (groqQuotaPercent > 50) { color = 'var(--vf-accent-success)'; title = `Kuota ${groqQuotaPercent.toFixed(0)}%`; }
                   else if (groqQuotaPercent > 10) { color = 'var(--vf-accent-warning)'; title = `Kuota rendah: ${groqQuotaPercent.toFixed(0)}%`; }
@@ -428,7 +428,7 @@ export function Home() {
             </div>
           </div>
         )}
-        {!isGenerating && !generateError && formData.mode === 'direct' && generatedOutput?.data && (
+        {!isGenerating && !generateError && formData.mode === 'direct' && (generatedOutput?.data != null) && (
           <contentType.DirectRenderer data={generatedOutput.data} form={formData} onRegenerate={handleRegenerate} onEdit={handleEdit} referencePhotos={formData.referencePhotos} />
         )}
 

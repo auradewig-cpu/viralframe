@@ -181,12 +181,13 @@ export const useAppStore = create<AppState>()(
       version: 2,
       // v1 -> v2: HistoryRecord.videoJSON berganti nama jadi { contentTypeId, output }.
       // Record lama tanpa contentTypeId diperlakukan sebagai 'short_video' — history/template lama tetap terbaca.
-      migrate: (persistedState, version) => {
-        const state = persistedState as { history?: Array<Record<string, unknown>> } | undefined;
-        if (version < 2 && state?.history) {
-          state.history = state.history.map((r) => {
+      migrate: (persistedState) => {
+        const state = persistedState as Record<string, unknown>;
+        const history = state.history as Array<Record<string, unknown>> | undefined;
+        if (history) {
+          state.history = history.map((r) => {
             if ('contentTypeId' in r && 'output' in r) return r;
-            const { videoJSON, ...rest } = r as Record<string, unknown> & { videoJSON?: unknown };
+            const { videoJSON, ...rest } = r;
             return { ...rest, contentTypeId: (r.contentTypeId as string) || 'short_video', output: videoJSON ?? null };
           });
         }
