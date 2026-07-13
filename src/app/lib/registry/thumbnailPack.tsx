@@ -1,3 +1,5 @@
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Loader2, Download, AlertCircle, ImageOff } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { FormData } from '../../types';
 import { NICHES, TARGET_AUDIENCES, VISUAL_STYLES } from '../maps';
@@ -5,6 +7,7 @@ import { FieldLabel, FormCard, SelectField, InputField, NumberInput } from '../.
 import { parseJsonResponse, scanTextsForPolicyViolations, POLICY_COMPLIANCE_BLOCK } from './shared';
 import { OutputToolbar, GenericManualPanel, CopyButton } from './sharedUI';
 import { ContentTypeDefinition, ValidationResult, DirectRendererProps, ManualRendererProps } from './types';
+import { generateImageWithFallback, ImageGenError } from '../imageClient';
 
 // ==================== SKEMA OUTPUT ====================
 
@@ -206,9 +209,114 @@ function ThumbnailPackForm() {
   );
 }
 
+// ==================== IMAGE GENERATION ====================
+
+type RatioKey = '16:9' | '1:1';
+
+function slugConcept(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 30) || 'concept';
+}
+
 // ==================== RENDERER ====================
 
-function ConceptCard({ concept }: { concept: ThumbnailConcept }) {
+function ConceptCard({ concept, index, generatedUrls = {}, generatingStates = {}, onGenerate, onRegenerate }: {
+  concept: ThumbnailConcept;
+  index: number;
+  generatedUrls?: Partial<Record<RatioKey, string | undefined>>;
+  generatingStates?: Partial<Record<RatioKey, { loading: boolean; provider: string; error: string }>>;
+  onGenerate?: (ratio: RatioKey) => void;
+  onRegenerate?: (ratio: RatioKey) => void;
+}) {
+  const conceptSlug = slugConcept(concept.concept_name);
+
+  const renderImageSection = (ratioLabel: string, prompt: string, ratio: RatioKey) => {
+    const state = generatingStates[ratio] || { loading: false, provider: '', error: '' };
+    const url: string | undefined = generatedUrls[ratio];
+
+    const showGenerate = typeof onGenerate === 'function';
+
+    return (
+      <div className="space-y-2">
+        {showGenerate && !url && !state.loading && !state.error && (
+          <button
+            onClick={() => onGenerate!(ratio)}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm transition-all hover:opacity-90"
+            style={{ background: 'var(--vf-accent-primary)', color: 'white' }}
+          >
+            🎨 Generate Gambar ({ratioLabel})
+          </button>
+        )}
+
+        {state.loading && (
+          <div className="flex items-center justify-center gap-2 p-4 rounded-lg" style={{ background: 'var(--vf-bg-secondary)' }}>
+            <Loader2 size={16} className="animate-spin" style={{ color: 'var(--vf-accent-primary)' }} />
+            <span className="text-xs" style={{ color: 'var(--vf-text-secondary)' }}>Generate via {state.provider}...</span>
+          </div>
+        )}
+
+        {state.error && !url && !state.loading && (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-start gap-2 p-2 rounded-lg text-xs" style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--vf-accent-danger)' }}>
+              <AlertCircle size={14} className="shrink-0 mt-0.5" />
+              <span>{state.error}</span>
+            </div>
+            {showGenerate && (
+              <button
+                onClick={() => onRegenerate!(ratio)}
+                className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs"
+                style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-text-secondary)', border: '1px solid var(--vf-border)' }}
+              >
+                🔄 Coba Lagi
+              </button>
+            )}
+          </div>
+        )}
+
+        {url && (
+          <div className="space-y-2">
+            <img
+              src={url}
+              alt={`${concept.concept_name} ${ratioLabel}`}
+              className="w-full rounded-lg object-cover"
+              style={{ maxHeight: 260, background: 'var(--vf-bg-secondary)' }}
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  const a = document.createElement('a');
+                  a.href = url; a.download = `thumbnail_${conceptSlug}_${ratio.replace(':', 'x')}.png`; a.click();
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs"
+                style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-text-secondary)', border: '1px solid var(--vf-border)' }}
+              >
+                <Download size={12} /> ⬇️ Download
+              </button>
+              {showGenerate && (
+                <button
+                  onClick={() => onRegenerate!(ratio)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs"
+                  style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-text-secondary)', border: '1px solid var(--vf-border)' }}
+                >
+                  🔄 Regenerate
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {!url && !state.loading && !state.error && (
+          <div className="flex items-start justify-between gap-2 p-2 rounded" style={{ background: 'var(--vf-bg-secondary)' }}>
+            <div className="flex-1">
+              <span className="text-xs font-medium" style={{ color: 'var(--vf-text-muted)' }}>Prompt {ratioLabel}</span>
+              <code className="block text-xs mt-1" style={{ color: 'var(--vf-text-secondary)' }}>{prompt}</code>
+            </div>
+            <CopyButton text={prompt} label="Copy" />
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="rounded-xl p-4 space-y-2" style={{ background: 'var(--vf-bg-elevated)', border: '1px solid var(--vf-border)' }}>
       <div className="flex items-center justify-between">
@@ -217,20 +325,8 @@ function ConceptCard({ concept }: { concept: ThumbnailConcept }) {
       </div>
       <p className="text-sm font-medium" style={{ color: 'var(--vf-accent-primary)' }}>"{concept.text_overlay.text}" — {concept.text_overlay.position}, {concept.text_overlay.color_suggestion}</p>
       <p className="text-xs" style={{ color: 'var(--vf-text-muted)' }}>{concept.ctr_rationale}</p>
-      <div className="flex items-start justify-between gap-2 p-2 rounded" style={{ background: 'var(--vf-bg-secondary)' }}>
-        <div className="flex-1">
-          <span className="text-xs font-medium" style={{ color: 'var(--vf-text-muted)' }}>Prompt 16:9</span>
-          <code className="block text-xs mt-1" style={{ color: 'var(--vf-text-secondary)' }}>{concept.image_prompt.prompt_16_9}</code>
-        </div>
-        <CopyButton text={concept.image_prompt.prompt_16_9} label="Copy" />
-      </div>
-      <div className="flex items-start justify-between gap-2 p-2 rounded" style={{ background: 'var(--vf-bg-secondary)' }}>
-        <div className="flex-1">
-          <span className="text-xs font-medium" style={{ color: 'var(--vf-text-muted)' }}>Prompt 1:1</span>
-          <code className="block text-xs mt-1" style={{ color: 'var(--vf-text-secondary)' }}>{concept.image_prompt.prompt_1_1}</code>
-        </div>
-        <CopyButton text={concept.image_prompt.prompt_1_1} label="Copy" />
-      </div>
+      {renderImageSection('16:9', concept.image_prompt.prompt_16_9, '16:9')}
+      {renderImageSection('1:1', concept.image_prompt.prompt_1_1, '1:1')}
     </div>
   );
 }
@@ -239,16 +335,91 @@ function ThumbnailPackOutput({ data }: { data: ThumbnailPackJSON }) {
   return (
     <div className="space-y-3">
       <p className="text-sm font-medium" style={{ color: 'var(--vf-text-primary)' }}>🎬 {data.video_topic}</p>
-      {data.concepts.map((c, i) => <ConceptCard key={i} concept={c} />)}
+      {data.concepts.map((c, i) => (
+        <ConceptCard key={i} concept={c} index={i} />
+      ))}
     </div>
   );
 }
 
-function ThumbnailPackDirectRenderer({ data, onRegenerate, onEdit }: DirectRendererProps<ThumbnailPackJSON>) {
+const INIT_RATIO_STATE = { loading: false, provider: '', error: '' };
+
+function ThumbnailPackDirectRenderer({ data, form, onRegenerate, onEdit }: DirectRendererProps<ThumbnailPackJSON>) {
+  const settings = useAppStore(s => s.settings);
+  const [generatedUrls, setGeneratedUrls] = useState<Record<string, Record<RatioKey, string | undefined>>>({});
+  const [generatingStates, setGeneratingStates] = useState<Record<string, Record<RatioKey, { loading: boolean; provider: string; error: string }>>>({});
+  const abortRef = useRef<Record<string, RatioKey | null>>({});
+
+  const revokeUrl = useCallback((key: string, ratio: RatioKey) => {
+    setGeneratedUrls(prev => {
+      const existing = prev[key]?.[ratio];
+      if (existing) URL.revokeObjectURL(existing);
+      return prev;
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      Object.values(generatedUrls).forEach(urls => {
+        Object.values(urls).forEach(url => { if (url) URL.revokeObjectURL(url); });
+      });
+    };
+  }, [generatedUrls]);
+
+  const handleGenerate = async (index: number, ratio: RatioKey) => {
+    const key = `${index}`;
+    revokeUrl(key, ratio);
+    const prompt = ratio === '16:9' ? data.concepts[index].image_prompt.prompt_16_9 : data.concepts[index].image_prompt.prompt_1_1;
+
+    setGeneratingStates(prev => ({
+      ...prev,
+      [key]: { ...prev[key], [ratio]: { loading: true, provider: 'Puter', error: '' } },
+    }));
+
+    try {
+      const blob = await generateImageWithFallback(prompt, { ratio }, {
+        geminiApiKey: settings.geminiApiKey,
+        geminiImageModel: settings.geminiImageModel,
+        puterEnabled: settings.puterEnabled,
+        onProviderStatus: (provider, status) => {
+          if (status === 'trying') {
+            const label = provider === 'puter' ? 'Puter.js' : provider === 'pollinations' ? 'Pollinations' : 'Gemini Image';
+            setGeneratingStates(prev => ({
+              ...prev,
+              [key]: { ...prev[key], [ratio]: { loading: true, provider: label, error: '' } },
+            }));
+          }
+        },
+      });
+      const url = URL.createObjectURL(blob);
+      setGeneratedUrls(prev => ({ ...prev, [key]: { ...prev[key], [ratio]: url } }));
+      setGeneratingStates(prev => ({ ...prev, [key]: { ...prev[key], [ratio]: { loading: false, provider: '', error: '' } } }));
+    } catch (e: unknown) {
+      const msg = e instanceof ImageGenError ? e.message : 'Terjadi kesalahan tidak diketahui.';
+      setGeneratingStates(prev => ({ ...prev, [key]: { ...prev[key], [ratio]: { loading: false, provider: '', error: msg } } }));
+    }
+  };
+
   return (
     <div className="space-y-4">
       <OutputToolbar data={data} filename="viralframe-thumbnail-pack.json" onRegenerate={onRegenerate} onEdit={onEdit} />
-      <ThumbnailPackOutput data={data} />
+      <div className="space-y-3">
+        <p className="text-sm font-medium" style={{ color: 'var(--vf-text-primary)' }}>🎬 {data.video_topic}</p>
+        {data.concepts.map((c, i) => {
+          const key = `${i}`;
+          return (
+            <ConceptCard
+              key={i}
+              concept={c}
+              index={i}
+              generatedUrls={generatedUrls[key] || {}}
+              generatingStates={generatingStates[key] || {} as Record<RatioKey, { loading: boolean; provider: string; error: string }>}
+              onGenerate={(ratio) => handleGenerate(i, ratio)}
+              onRegenerate={(ratio) => handleGenerate(i, ratio)}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 }
