@@ -7,7 +7,7 @@ import { countWords, ValidationResult } from './jsonParser';
 import { parseJsonResponse } from './registry/shared';
 import {
   getValidLocationRefs, getSceneLocationRef, buildReferenceImageJson, buildBindingSentence, buildPromptHintsSentence,
-  ResolvedLocationRef,
+  buildCharacterBindingSentence, getCharacterRefFileName, ResolvedLocationRef,
 } from './locationRefs';
 
 // Fondasi Tugas 1 — regenerate SATU scene tanpa membakar quota untuk scene lain yang sudah bagus.
@@ -21,6 +21,8 @@ export interface SceneRegenExpectation {
   charLimit: number;
   characterAnchor: string;
   locationRef: ResolvedLocationRef | null;
+  characterBindingSentence: string | null;
+  characterRefFileName: string;
 }
 
 export function getSceneRegenExpectation(videoJSON: VideoJSON, sceneIndex: number, form: FormData, narrationWPM: number): SceneRegenExpectation {
@@ -36,6 +38,8 @@ export function getSceneRegenExpectation(videoJSON: VideoJSON, sceneIndex: numbe
     charLimit: toolInfo?.charLimit || 400,
     characterAnchor,
     locationRef,
+    characterBindingSentence: buildCharacterBindingSentence(form),
+    characterRefFileName: getCharacterRefFileName(form),
   };
 }
 
@@ -84,6 +88,7 @@ ${videoJSON.character_sheet?.used ? `[CHARACTER SHEET — VERBATIM, WAJIB JADI A
 Definisi (ikuti pola consistency_note): ai_ready_prompt scene baru WAJIB dimulai dengan string ini
 PERSIS kata per kata, baru kemudian deskripsi aksi scene. Tanpa anchor identik, karakter akan
 terlihat berbeda dari scene lain di video yang sama.` : ''}
+${exp.characterBindingSentence ? `\n[CHARACTER REFERENCE PHOTO — WAJIB]\nai_ready_prompt scene baru WAJIB menyertakan kalimat pengikat SINGKAT setelah character anchor: "${exp.characterBindingSentence}" — tanpa kalimat ini, AI video tool mengabaikan foto referensi karakter. Tetap jaga SINGKAT, batas ${exp.charLimit} karakter tetap berlaku.` : ''}
 
 ${prevScene ? `[PREVIOUS SCENE ANCHOR — scene ${prevScene.scene_number}, JANGAN diubah, hanya konteks]
 ${JSON.stringify(prevScene, null, 2)}
@@ -161,6 +166,9 @@ export function validateSceneData(scene: SceneData, expectation: SceneRegenExpec
     if (expectation.characterAnchor && !scene.ai_ready_prompt.startsWith(expectation.characterAnchor)) {
       warnings.push('ai_ready_prompt tidak diawali CHARACTER ANCHOR verbatim — konsistensi karakter berisiko rusak.');
     }
+    if (expectation.characterRefFileName && !scene.ai_ready_prompt.includes(expectation.characterRefFileName)) {
+      warnings.push(`ai_ready_prompt tidak menyebut nama file foto karakter "${expectation.characterRefFileName}" — foto karakter mungkin diabaikan AI video tool.`);
+    }
   }
 
   if (expectation.locationRef) {
@@ -192,7 +200,7 @@ ${problems.map((p, i) => `${i + 1}. ${p}`).join('\n')}
 ATURAN PERBAIKAN:
 - Perbaiki HANYA field yang bermasalah. Field lain WAJIB disalin apa adanya.
 - scene_number HARUS PERSIS ${expectation.sceneNumber}, duration_seconds HARUS PERSIS ${expectation.durationSeconds}, max_words HARUS PERSIS ${expectation.maxWords}.
-- ai_ready_prompt maksimal ${expectation.charLimit} karakter${expectation.characterAnchor ? `, WAJIB diawali persis: '${expectation.characterAnchor}'` : ''}.
+- ai_ready_prompt maksimal ${expectation.charLimit} karakter${expectation.characterAnchor ? `, WAJIB diawali persis: '${expectation.characterAnchor}'` : ''}.${expectation.characterBindingSentence ? ` WAJIB tetap menyertakan kalimat pengikat karakter: "${expectation.characterBindingSentence}".` : ''}
 - Jumlah kata script_narration aktual harus antara 85%-100% dari ${expectation.maxWords} kata.
 - Output kamu HANYA satu objek JSON scene tunggal yang sudah diperbaiki, struktur identik. Mulai {, akhiri }.
 

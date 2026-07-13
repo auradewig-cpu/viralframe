@@ -36,6 +36,7 @@ ATURAN PERBAIKAN:
 - ai_ready_prompt: jika diubah, WAJIB tetap diawali persis dengan character_sheet berikut (jika ada)
   dan tetap maksimal ${exp.charLimit} karakter:
   ${exp.characterAnchor ? `'${exp.characterAnchor}'` : '(tidak ada character_sheet untuk video ini)'}
+${exp.characterBindingSentence ? `- ai_ready_prompt: jika diubah, WAJIB tetap menyertakan kalimat pengikat karakter: "${exp.characterBindingSentence}" — tanpa ini AI video tool mengabaikan foto referensi karakter.` : ''}
 - scene_number (${exp.sceneNumber}), duration_seconds (${exp.durationSeconds}), dan max_words
   (${exp.maxWords}) TIDAK BOLEH berubah.
 - Field lain yang TIDAK disebutkan di daftar pelanggaran WAJIB disalin apa adanya, tanpa perubahan.

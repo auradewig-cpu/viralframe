@@ -1,7 +1,7 @@
 import { VideoJSON, FormData } from '../types';
 import { countWords } from './jsonParser';
 import { checkPolicyCompliance, PolicyViolation } from './policyCheck';
-import { getValidLocationRefs, getSceneLocationRef } from './locationRefs';
+import { getValidLocationRefs, getSceneLocationRef, getCharacterRefFileName } from './locationRefs';
 
 // Status per-scene SELALU derived — tidak pernah disimpan ke JSON output/history. Dihitung ulang
 // dari videoJSON + form setiap kali dibutuhkan (badge Flagged/OK di SceneCard), supaya tetap akurat
@@ -15,6 +15,7 @@ export function getSceneIssuesMap(json: VideoJSON, form: FormData): Record<numbe
   };
 
   const validLocationRefs = getValidLocationRefs(form);
+  const characterRefFileName = getCharacterRefFileName(form);
 
   (json.scenes || []).forEach(scene => {
     if (scene.script_narration && scene.max_words > 0) {
@@ -30,6 +31,9 @@ export function getSceneIssuesMap(json: VideoJSON, form: FormData): Record<numbe
       if (expectedRef && scene.reference_image?.file?.trim() !== expectedRef.file.trim()) {
         addIssue(scene.scene_number, `reference_image.file seharusnya "${expectedRef.file.trim()}" (ditugaskan via Referensi Lokasi/Produk), tapi hasilnya "${scene.reference_image?.file || '(kosong)'}".`);
       }
+    }
+    if (characterRefFileName && !(scene.ai_ready_prompt || '').includes(characterRefFileName)) {
+      addIssue(scene.scene_number, `ai_ready_prompt tidak menyebut nama file foto karakter "${characterRefFileName}" — foto karakter mungkin diabaikan AI video tool.`);
     }
   });
 

@@ -92,3 +92,26 @@ export function buildPromptHintsSentence(ref: ResolvedLocationRef): string {
   if (caution) parts.push(`caution: ${caution}`);
   return parts.join('; ');
 }
+
+// Nama file foto karakter yang WAJIB disebut di ai_ready_prompt — '' kalau tidak ada referensi
+// karakter aktif (belum diisi, atau talentStyle 'product_only' di mana konsep karakter tidak berlaku).
+// Dipakai buildCharacterBindingSentence DAN validasi (jsonParser/sceneStatus/sceneRegen) supaya kunci
+// pengecekan "apakah ai_ready_prompt menyebut foto karakter" selalu konsisten satu sumber.
+export function getCharacterRefFileName(form: FormData): string {
+  if (form.talentStyle === 'product_only') return '';
+  return form.characterRefFile.trim() ? sanitizeRefText(form.characterRefFile) : '';
+}
+
+// Kalimat pengikat SINGKAT untuk ai_ready_prompt — pola sama dengan buildBindingSentence (lokasi):
+// tanpa kalimat ini, AI video tool (Google Flow dll) mengabaikan foto referensi karakter yang
+// dilampirkan user karena namanya tidak pernah disebut di teks prompt. Dipakai masterPrompt.ts
+// (generate awal), sceneRegen.ts (regenerate per-scene), dan autoRephrase.ts (rewrite policy) — JANGAN
+// copy-paste string ini di tempat lain.
+export function buildCharacterBindingSentence(form: FormData): string | null {
+  const file = getCharacterRefFileName(form);
+  if (!file) return null;
+  if (form.talentStyle === 'faceless_pov') {
+    return `hands match reference photo ${file} — same hands, skin tone, and accessories`;
+  }
+  return `character matches reference photo ${file} — same face, hair, and outfit`;
+}

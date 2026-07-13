@@ -2,6 +2,7 @@ import { AI_TOOLS } from './maps';
 import { VideoJSON, FormData } from '../types';
 import {
   getValidLocationRefs, getSceneLocationRef, buildReferenceImageJson, buildBindingSentence, buildPromptHintsSentence,
+  getCharacterRefFileName,
 } from './locationRefs';
 
 export function parseAiResponse(rawText: string): VideoJSON | null {
@@ -39,6 +40,7 @@ export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number, e
   const charLimit = toolInfo?.charLimit || 400;
   // form opsional (ManualPanel belum melewatkan form penuh) — kalau tidak ada, cek locationRefs di-skip.
   const validLocationRefs = form ? getValidLocationRefs(form) : [];
+  const characterRefFileName = form ? getCharacterRefFileName(form) : '';
 
   if (!json.video_metadata) errors.push('Field "video_metadata" tidak ditemukan.');
   if (!json.global_style) errors.push('Field "global_style" tidak ditemukan.');
@@ -58,6 +60,9 @@ export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number, e
         }
         if (anchor && !scene.ai_ready_prompt.startsWith(anchor)) {
           warnings.push(`Scene ${i + 1}: ai_ready_prompt tidak diawali CHARACTER ANCHOR verbatim — konsistensi karakter antar scene berisiko rusak.`);
+        }
+        if (characterRefFileName && !scene.ai_ready_prompt.includes(characterRefFileName)) {
+          warnings.push(`Scene ${i + 1}: ai_ready_prompt tidak menyebut nama file foto karakter "${characterRefFileName}" — foto karakter mungkin diabaikan AI video tool.`);
         }
       }
       if (!scene.script_narration) {
@@ -111,6 +116,7 @@ export function buildRepairPrompt(json: VideoJSON, problems: string[], expectedS
   const toolInfo = AI_TOOLS.find(t => t.value === aiToolValue);
   const charLimit = toolInfo?.charLimit || 400;
   const validLocationRefs = form ? getValidLocationRefs(form) : [];
+  const characterRefFileName = form ? getCharacterRefFileName(form) : '';
   const locationRefRules = validLocationRefs.length > 0
     ? `\n- reference_image per scene WAJIB ikuti penugasan ini persis (BOLEH BERBEDA antar scene, JANGAN disalin rata):\n${Array.from({ length: expectedSceneCount }, (_, i) => {
         const ref = getSceneLocationRef(validLocationRefs, i + 1);
@@ -128,7 +134,7 @@ ${problems.map((p, i) => `${i + 1}. ${p}`).join('\n')}
 ATURAN PERBAIKAN:
 - Perbaiki HANYA field yang bermasalah di daftar atas. Field lain WAJIB disalin apa adanya tanpa perubahan.
 - Total scene HARUS PERSIS ${expectedSceneCount}. Total caption_variations HARUS PERSIS ${expectedCaptionCount}.
-- Setiap ai_ready_prompt maksimal ${charLimit} karakter dan (jika ada karakter) WAJIB diawali character_sheet.description verbatim.
+- Setiap ai_ready_prompt maksimal ${charLimit} karakter dan (jika ada karakter) WAJIB diawali character_sheet.description verbatim.${characterRefFileName ? ` Setiap ai_ready_prompt WAJIB juga menyebut nama file foto karakter "${characterRefFileName}" (kalimat pengikat karakter) — tanpa ini AI video tool mengabaikan foto referensi.` : ''}
 - Setiap script_narration: jumlah kata aktual antara 85%–100% dari max_words scene tersebut.
 - Semua klaim absolut/medis/testimonial di-rewrite menjadi observasi netral yang policy-safe.${locationRefRules}
 - Output kamu HANYA JSON lengkap yang sudah diperbaiki, dengan struktur identik. Mulai dengan { dan akhiri dengan }. Tanpa penjelasan, tanpa markdown.
