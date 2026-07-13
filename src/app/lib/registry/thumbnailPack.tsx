@@ -219,11 +219,12 @@ function slugConcept(name: string): string {
 
 // ==================== RENDERER ====================
 
-function ConceptCard({ concept, index, generatedUrls = {}, generatingStates = {}, onGenerate, onRegenerate }: {
+function ConceptCard({ concept, index, generatedUrls = {}, generatingStates = {}, puterSkipped = {}, onGenerate, onRegenerate }: {
   concept: ThumbnailConcept;
   index: number;
   generatedUrls?: Partial<Record<RatioKey, string | undefined>>;
   generatingStates?: Partial<Record<RatioKey, { loading: boolean; provider: string; error: string }>>;
+  puterSkipped?: Partial<Record<RatioKey, boolean>>;
   onGenerate?: (ratio: RatioKey) => void;
   onRegenerate?: (ratio: RatioKey) => void;
 }) {
@@ -248,9 +249,16 @@ function ConceptCard({ concept, index, generatedUrls = {}, generatingStates = {}
         )}
 
         {state.loading && (
-          <div className="flex items-center justify-center gap-2 p-4 rounded-lg" style={{ background: 'var(--vf-bg-secondary)' }}>
-            <Loader2 size={16} className="animate-spin" style={{ color: 'var(--vf-accent-primary)' }} />
-            <span className="text-xs" style={{ color: 'var(--vf-text-secondary)' }}>Generate via {state.provider}...</span>
+          <div className="flex flex-col items-center gap-2 p-4 rounded-lg" style={{ background: 'var(--vf-bg-secondary)' }}>
+            <div className="flex items-center gap-2">
+              <Loader2 size={16} className="animate-spin" style={{ color: 'var(--vf-accent-primary)' }} />
+              <span className="text-xs" style={{ color: 'var(--vf-text-secondary)' }}>Generate via {state.provider}...</span>
+            </div>
+            {puterSkipped[ratio] && (
+              <p className="text-xs" style={{ color: 'var(--vf-text-muted)' }}>
+                ⏭️ Puter dilewati (gagal sebelumnya) — coba lagi nanti atau nonaktifkan di Settings
+              </p>
+            )}
           </div>
         )}
 
@@ -348,6 +356,7 @@ function ThumbnailPackDirectRenderer({ data, form, onRegenerate, onEdit }: Direc
   const settings = useAppStore(s => s.settings);
   const [generatedUrls, setGeneratedUrls] = useState<Record<string, Record<RatioKey, string | undefined>>>({});
   const [generatingStates, setGeneratingStates] = useState<Record<string, Record<RatioKey, { loading: boolean; provider: string; error: string }>>>({});
+  const [puterSkippedInfo, setPuterSkippedInfo] = useState<Record<string, Record<RatioKey, boolean>>>({});
   const abortRef = useRef<Record<string, RatioKey | null>>({});
 
   const revokeUrl = useCallback((key: string, ratio: RatioKey) => {
@@ -389,6 +398,9 @@ function ThumbnailPackDirectRenderer({ data, form, onRegenerate, onEdit }: Direc
               [key]: { ...prev[key], [ratio]: { loading: true, provider: label, error: '' } },
             }));
           }
+          if (status === 'skipped' && provider === 'puter') {
+            setPuterSkippedInfo(prev => ({ ...prev, [key]: { ...prev[key], [ratio]: true } }));
+          }
         },
       });
       const url = URL.createObjectURL(blob);
@@ -414,6 +426,7 @@ function ThumbnailPackDirectRenderer({ data, form, onRegenerate, onEdit }: Direc
               index={i}
               generatedUrls={generatedUrls[key] || {}}
               generatingStates={generatingStates[key] || {} as Record<RatioKey, { loading: boolean; provider: string; error: string }>}
+              puterSkipped={puterSkippedInfo[key] || {}}
               onGenerate={(ratio) => handleGenerate(i, ratio)}
               onRegenerate={(ratio) => handleGenerate(i, ratio)}
             />

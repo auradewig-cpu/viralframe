@@ -12,8 +12,22 @@ export class ImageGenError extends Error {
 }
 
 export type ImageProvider = 'puter' | 'pollinations' | 'gemini_image';
-export type ProviderStatus = 'idle' | 'trying' | 'success' | 'failed';
+export type ProviderStatus = 'idle' | 'trying' | 'success' | 'failed' | 'skipped';
 export type OnImageProviderStatus = (provider: ImageProvider, status: ProviderStatus) => void;
+
+// Circuit breaker level modul — Puter tidak dicoba ulang selama 10 menit setelah gagal.
+// `puterEverFailed` bersifat permanen hingga sukses: setelah pernah gagal, timeout diturunkan jadi 30s.
+let puterSkipUntil = 0;
+let puterEverFailed = false;
+const PUTER_COOLDOWN_MS = 10 * 60 * 1000;
+const PUTER_TIMEOUT_FIRST_MS = 120_000;
+const PUTER_TIMEOUT_RETRY_MS = 30_000;
+
+export function _resetPuterBreakerForTest(): void { puterSkipUntil = 0; puterEverFailed = false; }
+function isPuterSkipped(): boolean { return Date.now() < puterSkipUntil; }
+function markPuterFailed(): void { puterSkipUntil = Date.now() + PUTER_COOLDOWN_MS; puterEverFailed = true; }
+function markPuterSuccess(): void { puterSkipUntil = 0; puterEverFailed = false; }
+function getPuterTimeout(): number { return puterEverFailed ? PUTER_TIMEOUT_RETRY_MS : PUTER_TIMEOUT_FIRST_MS; }
 
 const RATIO_DIMENSIONS: Record<string, { width: number; height: number }> = {
   '16:9': { width: 1280, height: 720 },
@@ -159,16 +173,23 @@ export async function generateImageWithFallback(prompt: string, opts: ImageGenOp
 
   // 1. Puter — skip jika inputImage diberikan (Puter txt2img tidak menerima input gambar)
   if (deps.puterEnabled !== false && !opts.inputImage) {
-    try {
-      notify('puter', 'trying');
-      const result = await callPuter(prompt, opts, 120_000);
-      notify('puter', 'success');
-      return result;
-    } catch (e: unknown) {
-      const err = e instanceof ImageGenError ? e : new ImageGenError('UNKNOWN', String(e));
-      errors.push(err);
-      notify('puter', 'failed');
-      if (NON_TRANSIENT_IMAGE.includes(err.code)) return Promise.reject(err);
+    if (isPuterSkipped()) {
+      notify('puter', 'skipped');
+      errors.push(new ImageGenError('TIMEOUT', 'Puter dilewati (gagal sebelumnya — coba lagi nanti atau nonaktifkan di Settings).'));
+    } else {
+      try {
+        notify('puter', 'trying');
+        const result = await callPuter(prompt, opts, getPuterTimeout());
+        markPuterSuccess();
+        notify('puter', 'success');
+        return result;
+      } catch (e: unknown) {
+        const err = e instanceof ImageGenError ? e : new ImageGenError('UNKNOWN', String(e));
+        markPuterFailed();
+        errors.push(err);
+        notify('puter', 'failed');
+        if (NON_TRANSIENT_IMAGE.includes(err.code)) return Promise.reject(err);
+      }
     }
   }
 

@@ -4,6 +4,7 @@ import {
   buildPollinationsUrl,
   generateImageWithFallback,
   ImageGenError,
+  _resetPuterBreakerForTest,
 } from '../imageClient';
 import type { ImageGenDeps, ImageGenOptions } from '../imageClient';
 
@@ -56,7 +57,7 @@ describe('buildPollinationsUrl', () => {
 
 describe('generateImageWithFallback - skip logic', () => {
   beforeEach(() => {
-    // Mock fetch for Pollinations/Gemini calls
+    _resetPuterBreakerForTest();
     vi.stubGlobal('fetch', vi.fn());
   });
 
@@ -154,6 +155,7 @@ describe('generateImageWithFallback - skip logic', () => {
 
 describe('generateImageWithFallback - error aggregation', () => {
   beforeEach(() => {
+    _resetPuterBreakerForTest();
     vi.stubGlobal('fetch', vi.fn());
   });
 
@@ -294,5 +296,89 @@ describe('generateImageWithFallback - Puter timeout', () => {
       (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes('pollinations')
     );
     expect(pollinationsCall).toBeDefined();
+  });
+});
+
+// ── Circuit breaker ────────────────────────────────────────────
+
+describe('generateImageWithFallback - circuit breaker', () => {
+  beforeEach(() => {
+    _resetPuterBreakerForTest();
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', vi.fn());
+    const existing = (globalThis as Record<string, unknown>).window;
+    Object.defineProperty(globalThis, 'window', {
+      value: {
+        ...(typeof existing === 'object' && existing ? (existing as Record<string, unknown>) : {}),
+        puter: {
+          ai: {
+            txt2img: vi.fn().mockReturnValue(new Promise<never>(() => {})),
+          },
+        },
+      },
+      writable: true,
+      configurable: true,
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    _resetPuterBreakerForTest();
+  });
+
+  it('puter gagal pertama → panggilan kedua langsung skip ke Pollinations tanpa menunggu', async () => {
+    // Puter pertama: akan timeout setelah 120s
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: true, blob: async () => new Blob(['fake']) });
+
+    const p1 = generateImageWithFallback('test', { ratio: '1:1' }, {
+      geminiApiKey: '',
+      puterEnabled: true,
+    });
+    await vi.advanceTimersByTimeAsync(121_000);
+    await vi.advanceTimersByTimeAsync(1_000);
+    await p1;
+
+    // Panggilan kedua: Puter harus di-skip (breaker aktif) → langsung Pollinations
+    const p2 = generateImageWithFallback('test lagi', { ratio: '1:1' }, {
+      geminiApiKey: '',
+      puterEnabled: true,
+    });
+    // Majukan sedikit waktu — cukup untuk Pollinations fetch (tidak perlu 120s)
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    const result = await p2;
+    expect(result).toBeInstanceOf(Blob);
+
+    // Pastikan panggilan fetch Pollinations ada 2x (dari p1 setelah Puter + dari p2 langsung)
+    const pollinationsCalls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes('pollinations')
+    );
+    expect(pollinationsCalls.length).toBe(2);
+  });
+
+  it('puter sukses tidak mengaktifkan breaker', async () => {
+    // Puter sukses langsung
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, blob: async () => new Blob(['fake2']) }));
+    // Simulasikan Puter sukses dengan mock langsung yang resolve
+    Object.defineProperty(globalThis, 'window', {
+      value: { puter: { ai: { txt2img: vi.fn().mockResolvedValue({ result: new Blob(['puter-ok']) }) } } },
+      writable: true,
+      configurable: true,
+    });
+
+    const result = await generateImageWithFallback('test', { ratio: '1:1' }, {
+      geminiApiKey: '',
+      puterEnabled: true,
+    });
+    expect(result).toBeInstanceOf(Blob);
+
+    // Panggilan kedua: Puter harus dicoba lagi (breaker tidak aktif)
+    const p2 = generateImageWithFallback('test lagi', { ratio: '1:1' }, {
+      geminiApiKey: '',
+      puterEnabled: true,
+    });
+    await vi.advanceTimersByTimeAsync(1_000);
+    await p2;
+    expect(result).toBeInstanceOf(Blob);
   });
 });
