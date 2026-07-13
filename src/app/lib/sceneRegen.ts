@@ -6,7 +6,8 @@ import { NEGATIVE_PROMPT_BLOCK, CAMERA_REF_RULE } from './negativePrompt';
 import { countWords, ValidationResult } from './jsonParser';
 import { parseJsonResponse } from './registry/shared';
 import {
-  getValidLocationRefs, getSceneLocationRef, buildReferenceImageJson, buildBindingSentence, ResolvedLocationRef,
+  getValidLocationRefs, getSceneLocationRef, buildReferenceImageJson, buildBindingSentence, buildPromptHintsSentence,
+  ResolvedLocationRef,
 } from './locationRefs';
 
 // Fondasi Tugas 1 — regenerate SATU scene tanpa membakar quota untuk scene lain yang sudah bagus.
@@ -96,7 +97,7 @@ visual/lighting/wardrobe supaya transisi ke scene ini tetap mulus.` : '[Scene in
 
 [REFERENCE IMAGE]
 ${exp.locationRef
-    ? `Scene ini WAJIB pakai reference_image PERSIS: ${buildReferenceImageJson(exp.locationRef)}\nai_ready_prompt WAJIB sertakan kalimat singkat: "${buildBindingSentence(exp.locationRef)}". Deskripsi ${exp.locationRef.role === 'environment' ? 'lokasi' : 'produk'} HANYA boleh dari keterangan ini + label scene, JANGAN mengarang detail generik di luar itu.`
+    ? `Scene ini WAJIB pakai reference_image PERSIS: ${buildReferenceImageJson(exp.locationRef)}\nai_ready_prompt WAJIB sertakan kalimat singkat: "${buildBindingSentence(exp.locationRef)}". Deskripsi ${exp.locationRef.role === 'environment' ? 'lokasi' : 'produk'} HANYA boleh dari keterangan ini + label scene, JANGAN mengarang detail generik di luar itu.${buildPromptHintsSentence(exp.locationRef) ? `\nPanduan tambahan untuk area ini (terapkan ke camera_direction/ai_ready_prompt): ${buildPromptHintsSentence(exp.locationRef)}.` : ''}`
     : (scene.reference_image ? `WAJIB disalin verbatim persis seperti ini ke field "reference_image" scene baru:\n${JSON.stringify(scene.reference_image, null, 2)}` : 'Tidak ada reference_image di scene ini — field "reference_image" tetap null.')}
 ${exp.locationRef?.role === 'environment' ? `\n${CAMERA_REF_RULE}` : ''}
 

@@ -1,6 +1,8 @@
 import { AI_TOOLS } from './maps';
 import { VideoJSON, FormData } from '../types';
-import { getValidLocationRefs, getSceneLocationRef, buildReferenceImageJson, buildBindingSentence } from './locationRefs';
+import {
+  getValidLocationRefs, getSceneLocationRef, buildReferenceImageJson, buildBindingSentence, buildPromptHintsSentence,
+} from './locationRefs';
 
 export function parseAiResponse(rawText: string): VideoJSON | null {
   // Step 1: try direct parse
@@ -112,8 +114,9 @@ export function buildRepairPrompt(json: VideoJSON, problems: string[], expectedS
   const locationRefRules = validLocationRefs.length > 0
     ? `\n- reference_image per scene WAJIB ikuti penugasan ini persis (BOLEH BERBEDA antar scene, JANGAN disalin rata):\n${Array.from({ length: expectedSceneCount }, (_, i) => {
         const ref = getSceneLocationRef(validLocationRefs, i + 1);
+        const hints = ref ? buildPromptHintsSentence(ref) : '';
         return ref
-          ? `  Scene ${i + 1}: reference_image = ${buildReferenceImageJson(ref)}, ai_ready_prompt sertakan kalimat: "${buildBindingSentence(ref)}"`
+          ? `  Scene ${i + 1}: reference_image = ${buildReferenceImageJson(ref)}, ai_ready_prompt sertakan kalimat: "${buildBindingSentence(ref)}"${hints ? `, panduan tambahan: ${hints}` : ''}`
           : `  Scene ${i + 1}: reference_image = null`;
       }).join('\n')}`
     : '';
