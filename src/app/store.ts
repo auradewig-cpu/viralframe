@@ -78,6 +78,11 @@ interface AppState {
   referenceFiles: Record<string, { url: string; blob: Blob }>;
   setReferenceFile: (sourceName: string, url: string, blob: Blob) => void;
   removeReferenceFile: (sourceName: string) => void;
+  // true selama hydration dari IndexedDB berjalan (lib/referenceHydration.ts) — dipakai Step1Business
+  // & DirectPanel untuk menahan sebentar tombol Download Bahan supaya tidak menghasilkan ZIP yang
+  // foto referensinya belum lengkap ter-restore.
+  referenceHydrating: boolean;
+  setReferenceHydrating: (v: boolean) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -161,6 +166,8 @@ export const useAppStore = create<AppState>()(
         delete rest[sourceName];
         return { referenceFiles: rest };
       }),
+      referenceHydrating: false,
+      setReferenceHydrating: (v) => set({ referenceHydrating: v }),
     }),
     {
       name: 'viralframe-store',

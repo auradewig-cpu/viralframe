@@ -5,6 +5,7 @@ import { generateWithFallback, ApiCallError } from '../lib/apiClient';
 import { validateFormData, getFormWarnings } from '../lib/validation';
 import { getContentType, CONTENT_TYPES } from '../lib/registry';
 import { getSceneIssuesMap } from '../lib/sceneStatus';
+import { useHydrateReferenceFiles } from '../lib/referenceHydration';
 import { VideoJSON } from '../types';
 import { Progress } from '../components/ui/progress';
 import { StepIndicator } from '../components/form/StepIndicator';
@@ -105,6 +106,7 @@ function mapProgressMessage(msg: string): { provider: 'gemini' | 'groq' | 'openr
 }
 
 export function Home() {
+  useHydrateReferenceFiles();
   const formData = useAppStore(s => s.formData);
   const setFormData = useAppStore(s => s.setFormData);
   const currentStep = useAppStore(s => s.currentStep);

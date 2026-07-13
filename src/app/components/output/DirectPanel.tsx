@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Copy, Check, Download, RefreshCw, Edit } from 'lucide-react';
+import { Copy, Check, Download, RefreshCw, Edit, Loader2 } from 'lucide-react';
 import JSZip from 'jszip';
 import { VideoJSON, FormData } from '../../types';
 import { SceneCard } from './SceneCard';
@@ -100,6 +100,7 @@ function buildCaptionsHashtagsText(json: VideoJSON): string {
 
 function DownloadBundleButton({ json, form }: { json: VideoJSON; form: FormData }) {
   const referenceFiles = useAppStore(s => s.referenceFiles);
+  const referenceHydrating = useAppStore(s => s.referenceHydrating);
   const getBlob = (sourceName?: string) => (sourceName ? referenceFiles[sourceName]?.blob : undefined);
 
   const download = async () => {
@@ -118,8 +119,15 @@ function DownloadBundleButton({ json, form }: { json: VideoJSON; form: FormData 
     URL.revokeObjectURL(url);
   };
   return (
-    <button onClick={download} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm" style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-text-secondary)', border: '1px solid var(--vf-border)' }}>
-      <Download size={14} /> ⬇️ Download Bahan Lengkap (ZIP)
+    <button
+      onClick={download}
+      disabled={referenceHydrating}
+      title={referenceHydrating ? 'Memulihkan foto referensi tersimpan...' : undefined}
+      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+      style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-text-secondary)', border: '1px solid var(--vf-border)' }}
+    >
+      {referenceHydrating ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+      {referenceHydrating ? ' Memulihkan foto...' : ' ⬇️ Download Bahan Lengkap (ZIP)'}
     </button>
   );
 }

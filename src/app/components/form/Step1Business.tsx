@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Upload, X, ImageOff, Plus, Download } from 'lucide-react';
+import { Upload, X, ImageOff, Plus, Download, Loader2 } from 'lucide-react';
 import JSZip from 'jszip';
 import { useAppStore } from '../../store';
 import { NICHES, TARGET_AUDIENCES, PLATFORMS, CONTENT_GOALS, GROWTH_ALLOWED_CTAS } from '../../lib/maps';
@@ -9,6 +9,7 @@ import { getContentType, DEFAULT_CONTENT_TYPE_ID } from '../../lib/registry';
 import { LocationRef } from '../../types';
 import { buildCanonicalName, inferExtension, resolveUniqueCanonicalName, CanonicalNameInput } from '../../lib/canonicalRefNames';
 import { getReferenceEntries, addReferenceSectionToZip } from '../../lib/referenceZip';
+import { putImage, deleteImage } from '../../lib/refImageDB';
 import { FieldLabel, FormCard, SelectField, TextareaField, InputField } from './FormFields';
 import { RoomIdentityCombobox, ComboboxOption } from './RoomIdentityCombobox';
 
@@ -29,6 +30,7 @@ export function Step1Business() {
   const referenceFiles = useAppStore(s => s.referenceFiles);
   const setReferenceFile = useAppStore(s => s.setReferenceFile);
   const removeReferenceFile = useAppStore(s => s.removeReferenceFile);
+  const referenceHydrating = useAppStore(s => s.referenceHydrating);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -96,7 +98,10 @@ export function Step1Business() {
 
     if (newRefs.length > 0) {
       setFormData({ locationRefs: [...formData.locationRefs, ...newRefs] });
-      fileEntries.forEach(f => setReferenceFile(f.name, URL.createObjectURL(f), f));
+      fileEntries.forEach(f => {
+        setReferenceFile(f.name, URL.createObjectURL(f), f);
+        putImage(f.name, f); // fire-and-forget — persistensi IndexedDB, tidak menahan render
+      });
     }
 
     if (dupNames.length > 0) {
@@ -178,12 +183,18 @@ export function Step1Business() {
 
   const removeLocationRef = (idx: number) => {
     const ref = formData.locationRefs[idx];
-    if (ref?.sourceName && referenceFiles[ref.sourceName]) removeReferenceFile(ref.sourceName);
+    if (ref?.sourceName) {
+      if (referenceFiles[ref.sourceName]) removeReferenceFile(ref.sourceName);
+      deleteImage(ref.sourceName); // fire-and-forget — hapus juga salinan IndexedDB
+    }
     setFormData({ locationRefs: formData.locationRefs.filter((_, i) => i !== idx) });
   };
 
   const removeCharacterRef = () => {
-    if (formData.characterRefSourceName && referenceFiles[formData.characterRefSourceName]) removeReferenceFile(formData.characterRefSourceName);
+    if (formData.characterRefSourceName) {
+      if (referenceFiles[formData.characterRefSourceName]) removeReferenceFile(formData.characterRefSourceName);
+      deleteImage(formData.characterRefSourceName);
+    }
     setFormData({ characterRefFile: '', characterRefSourceName: '' });
   };
 
@@ -586,12 +597,13 @@ export function Step1Business() {
             <button
               type="button"
               onClick={downloadBahan}
-              disabled={downloadableCount === 0}
-              title={downloadableCount === 0 ? 'Upload & identifikasi foto dulu — preview foto hanya hidup selama sesi.' : undefined}
+              disabled={downloadableCount === 0 || referenceHydrating}
+              title={referenceHydrating ? 'Memulihkan foto referensi tersimpan...' : (downloadableCount === 0 ? 'Upload & identifikasi foto dulu — preview foto hanya hidup selama sesi.' : undefined)}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ background: 'var(--vf-accent-primary)', color: 'white' }}
             >
-              <Download size={14} /> ⬇️ Download Bahan (ZIP){downloadableCount > 0 ? ` (${downloadableCount})` : ''}
+              {referenceHydrating ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+              {referenceHydrating ? ' Memulihkan foto...' : ` ⬇️ Download Bahan (ZIP)${downloadableCount > 0 ? ` (${downloadableCount})` : ''}`}
             </button>
           </div>
           {downloadNotice && (
