@@ -4,6 +4,12 @@ import { getRoomIdentity } from './roomIdentities';
 // Resolusi Multi-Reference Image berbasis TEKS (short_video saja) — dipakai masterPrompt.ts,
 // sceneRegen.ts, jsonParser.ts, sceneStatus.ts, dan Step3Creative.tsx supaya logic role/matching
 // scene TIDAK diduplikasi di setiap file. JANGAN copy-paste logic ini, selalu import dari sini.
+//
+// KONTRAK PENTING (canonical rename, lihat lib/canonicalRefNames.ts + Step1Business.tsx):
+// LocationRef.file adalah SATU-SATUNYA nama yang boleh dibaca modul ini (dan semua konsumennya) untuk
+// prompt/validasi/ZIP — nilainya sudah nama KANONIK hasil identifikasi user. LocationRef.sourceName
+// (nama file asli upload) HANYA dipakai UI Step1Business.tsx sebagai kunci ke blob sesi (preview +
+// Download Bahan) — JANGAN PERNAH dibaca di sini atau di jalur compile prompt manapun.
 
 export type LocationRefRole = 'environment' | 'product';
 
