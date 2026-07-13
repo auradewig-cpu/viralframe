@@ -44,7 +44,7 @@ const EXPR_MAP: Record<string, string> = {
   curious_investigative: 'curious and investigative',
 };
 
-const ETHNICITY_FEATURES: Record<string, string> = {
+export const ETHNICITY_FEATURES: Record<string, string> = {
   'Asia Tenggara': 'Southeast Asian features',
   'Asia Timur': 'East Asian features',
   'Asia Selatan': 'South Asian features',

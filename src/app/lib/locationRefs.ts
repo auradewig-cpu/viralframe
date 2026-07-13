@@ -19,6 +19,7 @@ export interface ResolvedLocationRef {
   keterangan: string;
   sceneNumber: number | null;
   role: LocationRefRole;
+  sourceName?: string;
 }
 
 export function sanitizeRefText(text: string): string {
