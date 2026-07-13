@@ -4,11 +4,13 @@ export type DurationMode = 'uniform' | 'manual';
 export type TalentStyle = 'visible_character' | 'faceless_pov' | 'product_only';
 export type ContentGoal = 'conversion' | 'growth' | 'engagement';
 
-// Referensi lokasi/produk berbasis TEKS (nama file + keterangan) — dibaca AI video tool dari nama
-// file yang disebut user saat attach foto langsung di tool (Google Flow dll), bukan dari upload di
-// app ini. role TIDAK disimpan di sini — selalu di-derive dari sceneNumber (lihat lib/locationRefs.ts).
+// Referensi lokasi/produk berbasis TEKS (nama file + identitas + keterangan) — dibaca AI video tool
+// dari nama file yang disebut user saat attach foto langsung di tool (Google Flow dll), bukan dari
+// upload di app ini. role TIDAK disimpan di sini — selalu di-derive dari sceneNumber (lihat
+// lib/locationRefs.ts). identity = slug preset dari lib/roomIdentities.ts ('custom' = ketik manual).
 export interface LocationRef {
   file: string;
+  identity: string;
   keterangan: string;
   sceneNumber: number | null; // null = "Semua scene"
 }
