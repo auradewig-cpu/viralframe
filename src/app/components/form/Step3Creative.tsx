@@ -1,16 +1,201 @@
-import { useEffect, useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { ChevronDown, ChevronUp, Loader2, Download, AlertCircle, Sparkles } from 'lucide-react';
 import { useAppStore } from '../../store';
 import {
   HOOK_TYPES, CTA_TYPES, ETHNICITIES, CHARACTER_STYLES, TALENT_STYLES,
   EXPRESSIONS, VISUAL_STYLES, BACKSOUNDS, NARRATIVE_TONES, CAPTION_VARIATION_OPTIONS,
-  GROWTH_ALLOWED_CTAS
+  GROWTH_ALLOWED_CTAS, CHARACTER_BACKGROUNDS
 } from '../../lib/maps';
 import { TalentStyle } from '../../types';
+import { getEffectiveLocationRefs } from '../../lib/locationRefs';
+import { buildCanonicalName, resolveUniqueCanonicalName, inferExtension } from '../../lib/canonicalRefNames';
+import { buildCharacterPhotoPrompt } from '../../lib/characterPhotoPrompt';
+import { generateImageWithFallback, ImageGenError } from '../../lib/imageClient';
+import { putImage } from '../../lib/refImageDB';
 import { getContentType, DEFAULT_CONTENT_TYPE_ID } from '../../lib/registry';
 
 const formSections = getContentType(DEFAULT_CONTENT_TYPE_ID).formSections;
 import { FieldLabel, FormCard, SelectField, InputField, TagsInput } from './FormFields';
+
+// ── Character Photo Generator ─────────────────────────────────
+
+function CharacterPhotoGenerator() {
+  const formData = useAppStore(s => s.formData);
+  const setFormData = useAppStore(s => s.setFormData);
+  const referenceFiles = useAppStore(s => s.referenceFiles);
+  const setReferenceFile = useAppStore(s => s.setReferenceFile);
+  const settings = useAppStore(s => s.settings);
+
+  const [generating, setGenerating] = useState(false);
+  const [providerLabel, setProviderLabel] = useState('');
+  const [error, setError] = useState('');
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [generatedBlob, setGeneratedBlob] = useState<Blob | null>(null);
+  const [savedNotice, setSavedNotice] = useState<string | null>(null);
+
+  // Cari foto produk pertama yang punya blob
+  const productRefs = getEffectiveLocationRefs(formData).filter(r => r.role === 'product' && r.sourceName && referenceFiles[r.sourceName]?.blob);
+  const productBlob = productRefs[0]?.sourceName ? referenceFiles[productRefs[0].sourceName]?.blob : null;
+  const { prompt, needsProductImage } = buildCharacterPhotoPrompt(formData, !!productBlob);
+
+  const handleGenerate = useCallback(async () => {
+    setGenerating(true);
+    setError('');
+    setPreviewUrl(null);
+    setGeneratedBlob(null);
+    setSavedNotice(null);
+
+    try {
+      const blob = await generateImageWithFallback(prompt, { ratio: '9:16', inputImage: productBlob || undefined }, {
+        geminiApiKey: settings.geminiApiKey,
+        geminiImageModel: settings.geminiImageModel,
+        puterEnabled: settings.puterEnabled,
+        onProviderStatus: (_provider, status) => {
+          if (status === 'trying') {
+            setProviderLabel('Puter.js');
+          }
+        },
+      });
+      const url = URL.createObjectURL(blob);
+      setPreviewUrl(url);
+      setGeneratedBlob(blob);
+    } catch (e: unknown) {
+      const msg = e instanceof ImageGenError ? e.message : 'Terjadi kesalahan tidak diketahui.';
+      setError(msg);
+    } finally {
+      setGenerating(false);
+    }
+  }, [prompt, productBlob, settings]);
+
+  const handleUseAsCharacter = () => {
+    if (!generatedBlob) return;
+    const timestamp = Date.now();
+    const sourceName = `generated_karakter_${timestamp}.png`;
+    const url = URL.createObjectURL(generatedBlob);
+    setReferenceFile(sourceName, url, generatedBlob);
+    putImage(sourceName, generatedBlob);
+
+    const ext = inferExtension(sourceName);
+    const canonical = buildCanonicalName({ kind: 'character' }, ext);
+    const existingFiles = new Set([
+      ...formData.locationRefs.map(r => r.file.trim()).filter(Boolean),
+      ...(formData.characterRefFile.trim() ? [formData.characterRefFile.trim()] : []),
+    ]);
+    const unique = resolveUniqueCanonicalName(canonical, existingFiles);
+
+    setFormData({ characterRefFile: unique, characterRefSourceName: sourceName });
+    if (previewUrl && generatedBlob) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    setGeneratedBlob(null);
+
+    const prevFile = formData.characterRefFile;
+    setSavedNotice(prevFile ? `✅ Foto karakter diperbarui: "${unique}" (menggantikan "${prevFile}")` : `✅ Foto karakter tersimpan: "${unique}"`);
+    setTimeout(() => setSavedNotice(null), 5000);
+  };
+
+  const handleRegenerate = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    handleGenerate();
+  };
+
+  const handleDownload = () => {
+    if (!previewUrl) return;
+    const a = document.createElement('a');
+    a.href = previewUrl; a.download = 'karakter.png'; a.click();
+  };
+
+  const hasProductHint = !productBlob && needsProductImage;
+
+  return (
+    <div className="space-y-3">
+      {!previewUrl && !generating && (
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={generating}
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all hover:opacity-90 disabled:opacity-60"
+            style={{ background: 'var(--vf-accent-primary)', color: 'white' }}
+          >
+            <Sparkles size={14} />
+            ✨ Generate Foto Karakter
+          </button>
+          {hasProductHint && (
+            <p className="text-xs" style={{ color: 'var(--vf-text-muted)' }}>
+              💡 Tanpa foto produk — karakter digenerate tanpa memegang produk. Upload foto produk di Step 1 untuk hasil terikat produk.
+            </p>
+          )}
+          <p className="text-xs" style={{ color: 'var(--vf-text-muted)' }}>
+            Hasil generate ikut masuk Download Bahan (ZIP) — pilih "Pakai" untuk menyimpan.
+          </p>
+        </div>
+      )}
+
+      {generating && (
+        <div className="flex items-center justify-center gap-2 p-4 rounded-lg" style={{ background: 'var(--vf-bg-secondary)' }}>
+          <Loader2 size={16} className="animate-spin" style={{ color: 'var(--vf-accent-primary)' }} />
+          <span className="text-xs" style={{ color: 'var(--vf-text-secondary)' }}>Generate foto karakter... (via image engine)</span>
+        </div>
+      )}
+
+      {error && !previewUrl && (
+        <div className="space-y-2">
+          <div className="flex items-start gap-2 p-2 rounded-lg text-xs" style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--vf-accent-danger)' }}>
+            <AlertCircle size={14} className="shrink-0 mt-0.5" />
+            <span>{error}</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleGenerate}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs"
+            style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-text-secondary)', border: '1px solid var(--vf-border)' }}
+          >
+            🔄 Coba Lagi
+          </button>
+        </div>
+      )}
+
+      {previewUrl && generatedBlob && (
+        <div className="space-y-3 rounded-xl p-3" style={{ background: 'var(--vf-bg-secondary)', border: '1px solid var(--vf-border)' }}>
+          <img src={previewUrl} alt="Preview karakter" className="w-full rounded-lg" style={{ maxHeight: 320, objectFit: 'contain', background: 'var(--vf-bg-elevated)' }} />
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleDownload}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs"
+              style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-text-secondary)', border: '1px solid var(--vf-border)' }}
+            >
+              <Download size={12} /> ⬇️ Download
+            </button>
+            <button
+              type="button"
+              onClick={handleRegenerate}
+              disabled={generating}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs"
+              style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-text-secondary)', border: '1px solid var(--vf-border)' }}
+            >
+              🔄 Generate Ulang
+            </button>
+            <button
+              type="button"
+              onClick={handleUseAsCharacter}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium"
+              style={{ background: 'var(--vf-accent-primary)', color: 'white' }}
+            >
+              ✅ Pakai sebagai Referensi Karakter
+            </button>
+          </div>
+        </div>
+      )}
+
+      {savedNotice && (
+        <p className="text-xs p-2 rounded" style={{ background: 'rgba(16,185,129,0.1)', color: 'var(--vf-accent-success)' }}>
+          {savedNotice}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export function Step3Creative() {
   const formData = useAppStore(s => s.formData);
@@ -136,15 +321,7 @@ export function Step3Creative() {
                 📎 Foto referensi karakter: <strong>{formData.characterRefFile}</strong> — atur/ganti di seksi Referensi Visual, Step 1.
               </p>
             ) : (
-              <button
-                type="button"
-                disabled
-                title="Segera hadir — engine image sedang disiapkan"
-                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm opacity-60 cursor-not-allowed"
-                style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-text-muted)', border: '1px solid var(--vf-border)' }}
-              >
-                ✨ Generate Foto Karakter
-              </button>
+              <CharacterPhotoGenerator />
             )}
           </div>
         )}
@@ -223,6 +400,21 @@ export function Step3Creative() {
               onChange={v => setFormData({ expression: v })}
               options={EXPRESSIONS}
             />
+
+            <SelectField
+              label="Latar Foto Karakter"
+              value={formData.characterBackground}
+              onChange={v => setFormData({ characterBackground: v })}
+              options={CHARACTER_BACKGROUNDS}
+            />
+            {formData.characterBackground === 'custom' && (
+              <InputField
+                label="Deskripsi Latar Custom *"
+                value={formData.characterBackgroundCustom}
+                onChange={v => setFormData({ characterBackgroundCustom: v })}
+                placeholder='Contoh: "kafe outdoor beralas kerikil dengan lampu senar di atas"'
+              />
+            )}
 
             {score !== null && (
               <div className="p-3 rounded-lg" style={{ background: 'var(--vf-bg-secondary)' }}>
