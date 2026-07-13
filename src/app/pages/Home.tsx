@@ -180,6 +180,7 @@ export function Home() {
       if (warnings.hookDurationWarning) warningList.push(warnings.hookDurationWarning);
       if (warnings.totalDurationWarning) warningList.push(warnings.totalDurationWarning);
       if (warnings.locationRefWarning) warningList.push(warnings.locationRefWarning);
+      if (warnings.propertyTourWarning) warningList.push(warnings.propertyTourWarning);
       const hasApiKey = !!(settings.geminiApiKey || settings.groqApiKey || settings.openrouterApiKey);
       if (!hasApiKey) warningList.push('API key belum dikonfigurasi. Konfigurasi di Settings atau gunakan Manual Prompt Mode.');
       setFormWarnings(warningList);

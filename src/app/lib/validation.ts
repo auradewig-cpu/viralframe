@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { FormData } from '../types';
+import { getValidLocationRefs, getSceneLocationRef } from './locationRefs';
 
 export const formSchema = z.object({
   contentStyle: z.string().min(1, 'Pilih gaya konten.'),
@@ -69,13 +71,14 @@ export interface WarningResult {
   totalDurationWarning?: string;
   apiKeyWarning?: string;
   locationRefWarning?: string;
+  propertyTourWarning?: string;
 }
 
 export function getFormWarnings(formData: Record<string, unknown>): WarningResult {
   const warnings: WarningResult = {};
-  const { uniformDuration, sceneCount, durationMode, sceneDurations, locationRefs } = formData as {
+  const { uniformDuration, sceneCount, durationMode, sceneDurations, locationRefs, contentStyle } = formData as {
     uniformDuration?: number; sceneCount?: number; durationMode?: string; sceneDurations?: number[];
-    locationRefs?: { file: string; keterangan: string; sceneNumber: number | null }[];
+    locationRefs?: { file: string; keterangan: string; sceneNumber: number | null }[]; contentStyle?: string;
   };
 
   // Hitung durasi efektif per scene sesuai mode — mode manual punya durasi berbeda tiap scene.
@@ -98,6 +101,20 @@ export function getFormWarnings(formData: Record<string, unknown>): WarningResul
   const invalidRefs = (locationRefs || []).filter(r => r.sceneNumber !== null && r.sceneNumber > count);
   if (invalidRefs.length > 0) {
     warnings.locationRefWarning = `${invalidRefs.length} referensi lokasi/produk ditugaskan ke scene yang sudah tidak ada (jumlah scene sekarang ${count}) — baris ini akan diabaikan saat compile prompt.`;
+  }
+
+  // property_tour bergantung penuh pada foto referensi ruangan — tanpa itu AI mengarang bebas.
+  if (contentStyle === 'property_tour') {
+    const form = formData as unknown as FormData;
+    const validRefs = getValidLocationRefs(form);
+    if (validRefs.length === 0) {
+      warnings.propertyTourWarning = 'Property tour tanpa foto referensi ruangan akan menghasilkan properti karangan AI — tambahkan Referensi Lokasi/Produk di Step 3.';
+    } else {
+      const scene1Ref = getSceneLocationRef(validRefs, 1);
+      if (scene1Ref && scene1Ref.identity && scene1Ref.identity !== 'fasad') {
+        warnings.propertyTourWarning = 'Scene 1 biasanya fasad untuk establishing shot — cek penugasan Referensi Lokasi/Produk kamu.';
+      }
+    }
   }
 
   return warnings;
