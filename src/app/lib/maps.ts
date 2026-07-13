@@ -103,6 +103,16 @@ export const CONTENT_GOALS = [
   { value: 'engagement', label: '💬 Engagement — komentar & interaksi' },
 ];
 
+export const CHARACTER_BACKGROUNDS = [
+  { value: 'studio_kreator', label: '📸 Studio Konten Kreator — backdrop netral, ring light' },
+  { value: 'kamar_aesthetic', label: '🛏️ Kamar Aesthetic — rapi, pencahayaan natural' },
+  { value: 'dapur_modern', label: '🍳 Dapur Modern — minimalis, bersih, lampu hangat' },
+  { value: 'ruang_tamu', label: '🛋️ Ruang Tamu Minimalis — sofa, tanaman, cozy' },
+  { value: 'outdoor_taman', label: '🌿 Outdoor / Taman — hijau, sinar matahari pagi' },
+  { value: 'kantor_modern', label: '💼 Kantor Modern — meja, monitor, pencahayaan putih' },
+  { value: 'custom', label: '✏️ Custom — tulis sendiri deskripsi latar' },
+];
+
 export const TALENT_STYLES = [
   { value: 'visible_character', label: '🧑 Karakter Terlihat — wajah & ekspresi tampil' },
   { value: 'faceless_pov', label: '✋ POV Faceless — tangan review produk, tanpa wajah' },

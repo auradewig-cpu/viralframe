@@ -53,6 +53,8 @@ export interface FormData {
   characterStyle: string;
   characterTraits: string;
   handDescription: string;
+  characterBackground: string;
+  characterBackgroundCustom: string;
   visualAnchor: string;
   expression: string;
   visualStyle: string;
@@ -260,6 +262,8 @@ export const DEFAULT_FORM: FormData = {
   characterStyle: 'Kasual Modern',
   characterTraits: '',
   handDescription: '',
+  characterBackground: 'studio_kreator',
+  characterBackgroundCustom: '',
   visualAnchor: '',
   expression: 'auto',
   visualStyle: 'auto',
