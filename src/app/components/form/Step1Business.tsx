@@ -6,6 +6,7 @@ import { CONTENT_STYLES } from '../../lib/contentStyles';
 import { ROOM_IDENTITIES } from '../../lib/roomIdentities';
 import { getContentType, DEFAULT_CONTENT_TYPE_ID } from '../../lib/registry';
 import { LocationRef } from '../../types';
+import { buildCanonicalName, inferExtension, resolveUniqueCanonicalName, CanonicalNameInput } from '../../lib/canonicalRefNames';
 import { FieldLabel, FormCard, SelectField, TextareaField, InputField } from './FormFields';
 import { RoomIdentityCombobox, ComboboxOption } from './RoomIdentityCombobox';
 
@@ -23,9 +24,9 @@ const IDENTITY_OPTIONS: ComboboxOption[] = [
 export function Step1Business() {
   const formData = useAppStore(s => s.formData);
   const setFormData = useAppStore(s => s.setFormData);
-  const referenceObjectUrls = useAppStore(s => s.referenceObjectUrls);
-  const setReferenceObjectUrl = useAppStore(s => s.setReferenceObjectUrl);
-  const removeReferenceObjectUrl = useAppStore(s => s.removeReferenceObjectUrl);
+  const referenceFiles = useAppStore(s => s.referenceFiles);
+  const setReferenceFile = useAppStore(s => s.setReferenceFile);
+  const removeReferenceFile = useAppStore(s => s.removeReferenceFile);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -42,9 +43,11 @@ export function Step1Business() {
     setFormData({ platforms: curr.includes(val) ? curr.filter(v => v !== val) : [...curr, val] });
   };
 
-  // === Referensi Visual (Tugas 1 & 2 — redesain) ===
-  // Upload di sini HANYA sumber nama file + preview sesi (object URL) — TIDAK pernah ditulis base64
-  // ke referencePhotos/localStorage. Tiap file baru langsung jadi entry locationRefs.
+  // === Referensi Visual — upload = sumber sourceName + blob sesi (non-persist). Prompt/ZIP HANYA
+  // pakai ref.file (nama kanonik), sourceName cuma kunci permanen ke referenceFiles. ===
+  const getUrl = (sourceName?: string) => (sourceName ? referenceFiles[sourceName]?.url : undefined);
+  const getBlob = (sourceName?: string) => (sourceName ? referenceFiles[sourceName]?.blob : undefined);
+
   const trackedFileNames = () => new Set<string>([
     ...formData.locationRefs.map(r => r.file.trim()).filter(Boolean),
     ...(formData.characterRefFile.trim() ? [formData.characterRefFile.trim()] : []),
@@ -55,7 +58,7 @@ export function Step1Business() {
     const existing = trackedFileNames();
     const usedScenes = new Set(formData.locationRefs.filter(r => r.sceneNumber !== null).map(r => r.sceneNumber as number));
     const newRefs: LocationRef[] = [];
-    const urlEntries: [string, string][] = [];
+    const fileEntries: File[] = [];
     const dupNames: string[] = [];
     const typeRejected: string[] = [];
     const sizeRejected: string[] = [];
@@ -81,15 +84,16 @@ export function Step1Business() {
       }
       if (sceneNumber !== null) usedScenes.add(sceneNumber);
 
-      newRefs.push({ file: file.name, identity: '', keterangan: '', sceneNumber });
-      urlEntries.push([file.name, URL.createObjectURL(file)]);
+      // Belum diidentifikasi → ref.file TETAP nama asli sampai user pilih identitas (Tugas 2).
+      newRefs.push({ file: file.name, identity: '', keterangan: '', sceneNumber, sourceName: file.name });
+      fileEntries.push(file);
       existing.add(file.name);
       slotsLeft--;
     });
 
     if (newRefs.length > 0) {
       setFormData({ locationRefs: [...formData.locationRefs, ...newRefs] });
-      urlEntries.forEach(([f, u]) => setReferenceObjectUrl(f, u));
+      fileEntries.forEach(f => setReferenceFile(f.name, URL.createObjectURL(f), f));
     }
 
     if (dupNames.length > 0) {
@@ -113,6 +117,33 @@ export function Step1Business() {
     return dupInLocations || dupInCharacter;
   };
 
+  // Nama entry lain yang sudah "dipakai" — dasar anti-tabrakan rename kanonik (Tugas 2/5).
+  const otherFileNames = (excludeIndex: number | 'character'): Set<string> => {
+    const names = new Set<string>();
+    formData.locationRefs.forEach((r, i) => {
+      if (excludeIndex !== 'character' && i === excludeIndex) return;
+      if (r.file.trim()) names.add(r.file.trim());
+    });
+    if (excludeIndex !== 'character' && formData.characterRefFile.trim()) names.add(formData.characterRefFile.trim());
+    return names;
+  };
+
+  // Recompute nama kanonik untuk entry lokasi ber-sourceName (upload) — entry manual (tanpa
+  // sourceName) TIDAK PERNAH di-rename, fungsi ini return null untuk itu (biarkan file apa adanya).
+  const recomputeLocationCanonical = (idx: number, overrides: Partial<Pick<LocationRef, 'identity' | 'keterangan' | 'sceneNumber'>>): string | null => {
+    const ref = formData.locationRefs[idx];
+    if (!ref.sourceName) return null;
+    const merged: CanonicalNameInput = {
+      kind: 'location',
+      identity: overrides.identity ?? ref.identity,
+      keterangan: overrides.keterangan ?? ref.keterangan,
+      sceneNumber: overrides.sceneNumber !== undefined ? overrides.sceneNumber : ref.sceneNumber,
+    };
+    const ext = inferExtension(ref.sourceName, getBlob(ref.sourceName));
+    const desired = buildCanonicalName(merged, ext);
+    return resolveUniqueCanonicalName(desired, otherFileNames(idx));
+  };
+
   // Auto-mapping: entry manual baru ditugaskan ke scene terkecil yang belum punya referensi.
   const addManualLocationRef = () => {
     const usedScenes = new Set(formData.locationRefs.filter(r => r.sceneNumber !== null).map(r => r.sceneNumber as number));
@@ -132,15 +163,25 @@ export function Step1Business() {
     setFormData({ locationRefs: updated });
   };
 
+  // Identitas & scene WAJIB lewat sini (bukan updateLocationRef) — memicu rename kanonik otomatis
+  // untuk entry ber-sourceName, sudah collision-free jadi tidak pernah kena tolak isDuplicateFile.
+  const applyLocationChange = (idx: number, changes: Partial<Pick<LocationRef, 'identity' | 'keterangan' | 'sceneNumber'>>) => {
+    const canonical = recomputeLocationCanonical(idx, changes);
+    const patch: Partial<LocationRef> = { ...changes };
+    if (canonical) patch.file = canonical;
+    const updated = formData.locationRefs.map((r, i) => i === idx ? { ...r, ...patch } : r);
+    setFormData({ locationRefs: updated });
+  };
+
   const removeLocationRef = (idx: number) => {
     const ref = formData.locationRefs[idx];
-    if (ref && referenceObjectUrls[ref.file]) removeReferenceObjectUrl(ref.file);
+    if (ref?.sourceName && referenceFiles[ref.sourceName]) removeReferenceFile(ref.sourceName);
     setFormData({ locationRefs: formData.locationRefs.filter((_, i) => i !== idx) });
   };
 
   const removeCharacterRef = () => {
-    if (formData.characterRefFile && referenceObjectUrls[formData.characterRefFile]) removeReferenceObjectUrl(formData.characterRefFile);
-    setFormData({ characterRefFile: '' });
+    if (formData.characterRefSourceName && referenceFiles[formData.characterRefSourceName]) removeReferenceFile(formData.characterRefSourceName);
+    setFormData({ characterRefFile: '', characterRefSourceName: '' });
   };
 
   const notifySwap = (msg: string) => {
@@ -149,23 +190,34 @@ export function Step1Business() {
   };
 
   // identity !== 'custom' → keterangan auto-terisi label preset (tetap editable). Pilih "👤 Karakter"
-  // → pindahkan file ke characterRefFile; kalau sudah ada foto karakter lain, foto lama dikembalikan
-  // jadi entry locationRefs biasa (HANYA SATU foto karakter yang aktif).
+  // → pindahkan file ke characterRefFile (di-rename kanonik "karakter.<ext>" kalau ber-sourceName);
+  // kalau sudah ada foto karakter lain, foto lama dikembalikan jadi entry locationRefs biasa.
   const selectLocationIdentity = (idx: number, identityValue: string) => {
     if (identityValue === CHARACTER_IDENTITY) {
       const ref = formData.locationRefs[idx];
       if (!ref.file.trim()) return;
-      const prevCharacter = formData.characterRefFile;
+      const prevCharacterFile = formData.characterRefFile;
+      const prevCharacterSource = formData.characterRefSourceName;
       let remaining = formData.locationRefs.filter((_, i) => i !== idx);
-      if (prevCharacter && prevCharacter !== ref.file) {
-        remaining = [...remaining, { file: prevCharacter, identity: '', keterangan: '', sceneNumber: null }];
-        notifySwap(`Foto karakter sebelumnya ("${prevCharacter}") dikembalikan sebagai referensi lokasi/produk.`);
+      if (prevCharacterFile && prevCharacterFile !== ref.file) {
+        remaining = [...remaining, {
+          file: prevCharacterFile, identity: '', keterangan: '', sceneNumber: null,
+          sourceName: prevCharacterSource || undefined,
+        }];
+        notifySwap(`Foto karakter sebelumnya ("${prevCharacterFile}") dikembalikan sebagai referensi lokasi/produk.`);
       }
-      setFormData({ characterRefFile: ref.file, locationRefs: remaining });
+      let newCharacterFile = ref.file;
+      if (ref.sourceName) {
+        const ext = inferExtension(ref.sourceName, getBlob(ref.sourceName));
+        const desired = buildCanonicalName({ kind: 'character' }, ext);
+        const taken = new Set(remaining.map(r => r.file.trim()).filter(Boolean));
+        newCharacterFile = resolveUniqueCanonicalName(desired, taken);
+      }
+      setFormData({ characterRefFile: newCharacterFile, characterRefSourceName: ref.sourceName || '', locationRefs: remaining });
       return;
     }
     const identity = ROOM_IDENTITIES.find(r => r.value === identityValue);
-    updateLocationRef(idx, {
+    applyLocationChange(idx, {
       identity: identityValue,
       keterangan: identityValue === 'custom' ? '' : (identity?.label || ''),
     });
@@ -175,24 +227,50 @@ export function Step1Business() {
   const selectCharacterCardIdentity = (identityValue: string) => {
     if (identityValue === CHARACTER_IDENTITY) return;
     const identity = ROOM_IDENTITIES.find(r => r.value === identityValue);
+    const keterangan = identityValue === 'custom' ? '' : (identity?.label || '');
     const file = formData.characterRefFile;
+    const sourceName = formData.characterRefSourceName;
+    let newFile = file;
+    if (sourceName) {
+      const ext = inferExtension(sourceName, getBlob(sourceName));
+      const desired = buildCanonicalName({ kind: 'location', identity: identityValue, keterangan, sceneNumber: null }, ext);
+      const taken = new Set(formData.locationRefs.map(r => r.file.trim()).filter(Boolean));
+      newFile = resolveUniqueCanonicalName(desired, taken);
+    }
     setFormData({
       characterRefFile: '',
+      characterRefSourceName: '',
       locationRefs: [...formData.locationRefs, {
-        file,
-        identity: identityValue,
-        keterangan: identityValue === 'custom' ? '' : (identity?.label || ''),
-        sceneNumber: null,
+        file: newFile, identity: identityValue, keterangan, sceneNumber: null,
+        sourceName: sourceName || undefined,
       }],
     });
   };
 
-  // Saran jumlah scene: kalau baris ber-scene-spesifik unik melebihi sceneCount saat ini.
-  const uniqueRefScenes = new Set(formData.locationRefs.filter(r => r.sceneNumber !== null).map(r => r.sceneNumber as number));
-  const suggestedSceneCount = uniqueRefScenes.size > formData.sceneCount ? uniqueRefScenes.size : null;
+  // Scene tertinggi yang ditugaskan di antara SEMUA entry — dasar saran & tombol "Set jumlah scene".
+  const assignedSceneNumbers = formData.locationRefs.filter(r => r.sceneNumber !== null).map(r => r.sceneNumber as number);
+  const maxAssignedScene = assignedSceneNumbers.length > 0 ? Math.max(...assignedSceneNumbers) : null;
+  const suggestedSceneCount = maxAssignedScene !== null && maxAssignedScene > formData.sceneCount ? maxAssignedScene : null;
+  const setSceneCountTo = (n: number) => setFormData({ sceneCount: Math.max(2, Math.min(20, n)), sceneDurations: [] });
 
-  // Foto terupload (punya object URL sesi) tapi belum diberi identitas/keterangan sama sekali.
-  const unidentifiedCount = formData.locationRefs.filter(r => referenceObjectUrls[r.file] && !r.identity && !r.keterangan.trim()).length;
+  // Duplikat penugasan scene — 2+ entry menunjuk scene sama, hanya yang pertama (index terkecil)
+  // yang benar-benar dipakai binding (lihat lib/locationRefs.ts getSceneLocationRef).
+  const sceneAssignmentCounts = new Map<number, number>();
+  formData.locationRefs.forEach(r => {
+    if (r.sceneNumber !== null) sceneAssignmentCounts.set(r.sceneNumber, (sceneAssignmentCounts.get(r.sceneNumber) || 0) + 1);
+  });
+
+  const nextFreeSceneExcluding = (idx: number) => {
+    const used = new Set(formData.locationRefs.filter((r, i) => i !== idx && r.sceneNumber !== null).map(r => r.sceneNumber as number));
+    for (let i = 1; i <= 20; i++) if (!used.has(i)) return i;
+    return 1;
+  };
+
+  // Foto terupload tapi belum diberi identitas/keterangan sama sekali.
+  const unidentifiedCount = formData.locationRefs.filter(r => r.sourceName && !r.identity && !r.keterangan.trim()).length;
+
+  const totalTracked = trackedFileNames().size;
+  const identifiedCount = formData.locationRefs.filter(r => r.identity).length + (formData.characterRefFile.trim() ? 1 : 0);
 
   const hasVisualRefs = formData.characterRefFile.trim() || formData.locationRefs.length > 0;
 
@@ -272,13 +350,15 @@ export function Step1Business() {
           maxLength={150}
         />
 
-        {/* 🖼️ Referensi Visual — upload sumber nama file + grid identifikasi (redesain) */}
+        {/* 🖼️ Referensi Visual — upload sumber nama file + grid identifikasi + canonical rename */}
         <div>
           <FieldLabel>🖼️ Referensi Visual (Opsional)</FieldLabel>
           <p className="text-xs mb-2" style={{ color: 'var(--vf-text-muted)' }}>
             Foto TIDAK dikirim ke AI — upload di sini hanya untuk identifikasi otomatis nama file + mapping
-            per scene. Lampirkan foto aslinya langsung di AI video tool (mis. Google Flow) dengan nama file
-            yang sama persis. Maks {MAX_REFS} file, format jpg/png/webp, maks 5MB per file.
+            per scene. Nama file upload BEBAS; setelah kamu identifikasi (identitas + scene), sistem menamai
+            ulang otomatis (nama kanonik) dan itulah yang disebut di prompt — lampirkan foto aslinya (dengan
+            nama kanonik itu) langsung di AI video tool (mis. Google Flow). Maks {MAX_REFS} file, format
+            jpg/png/webp, maks 5MB per file.
           </p>
           <input
             ref={fileInputRef}
@@ -301,7 +381,7 @@ export function Step1Business() {
           >
             <Upload size={24} style={{ color: 'var(--vf-text-muted)' }} />
             <p className="text-sm mt-2" style={{ color: 'var(--vf-text-secondary)' }}>Klik atau drag & drop foto di sini</p>
-            <p className="text-xs mt-1" style={{ color: 'var(--vf-text-muted)' }}>{trackedFileNames().size}/{MAX_REFS} foto teridentifikasi</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--vf-text-muted)' }}>{totalTracked}/{MAX_REFS} foto — {identifiedCount} teridentifikasi</p>
           </div>
           {uploadNotice && (
             <p className="text-xs mt-2" style={{ color: 'var(--vf-accent-warning)' }}>⚠️ {uploadNotice}</p>
@@ -312,46 +392,57 @@ export function Step1Business() {
 
           {hasVisualRefs && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-              {formData.characterRefFile.trim() && (
-                <div className="p-3 rounded-lg space-y-2" style={{ background: 'var(--vf-bg-secondary)', border: '1px solid var(--vf-accent-primary)' }}>
-                  <div className="flex items-start gap-2">
-                    {referenceObjectUrls[formData.characterRefFile] ? (
-                      <img src={referenceObjectUrls[formData.characterRefFile]} alt={formData.characterRefFile} className="w-14 h-14 rounded-lg object-cover shrink-0" style={{ border: '1px solid var(--vf-border)' }} />
-                    ) : (
-                      <div className="w-14 h-14 rounded-lg flex flex-col items-center justify-center shrink-0 gap-0.5" style={{ background: 'var(--vf-bg-elevated)', border: '1px solid var(--vf-border)' }}>
-                        <ImageOff size={16} style={{ color: 'var(--vf-text-muted)' }} />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0 space-y-2">
-                      <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'var(--vf-accent-primary)', color: 'white' }}>👤 KARAKTER</span>
-                      <p className="text-sm truncate" style={{ color: 'var(--vf-text-primary)' }} title={formData.characterRefFile}>{formData.characterRefFile}</p>
-                      <RoomIdentityCombobox value={CHARACTER_IDENTITY} options={IDENTITY_OPTIONS} onSelect={selectCharacterCardIdentity} />
-                      {!referenceObjectUrls[formData.characterRefFile] && (
-                        <p className="text-[11px]" style={{ color: 'var(--vf-text-muted)' }}>Preview tidak tersimpan, mapping tetap aktif.</p>
+              {formData.characterRefFile.trim() && (() => {
+                const url = getUrl(formData.characterRefSourceName);
+                const hasBlob = !!getBlob(formData.characterRefSourceName);
+                return (
+                  <div className="p-3 rounded-lg space-y-2" style={{ background: 'var(--vf-bg-secondary)', border: '1px solid var(--vf-accent-primary)' }}>
+                    <div className="flex items-start gap-2">
+                      {url ? (
+                        <img src={url} alt={formData.characterRefFile} className="w-14 h-14 rounded-lg object-cover shrink-0" style={{ border: '1px solid var(--vf-border)' }} />
+                      ) : (
+                        <div className="w-14 h-14 rounded-lg flex flex-col items-center justify-center shrink-0 gap-0.5" style={{ background: 'var(--vf-bg-elevated)', border: '1px solid var(--vf-border)' }}>
+                          <ImageOff size={16} style={{ color: 'var(--vf-text-muted)' }} />
+                        </div>
                       )}
+                      <div className="flex-1 min-w-0 space-y-2">
+                        <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'var(--vf-accent-primary)', color: 'white' }}>👤 KARAKTER</span>
+                        <p className="text-sm font-medium truncate" style={{ color: 'var(--vf-text-primary)' }} title={formData.characterRefFile}>{formData.characterRefFile}</p>
+                        {formData.characterRefSourceName && formData.characterRefSourceName !== formData.characterRefFile && (
+                          <p className="text-[11px] truncate" style={{ color: 'var(--vf-text-muted)' }}>dari: {formData.characterRefSourceName}</p>
+                        )}
+                        <RoomIdentityCombobox value={CHARACTER_IDENTITY} options={IDENTITY_OPTIONS} onSelect={selectCharacterCardIdentity} />
+                        {!hasBlob && (
+                          <p className="text-[11px]" style={{ color: 'var(--vf-text-muted)' }}>
+                            {formData.characterRefSourceName ? 'Preview tidak tersimpan (tanpa file di sesi ini), mapping tetap aktif.' : 'Referensi manual — tidak ada preview.'}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={removeCharacterRef}
+                        className="p-2 rounded-lg shrink-0"
+                        style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-accent-danger)', border: '1px solid var(--vf-border)' }}
+                        aria-label="Hapus referensi karakter"
+                      >
+                        <X size={14} />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={removeCharacterRef}
-                      className="p-2 rounded-lg shrink-0"
-                      style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-accent-danger)', border: '1px solid var(--vf-border)' }}
-                      aria-label="Hapus referensi karakter"
-                    >
-                      <X size={14} />
-                    </button>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {formData.locationRefs.map((ref, idx) => {
                 const isInvalid = ref.sceneNumber !== null && ref.sceneNumber > formData.sceneCount;
-                const objectUrl = referenceObjectUrls[ref.file];
-                const isUploaded = !!objectUrl;
+                const isDuplicateScene = ref.sceneNumber !== null && (sceneAssignmentCounts.get(ref.sceneNumber) || 0) >= 2;
+                const url = getUrl(ref.sourceName);
+                const hasBlob = !!getBlob(ref.sourceName);
+                const isUploaded = !!ref.sourceName;
                 return (
                   <div key={idx} className="p-3 rounded-lg space-y-2" style={{ background: 'var(--vf-bg-secondary)', border: '1px solid var(--vf-border)' }}>
                     <div className="flex items-start gap-2">
-                      {objectUrl ? (
-                        <img src={objectUrl} alt={ref.file || 'referensi'} className="w-14 h-14 rounded-lg object-cover shrink-0" style={{ border: '1px solid var(--vf-border)' }} />
+                      {url ? (
+                        <img src={url} alt={ref.file || 'referensi'} className="w-14 h-14 rounded-lg object-cover shrink-0" style={{ border: '1px solid var(--vf-border)' }} />
                       ) : (
                         <div className="w-14 h-14 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--vf-bg-elevated)', border: '1px solid var(--vf-border)' }}>
                           <ImageOff size={16} style={{ color: 'var(--vf-text-muted)' }} />
@@ -359,7 +450,12 @@ export function Step1Business() {
                       )}
                       <div className="flex-1 min-w-0 space-y-2">
                         {isUploaded ? (
-                          <p className="text-sm truncate px-1" style={{ color: 'var(--vf-text-primary)' }} title={ref.file}>{ref.file}</p>
+                          <div className="px-1">
+                            <p className="text-sm font-medium truncate" style={{ color: 'var(--vf-text-primary)' }} title={ref.file}>{ref.file}</p>
+                            {ref.sourceName && ref.sourceName !== ref.file && (
+                              <p className="text-[11px] truncate" style={{ color: 'var(--vf-text-muted)' }}>dari: {ref.sourceName}</p>
+                            )}
+                          </div>
                         ) : (
                           <InputField
                             value={ref.file}
@@ -373,19 +469,35 @@ export function Step1Business() {
                           onChange={v => updateLocationRef(idx, { keterangan: v })}
                           placeholder='Apa ini + ciri khasnya, mis: fasad — rumah 2 lantai putih, pagar hitam'
                         />
-                        <select
-                          value={ref.sceneNumber === null ? 'all' : String(ref.sceneNumber)}
-                          onChange={e => updateLocationRef(idx, { sceneNumber: e.target.value === 'all' ? null : Number(e.target.value) })}
-                          className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                          style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-text-primary)', border: '1px solid var(--vf-border)' }}
-                        >
-                          <option value="all">Semua scene</option>
-                          {Array.from({ length: formData.sceneCount }, (_, i) => i + 1).map(n => (
-                            <option key={n} value={n}>Scene {n}</option>
-                          ))}
-                        </select>
-                        {!isUploaded && (
-                          <p className="text-[11px]" style={{ color: 'var(--vf-text-muted)' }}>Preview tidak tersimpan, mapping tetap aktif.</p>
+                        <div>
+                          <FieldLabel>Identifikasi Scene</FieldLabel>
+                          <div className="flex items-center gap-2">
+                            <label className="flex items-center gap-1.5 text-xs cursor-pointer shrink-0" style={{ color: 'var(--vf-text-secondary)' }}>
+                              <input
+                                type="checkbox"
+                                checked={ref.sceneNumber === null}
+                                onChange={e => applyLocationChange(idx, { sceneNumber: e.target.checked ? null : nextFreeSceneExcluding(idx) })}
+                                className="accent-indigo-500"
+                              />
+                              Semua scene
+                            </label>
+                            <input
+                              type="number"
+                              min={1}
+                              max={20}
+                              disabled={ref.sceneNumber === null}
+                              value={ref.sceneNumber === null ? '' : ref.sceneNumber}
+                              onChange={e => applyLocationChange(idx, { sceneNumber: Math.max(1, Math.min(20, Number(e.target.value) || 1)) })}
+                              placeholder="No."
+                              className="w-20 px-2 py-1.5 rounded-lg text-sm outline-none disabled:opacity-50"
+                              style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-text-primary)', border: '1px solid var(--vf-border)' }}
+                            />
+                          </div>
+                        </div>
+                        {!hasBlob && (
+                          <p className="text-[11px]" style={{ color: 'var(--vf-text-muted)' }}>
+                            {isUploaded ? 'Preview tidak tersimpan (tanpa file di sesi ini), mapping tetap aktif.' : 'Referensi manual — tidak ada preview.'}
+                          </p>
                         )}
                       </div>
                       <button
@@ -399,8 +511,25 @@ export function Step1Business() {
                       </button>
                     </div>
                     {isInvalid && (
-                      <p className="text-xs" style={{ color: 'var(--vf-accent-danger)' }}>
-                        ⚠️ Scene {ref.sceneNumber} tidak ada — jumlah scene sekarang {formData.sceneCount}. Baris ini akan diabaikan saat generate.
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-xs" style={{ color: 'var(--vf-accent-danger)' }}>
+                          ⚠️ Scene {ref.sceneNumber} tidak ada — jumlah scene sekarang {formData.sceneCount}. Baris ini akan diabaikan saat generate.
+                        </p>
+                        {maxAssignedScene !== null && (
+                          <button
+                            type="button"
+                            onClick={() => setSceneCountTo(maxAssignedScene)}
+                            className="text-xs px-2 py-1 rounded-md font-medium shrink-0"
+                            style={{ background: 'var(--vf-accent-primary)', color: 'white' }}
+                          >
+                            Set jumlah scene ke {maxAssignedScene}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {isDuplicateScene && (
+                      <p className="text-xs" style={{ color: 'var(--vf-accent-warning)' }}>
+                        ⚠️ {sceneAssignmentCounts.get(ref.sceneNumber as number)} foto menunjuk Scene {ref.sceneNumber} — hanya yang pertama dipakai.
                       </p>
                     )}
                   </div>
@@ -420,10 +549,10 @@ export function Step1Business() {
 
           {suggestedSceneCount && (
             <div className="mt-3 p-3 rounded-lg text-xs flex flex-wrap items-center justify-between gap-2" style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--vf-accent-primary)' }}>
-              <span>💡 Kamu punya {suggestedSceneCount} foto lokasi — set jumlah scene jadi {suggestedSceneCount}?</span>
+              <span>💡 Kamu punya foto sampai Scene {suggestedSceneCount} — set jumlah scene jadi {suggestedSceneCount}?</span>
               <button
                 type="button"
-                onClick={() => setFormData({ sceneCount: Math.max(2, Math.min(20, suggestedSceneCount)), sceneDurations: [] })}
+                onClick={() => setSceneCountTo(suggestedSceneCount)}
                 className="px-2.5 py-1 rounded-md font-medium shrink-0"
                 style={{ background: 'var(--vf-accent-primary)', color: 'white' }}
               >
