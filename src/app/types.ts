@@ -232,7 +232,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   openrouterApiKey: '',
   narrationWPM: 165,
   puterEnabled: true,
-  geminiImageModel: 'gemini-2.0-flash-exp-image-generation',
+  geminiImageModel: 'gemini-3.1-flash-image',
 };
 
 export const DEFAULT_FORM: FormData = {

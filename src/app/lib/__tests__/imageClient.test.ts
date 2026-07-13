@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   getDimensions,
   buildPollinationsUrl,
@@ -184,5 +184,115 @@ describe('buildPollinationsUrl - edge cases', () => {
   it('handles prompt with unicode', () => {
     const url = buildPollinationsUrl('café français 中文', '16:9');
     expect(url).toContain(encodeURIComponent('café français 中文'));
+  });
+});
+
+// ── GeminiImageModel dari deps ─────────────────────────────────
+
+describe('generateImageWithFallback - geminiImageModel', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  it('memakai geminiImageModel dari deps di endpoint Gemini', async () => {
+    const geminiResponse = {
+      ok: true,
+      json: async () => ({
+        candidates: [{
+          content: { parts: [{ inlineData: { mimeType: 'image/png', data: btoa('test') } }] },
+        }],
+      }),
+    };
+    // Pollinations gagal, Gemini sukses — pastikan endpoint pakai model dari deps
+    (globalThis.fetch as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ ok: false, status: 500 }) // Pollinations
+      .mockResolvedValueOnce(geminiResponse);              // Gemini
+
+    await generateImageWithFallback('test', { ratio: '1:1' }, {
+      geminiApiKey: 'test-key',
+      geminiImageModel: 'gemini-3.1-flash-image',
+      puterEnabled: false,
+    });
+
+    const geminiCall = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.find(
+      (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes('generativelanguage.googleapis.com')
+    );
+    expect(geminiCall).toBeDefined();
+    expect((geminiCall![0] as string)).toContain('gemini-3.1-flash-image');
+  });
+
+  it('menggunakan fallback default gemini-3.1-flash-image saat geminiImageModel tidak diberikan', async () => {
+    const geminiResponse = {
+      ok: true,
+      json: async () => ({
+        candidates: [{
+          content: { parts: [{ inlineData: { mimeType: 'image/png', data: btoa('test') } }] },
+        }],
+      }),
+    };
+    (globalThis.fetch as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ ok: false, status: 500 })
+      .mockResolvedValueOnce(geminiResponse);
+
+    await generateImageWithFallback('test', { ratio: '1:1' }, {
+      geminiApiKey: 'test-key',
+      puterEnabled: false,
+      // geminiImageModel tidak diisi
+    });
+
+    const geminiCall = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.find(
+      (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes('generativelanguage.googleapis.com')
+    );
+    expect(geminiCall).toBeDefined();
+    expect((geminiCall![0] as string)).toContain('gemini-3.1-flash-image');
+  });
+});
+
+// ── Puter timeout ──────────────────────────────────────────────
+
+describe('generateImageWithFallback - Puter timeout', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', vi.fn());
+    // Mock window.puter sehingga Puter "loaded" tapi txt2img tidak pernah settle
+    const existing = (globalThis as Record<string, unknown>).window;
+    Object.defineProperty(globalThis, 'window', {
+      value: {
+        ...(typeof existing === 'object' && existing ? (existing as Record<string, unknown>) : {}),
+        puter: {
+          ai: {
+            txt2img: vi.fn().mockReturnValue(new Promise<never>(() => {})),
+          },
+        },
+      },
+      writable: true,
+      configurable: true,
+    });
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: true, blob: async () => new Blob(['fake']) });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('Puter yang menggantung (120s timeout) jatuh ke Pollinations', async () => {
+    // Puter akan timeout via Promise.race internal → harus lanjut ke Pollinations
+    const promise = generateImageWithFallback('test', { ratio: '1:1' }, {
+      geminiApiKey: '',
+      puterEnabled: true,
+    });
+
+    // Majukan waktu melewati 120s timeout Puter + proses ke Pollinations
+    await vi.advanceTimersByTimeAsync(121_000);
+    // Majukan lagi untuk Pollinations fetch
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    const result = await promise;
+    expect(result).toBeInstanceOf(Blob);
+    // Pastikan Pollinations dipanggil (Puter gagal timeout)
+    const pollinationsCall = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.find(
+      (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes('pollinations')
+    );
+    expect(pollinationsCall).toBeDefined();
   });
 });

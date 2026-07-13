@@ -190,6 +190,12 @@ export const useAppStore = create<AppState>()(
         history: s.history,
         customTemplates: s.customTemplates,
       }),
+      onRehydrateStorage: () => () => {
+        const s = useAppStore.getState();
+        if (s.settings?.geminiImageModel === 'gemini-2.0-flash-exp-image-generation') {
+          s.setSettings({ geminiImageModel: DEFAULT_SETTINGS.geminiImageModel });
+        }
+      },
     }
   )
 );

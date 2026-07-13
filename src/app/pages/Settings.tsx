@@ -315,17 +315,30 @@ export function Settings() {
           </label>
           <div>
             <label className="text-sm mb-1.5 block" style={{ color: 'var(--vf-text-primary)' }}>Model Gemini Image</label>
-            <input
-              type="text"
+            <select
               value={settings.geminiImageModel}
               onChange={e => setSettings({ geminiImageModel: e.target.value })}
               className="w-full px-3 py-2 rounded-lg text-sm outline-none"
               style={{ background: 'var(--vf-bg-secondary)', color: 'var(--vf-text-primary)', border: '1px solid var(--vf-border)' }}
-              placeholder="gemini-2.0-flash-exp-image-generation"
-            />
+            >
+              <option value="gemini-3.1-flash-image">Gemini 3.1 Flash Image — Default</option>
+              <option value="gemini-2.5-flash-image">Gemini 2.5 Flash Image</option>
+              <option value="gemini-3.1-flash-lite-image">Gemini 3.1 Flash-Lite Image</option>
+              <option value="gemini-3-pro-image">Gemini 3 Pro Image</option>
+              <option value="__manual__">✏️ Ketik manual...</option>
+            </select>
+            {!['gemini-3.1-flash-image', 'gemini-2.5-flash-image', 'gemini-3.1-flash-lite-image', 'gemini-3-pro-image', '__manual__'].includes(settings.geminiImageModel) && (
+              <input
+                type="text"
+                value={settings.geminiImageModel}
+                onChange={e => setSettings({ geminiImageModel: e.target.value })}
+                className="w-full mt-2 px-3 py-2 rounded-lg text-sm outline-none"
+                style={{ background: 'var(--vf-bg-secondary)', color: 'var(--vf-text-primary)', border: '1px solid var(--vf-border)' }}
+                placeholder="ketik nama model..."
+              />
+            )}
             <p className="text-xs mt-1" style={{ color: 'var(--vf-text-muted)' }}>
-              Model image generation Gemini yang valid (keluarga gemini-*-image). Juga dipakai untuk
-              image+text→text/image (Character Generator nanti).
+              Model image generation Gemini yang valid. Juga dipakai untuk image+text→image (support input gambar).
             </p>
           </div>
           <div className="p-3 rounded-lg text-xs space-y-1" style={{ background: 'rgba(99,102,241,0.05)', color: 'var(--vf-text-secondary)' }}>

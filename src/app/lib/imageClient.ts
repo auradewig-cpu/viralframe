@@ -79,10 +79,13 @@ async function withTimeout<T>(fn: (signal: AbortSignal) => Promise<T>, timeoutMs
 
 // ── Provider functions ─────────────────────────────────────────
 
-async function callPuter(prompt: string, opts: ImageGenOptions): Promise<Blob> {
+async function callPuter(prompt: string, opts: ImageGenOptions, timeoutMs: number): Promise<Blob> {
   await ensurePuterLoaded();
   if (!window.puter?.ai?.txt2img) throw new ImageGenError('UNKNOWN', 'Puter.ai tidak tersedia setelah script dimuat.');
-  const result = await window.puter.ai.txt2img(prompt, { model: 'flux' });
+  const result = await Promise.race<{ result?: Blob | { source?: string } }>([
+    window.puter.ai.txt2img(prompt, { model: 'flux' }),
+    new Promise<never>((_, reject) => setTimeout(() => reject(new ImageGenError('TIMEOUT', `Puter timeout ${Math.round(timeoutMs / 1000)}s.`)), timeoutMs)),
+  ]);
   if (!result) throw new ImageGenError('UNKNOWN', 'Puter tidak mengembalikan hasil.');
   const blob = result.result instanceof Blob ? result.result : await fetch(result.result?.source || '').then(r => r.blob());
   if (!blob || blob.size === 0) throw new ImageGenError('UNKNOWN', 'Puter mengembalikan gambar kosong.');
@@ -98,14 +101,14 @@ async function callPollinations(prompt: string, ratio: string, signal?: AbortSig
   return blob;
 }
 
-async function callGeminiImage(apiKey: string, prompt: string, opts: ImageGenOptions, signal?: AbortSignal): Promise<Blob> {
-  const dims = getDimensions(opts.ratio);
+async function callGeminiImage(apiKey: string, model: string, prompt: string, opts: ImageGenOptions, signal?: AbortSignal): Promise<Blob> {
   const parts: { text?: string; inlineData?: { mimeType: string; data: string } }[] = [{ text: prompt }];
   if (opts.inputImage) {
     const base64 = await blobToBase64(opts.inputImage);
     parts.push({ inlineData: { mimeType: opts.inputImage.type || 'image/png', data: base64.split(',')[1] || base64 } });
   }
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent`;
+  const effectiveModel = model || 'gemini-3.1-flash-image';
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${effectiveModel}:generateContent`;
   const resp = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
@@ -158,7 +161,7 @@ export async function generateImageWithFallback(prompt: string, opts: ImageGenOp
   if (deps.puterEnabled !== false && !opts.inputImage) {
     try {
       notify('puter', 'trying');
-      const result = await withTimeout((signal) => callPuter(prompt, opts), 120_000);
+      const result = await callPuter(prompt, opts, 120_000);
       notify('puter', 'success');
       return result;
     } catch (e: unknown) {
@@ -188,7 +191,7 @@ export async function generateImageWithFallback(prompt: string, opts: ImageGenOp
   if (deps.geminiApiKey) {
     try {
       notify('gemini_image', 'trying');
-      const result = await withTimeout((signal) => callGeminiImage(deps.geminiApiKey, prompt, opts, signal), 90_000);
+      const result = await withTimeout((signal) => callGeminiImage(deps.geminiApiKey, deps.geminiImageModel || 'gemini-3.1-flash-image', prompt, opts, signal), 90_000);
       notify('gemini_image', 'success');
       return result;
     } catch (e: unknown) {
