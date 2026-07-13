@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { FormData, AppSettings, HistoryRecord, Template, DEFAULT_FORM, DEFAULT_SETTINGS } from './types';
 import { PRESET_TEMPLATES } from './lib/maps';
+import { migratePersistedState } from './lib/storeMigrations';
 
 // String literal, BUKAN import dari lib/registry — registry entries (mis. youtubeLong.tsx) mengimpor
 // useAppStore dari file ini, jadi mengimpor balik dari registry di sini akan membuat circular import.
@@ -181,17 +182,8 @@ export const useAppStore = create<AppState>()(
       version: 2,
       // v1 -> v2: HistoryRecord.videoJSON berganti nama jadi { contentTypeId, output }.
       // Record lama tanpa contentTypeId diperlakukan sebagai 'short_video' — history/template lama tetap terbaca.
-      migrate: (persistedState) => {
-        const state = persistedState as Record<string, unknown>;
-        const history = state.history as Array<Record<string, unknown>> | undefined;
-        if (history) {
-          state.history = history.map((r) => {
-            if ('contentTypeId' in r && 'output' in r) return r;
-            const { videoJSON, ...rest } = r;
-            return { ...rest, contentTypeId: (r.contentTypeId as string) || 'short_video', output: videoJSON ?? null };
-          });
-        }
-        return state;
+      migrate: (persistedState, storedVersion) => {
+        return migratePersistedState(persistedState as Record<string, unknown>, storedVersion);
       },
       partialize: (s) => ({
         settings: s.settings,
