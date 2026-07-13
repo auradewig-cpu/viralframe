@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
-import { Upload, X, ImageOff, Plus } from 'lucide-react';
+import { Upload, X, ImageOff, Plus, Download } from 'lucide-react';
+import JSZip from 'jszip';
 import { useAppStore } from '../../store';
 import { NICHES, TARGET_AUDIENCES, PLATFORMS, CONTENT_GOALS, GROWTH_ALLOWED_CTAS } from '../../lib/maps';
 import { CONTENT_STYLES } from '../../lib/contentStyles';
@@ -32,6 +33,7 @@ export function Step1Business() {
   const [dragOver, setDragOver] = useState(false);
   const [uploadNotice, setUploadNotice] = useState<string | null>(null);
   const [swapNotice, setSwapNotice] = useState<string | null>(null);
+  const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
 
   const toggleAudience = (val: string) => {
     const curr = formData.targetAudience;
@@ -274,6 +276,44 @@ export function Step1Business() {
 
   const hasVisualRefs = formData.characterRefFile.trim() || formData.locationRefs.length > 0;
 
+  // === Download Bahan (ZIP) — Tugas 4 ===
+  const downloadableCount =
+    (formData.characterRefFile.trim() && getBlob(formData.characterRefSourceName) ? 1 : 0) +
+    formData.locationRefs.filter(r => r.identity && getBlob(r.sourceName)).length;
+
+  const downloadBahan = async () => {
+    if (downloadableCount === 0) return;
+    const zip = new JSZip();
+    const mappingLines: string[] = [];
+
+    const characterBlob = getBlob(formData.characterRefSourceName);
+    if (formData.characterRefFile.trim() && characterBlob) {
+      zip.file(formData.characterRefFile, characterBlob);
+      mappingLines.push(`${formData.characterRefFile} ← ${formData.characterRefSourceName} — Karakter — semua scene`);
+    }
+
+    formData.locationRefs.forEach(ref => {
+      if (!ref.identity) return;
+      const blob = getBlob(ref.sourceName);
+      if (!blob) return;
+      zip.file(ref.file, blob);
+      const identityLabel = ROOM_IDENTITIES.find(r => r.value === ref.identity)?.label || ref.identity;
+      const sceneLabel = ref.sceneNumber === null ? 'semua scene' : `scene ${ref.sceneNumber}`;
+      mappingLines.push(`${ref.file} ← ${ref.sourceName} — ${identityLabel} — ${sceneLabel}`);
+    });
+
+    zip.file('bahan_mapping.txt', mappingLines.join('\n') + '\n');
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `viralframe_bahan_${dateStr}.zip`; a.click();
+    URL.revokeObjectURL(url);
+
+    setDownloadNotice('Lampirkan isi ZIP ini di AI video tool — nama file sudah cocok dengan prompt.');
+    setTimeout(() => setDownloadNotice(null), 6000);
+  };
+
   return (
     <div className="space-y-6">
       {formSections.includes('business_context') && (
@@ -356,9 +396,9 @@ export function Step1Business() {
           <p className="text-xs mb-2" style={{ color: 'var(--vf-text-muted)' }}>
             Foto TIDAK dikirim ke AI — upload di sini hanya untuk identifikasi otomatis nama file + mapping
             per scene. Nama file upload BEBAS; setelah kamu identifikasi (identitas + scene), sistem menamai
-            ulang otomatis (nama kanonik) dan itulah yang disebut di prompt — lampirkan foto aslinya (dengan
-            nama kanonik itu) langsung di AI video tool (mis. Google Flow). Maks {MAX_REFS} file, format
-            jpg/png/webp, maks 5MB per file.
+            ulang otomatis (nama kanonik) dan itulah yang disebut di prompt. Download ZIP-nya lewat tombol
+            "Download Bahan" di bawah, lalu lampirkan isinya langsung di AI video tool (mis. Google Flow).
+            Maks {MAX_REFS} file, format jpg/png/webp, maks 5MB per file.
           </p>
           <input
             ref={fileInputRef}
@@ -414,7 +454,7 @@ export function Step1Business() {
                         <RoomIdentityCombobox value={CHARACTER_IDENTITY} options={IDENTITY_OPTIONS} onSelect={selectCharacterCardIdentity} />
                         {!hasBlob && (
                           <p className="text-[11px]" style={{ color: 'var(--vf-text-muted)' }}>
-                            {formData.characterRefSourceName ? 'Preview tidak tersimpan (tanpa file di sesi ini), mapping tetap aktif.' : 'Referensi manual — tidak ada preview.'}
+                            {formData.characterRefSourceName ? 'Preview tidak tersimpan & tidak ikut Download Bahan (tanpa file di sesi ini).' : 'Referensi manual — tidak ikut Download Bahan.'}
                           </p>
                         )}
                       </div>
@@ -496,7 +536,7 @@ export function Step1Business() {
                         </div>
                         {!hasBlob && (
                           <p className="text-[11px]" style={{ color: 'var(--vf-text-muted)' }}>
-                            {isUploaded ? 'Preview tidak tersimpan (tanpa file di sesi ini), mapping tetap aktif.' : 'Referensi manual — tidak ada preview.'}
+                            {isUploaded ? 'Preview tidak tersimpan & tidak ikut Download Bahan (tanpa file di sesi ini).' : 'Referensi manual — tidak ikut Download Bahan.'}
                           </p>
                         )}
                       </div>
@@ -538,14 +578,29 @@ export function Step1Business() {
             </div>
           )}
 
-          <button
-            type="button"
-            onClick={addManualLocationRef}
-            className="mt-3 flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm"
-            style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-accent-primary)', border: '1px solid var(--vf-accent-primary)' }}
-          >
-            <Plus size={14} /> Tambah referensi manual (tanpa upload)
-          </button>
+          <div className="flex flex-wrap gap-2 mt-3">
+            <button
+              type="button"
+              onClick={addManualLocationRef}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm"
+              style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-accent-primary)', border: '1px solid var(--vf-accent-primary)' }}
+            >
+              <Plus size={14} /> Tambah referensi manual (tanpa upload)
+            </button>
+            <button
+              type="button"
+              onClick={downloadBahan}
+              disabled={downloadableCount === 0}
+              title={downloadableCount === 0 ? 'Upload & identifikasi foto dulu — preview foto hanya hidup selama sesi.' : undefined}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: 'var(--vf-accent-primary)', color: 'white' }}
+            >
+              <Download size={14} /> ⬇️ Download Bahan (ZIP){downloadableCount > 0 ? ` (${downloadableCount})` : ''}
+            </button>
+          </div>
+          {downloadNotice && (
+            <p className="text-xs mt-2" style={{ color: 'var(--vf-accent-success)' }}>✅ {downloadNotice}</p>
+          )}
 
           {suggestedSceneCount && (
             <div className="mt-3 p-3 rounded-lg text-xs flex flex-wrap items-center justify-between gap-2" style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--vf-accent-primary)' }}>
