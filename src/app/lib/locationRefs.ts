@@ -26,15 +26,9 @@ export function sanitizeRefText(text: string): string {
 }
 
 // role di-DERIVE dari sceneNumber: sceneNumber !== null (ditugaskan ke scene spesifik) → environment,
-// null ("Semua scene") → product. Backward compat: locationRefs kosong + referenceImageFilename lama
-// terisi DAN referencePhotos ada (kondisi sama seperti perilaku lama) → diperlakukan sebagai satu ref
-// product "Semua scene", supaya video lama tetap berperilaku identik.
+// null ("Semua scene") → product.
 export function getEffectiveLocationRefs(form: FormData): ResolvedLocationRef[] {
-  const raw: LocationRef[] = form.locationRefs.length > 0
-    ? form.locationRefs
-    : (form.referencePhotos.length > 0 && form.referenceImageFilename.trim()
-      ? [{ file: form.referenceImageFilename.trim(), identity: 'custom', keterangan: '', sceneNumber: null }]
-      : []);
+  const raw: LocationRef[] = form.locationRefs;
 
   return raw
     .filter(r => r.file.trim())
