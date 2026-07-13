@@ -291,6 +291,52 @@ export function Settings() {
         </div>
       </section>
 
+      {/* Image Engine */}
+      <section>
+        <h2 className="mb-4" style={{ color: 'var(--vf-text-primary)' }}>🎨 Image Engine</h2>
+        <div className="space-y-4 p-4 rounded-xl" style={{ background: 'var(--vf-bg-elevated)', border: '1px solid var(--vf-border)' }}>
+          <p className="text-xs" style={{ color: 'var(--vf-text-muted)' }}>
+            Generate gambar langsung di app (dipakai Thumbnail Pack). Urutan fallback: Puter.js → Pollinations → Gemini Image.
+          </p>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.puterEnabled}
+              onChange={e => setSettings({ puterEnabled: e.target.checked })}
+              className="accent-indigo-500 w-4 h-4"
+            />
+            <div>
+              <span className="text-sm font-medium" style={{ color: 'var(--vf-text-primary)' }}>Aktifkan Puter.js</span>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--vf-text-muted)' }}>
+                Model User-Pays — panggilan pertama bisa memunculkan popup login/login wall. Gratis dengan batas wajar.
+                Puter hanya dipakai kalau tidak ada input gambar (txt2img murni).
+              </p>
+            </div>
+          </label>
+          <div>
+            <label className="text-sm mb-1.5 block" style={{ color: 'var(--vf-text-primary)' }}>Model Gemini Image</label>
+            <input
+              type="text"
+              value={settings.geminiImageModel}
+              onChange={e => setSettings({ geminiImageModel: e.target.value })}
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+              style={{ background: 'var(--vf-bg-secondary)', color: 'var(--vf-text-primary)', border: '1px solid var(--vf-border)' }}
+              placeholder="gemini-2.0-flash-exp-image-generation"
+            />
+            <p className="text-xs mt-1" style={{ color: 'var(--vf-text-muted)' }}>
+              Model image generation Gemini yang valid (keluarga gemini-*-image). Juga dipakai untuk
+              image+text→text/image (Character Generator nanti).
+            </p>
+          </div>
+          <div className="p-3 rounded-lg text-xs space-y-1" style={{ background: 'rgba(99,102,241,0.05)', color: 'var(--vf-text-secondary)' }}>
+            <p><strong style={{ color: 'var(--vf-text-primary)' }}>Urutan Chain (read-only):</strong></p>
+            <p>1. Puter.js — {settings.puterEnabled ? '✅ Aktif' : '⛔ Nonaktif'} — gratis, user-pays (popup login), tanpa input gambar</p>
+            <p>2. Pollinations — ✅ Selalu tersedia — gratis, tanpa input gambar</p>
+            <p>3. Gemini Image — {settings.geminiApiKey ? '✅ API key terisi' : '⛔ Tidak ada API key'} — butuh API key, support input gambar</p>
+          </div>
+        </div>
+      </section>
+
       {/* Default Preferences */}
       <section>
         <h2 className="mb-4" style={{ color: 'var(--vf-text-primary)' }}>🎛️ Preferensi Default</h2>

@@ -214,6 +214,8 @@ export interface AppSettings {
   groqApiKey: string;
   openrouterApiKey: string;
   narrationWPM: number;
+  puterEnabled: boolean;
+  geminiImageModel: string;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -227,6 +229,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   groqApiKey: '',
   openrouterApiKey: '',
   narrationWPM: 165,
+  puterEnabled: true,
+  geminiImageModel: 'gemini-2.0-flash-exp-image-generation',
 };
 
 export const DEFAULT_FORM: FormData = {
