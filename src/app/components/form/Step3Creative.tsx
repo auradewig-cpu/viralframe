@@ -208,6 +208,9 @@ export function Step3Creative() {
               onChange={v => setFormData({ characterTraits: v })}
               placeholder='"rambut pendek hitam", "berkacamata"'
             />
+            <p className="text-xs -mt-2" style={{ color: 'var(--vf-text-secondary)' }}>
+              Boleh ditulis Bahasa Indonesia — sistem otomatis menerjemahkan istilah visual ke English presisi di prompt video.
+            </p>
             {formData.useCharacter && !formData.characterTraits && (
               <div className="p-3 rounded-lg text-xs" style={{ background: 'rgba(245,158,11,0.1)', color: 'var(--vf-accent-warning)', border: '1px solid var(--vf-accent-warning)' }}>
                 ⚠️ Rekomendasi: Isi ciri fisik khusus (warna rambut, pakaian spesifik) agar karakter konsisten di semua scene Veo3.
