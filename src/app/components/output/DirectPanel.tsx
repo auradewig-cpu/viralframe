@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Copy, Check, Download, RefreshCw, Edit, Loader2 } from 'lucide-react';
+import { Copy, Check, Download, RefreshCw, Edit, Loader2, Globe } from 'lucide-react';
 import JSZip from 'jszip';
 import { VideoJSON, FormData } from '../../types';
 import { SceneCard } from './SceneCard';
@@ -7,6 +7,7 @@ import { useAppStore } from '../../store';
 import { addReferenceSectionToZip } from '../../lib/referenceZip';
 import { slugify } from '../../lib/canonicalRefNames';
 import { generateWithFallback, ApiCallError } from '../../lib/apiClient';
+import { PLATFORMS, PLATFORM_BEHAVIOR } from '../../lib/maps';
 import {
   buildSceneRegenPrompt, buildSceneRegenRepairPrompt, validateSceneData,
   getSceneRegenExpectation, parseSceneResponse,
@@ -204,6 +205,10 @@ export function DirectPanel({ json, form, onRegenerate, onEdit, referencePhotos 
   const [sceneRegen, setSceneRegen] = useState<Record<number, SceneRegenState>>({});
   const [sceneAutoFix, setSceneAutoFix] = useState<Record<number, AutoFixState>>({});
   const [captionAutoFix, setCaptionAutoFix] = useState<Record<number, AutoFixState>>({});
+  const alternativePlatforms = PLATFORMS.filter(p => p.value !== json.video_metadata?.platform_primary);
+  const [captionTargetPlatform, setCaptionTargetPlatform] = useState(alternativePlatforms[0]?.value || '');
+  const [captionPlatformLoading, setCaptionPlatformLoading] = useState<string | null>(null);
+  const [captionPlatformResults, setCaptionPlatformResults] = useState<Array<{ platform: string; variations: { caption_text: string; hashtags: string[] }[]; error?: string }>>([]);
 
   const patchSceneRegenState = (index: number, patch: Partial<SceneRegenState>) => {
     setSceneRegen(prev => ({ ...prev, [index]: { ...prev[index], loading: false, error: null, justRegenerated: false, ...patch } }));
@@ -293,6 +298,40 @@ export function DirectPanel({ json, form, onRegenerate, onEdit, referencePhotos 
     } catch (e: unknown) {
       const err = e as ApiCallError;
       patchCaptionAutoFix(captionIndex, { loading: false, error: err.message || 'Gagal memperbaiki caption ini.' });
+    }
+  };
+
+  const handleCaptionPlatform = async (targetPlatform: string) => {
+    if (!targetPlatform || !json.video_metadata) return;
+    const existing = json.production_notes?.caption_variations || [];
+    if (existing.length === 0) return;
+    setCaptionPlatformLoading(targetPlatform);
+    const behavior = PLATFORM_BEHAVIOR[targetPlatform] || 'Platform-specific optimization.';
+    const growthNote = form.contentGoal === 'growth' ? ` Growth mode — NO commercial hashtags (#jualan, #promo, #diskon).` : '';
+    const prompt = `Adapt these caption variations for ${targetPlatform}. Platform behavior: ${behavior}.${growthNote}
+
+Existing captions:
+${existing.map((cv, i) => `Caption ${i + 1}: "${cv.caption_text}"
+Hashtags: ${(cv.hashtags || []).join(', ')}`).join('\n\n')}
+
+Output ONLY a JSON object with the exact same number of caption variations adapted for ${targetPlatform}:
+{ "caption_variations": [{ "caption_text": "...", "hashtags": ["#tag1", "#tag2"] }] }
+Each caption_text must be adapted to ${targetPlatform} audience and format. Total caption_variations MUST equal ${existing.length}. Hashtags MUST be relevant to ${targetPlatform}. JSON only, no markdown, no explanation.`;
+    try {
+      const raw = await generateWithFallback<{ caption_variations: { caption_text: string; hashtags: string[] }[] }>(prompt, apiKeys, (t) => {
+        try { const p = JSON.parse(t); return p?.caption_variations ? p : null; } catch { return null; }
+      }, () => {}, undefined, geminiModel);
+      const variations = raw?.caption_variations;
+      if (variations && variations.length === existing.length) {
+        setCaptionPlatformResults(prev => [...prev, { platform: PLATFORMS.find(p => p.value === targetPlatform)?.label || targetPlatform, variations }]);
+      } else {
+        setCaptionPlatformResults(prev => [...prev, { platform: PLATFORMS.find(p => p.value === targetPlatform)?.label || targetPlatform, variations: [], error: 'Jumlah variasi tidak sesuai atau format tidak valid.' }]);
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof ApiCallError ? e.message : 'Gagal generate caption untuk platform ini.';
+      setCaptionPlatformResults(prev => [...prev, { platform: PLATFORMS.find(p => p.value === targetPlatform)?.label || targetPlatform, variations: [], error: msg }]);
+    } finally {
+      setCaptionPlatformLoading(null);
     }
   };
 
@@ -430,6 +469,53 @@ export function DirectPanel({ json, form, onRegenerate, onEdit, referencePhotos 
                 </div>
               </div>
             )}
+
+            {/* Caption platform variants */}
+            <div className="md:col-span-2">
+              <span className="text-xs font-medium" style={{ color: 'var(--vf-text-muted)' }}>Versi Platform Lain</span>
+              <div className="mt-2 space-y-2">
+                {captionPlatformResults.length > 0 && captionPlatformResults.map((r, idx) => (
+                  <div key={idx} className="p-3 rounded-lg" style={{ background: 'var(--vf-bg-secondary)' }}>
+                    <p className="text-xs font-semibold mb-1" style={{ color: 'var(--vf-accent-primary)' }}>🌐 {r.platform}</p>
+                    {r.variations.map((cv, vi) => (
+                      <div key={vi} className="mb-2">
+                        <p className="text-sm" style={{ color: 'var(--vf-text-primary)' }}>{cv.caption_text}</p>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--vf-text-secondary)' }}>{(cv.hashtags || []).join(' ')}</p>
+                        <button onClick={() => { navigator.clipboard.writeText(`${cv.caption_text}\n\n${(cv.hashtags || []).join(' ')}`); }} className="text-xs mt-1" style={{ color: 'var(--vf-accent-primary)' }}>⎘ Copy</button>
+                      </div>
+                    ))}
+                    {r.error && <p className="text-xs" style={{ color: 'var(--vf-accent-danger)' }}>{r.error}</p>}
+                  </div>
+                ))}
+                {captionPlatformLoading && (
+                  <div className="p-3 rounded-lg flex items-center gap-2" style={{ background: 'var(--vf-bg-secondary)' }}>
+                    <Loader2 size={14} className="animate-spin" style={{ color: 'var(--vf-accent-primary)' }} />
+                    <span className="text-xs" style={{ color: 'var(--vf-text-secondary)' }}>Generate caption untuk {captionPlatformLoading}...</span>
+                  </div>
+                )}
+                {!captionPlatformLoading && (
+                  <div className="flex gap-2">
+                    <select
+                      value={captionTargetPlatform}
+                      onChange={e => setCaptionTargetPlatform(e.target.value)}
+                      className="px-2 py-1.5 rounded-lg text-xs outline-none"
+                      style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-text-primary)', border: '1px solid var(--vf-border)' }}
+                    >
+                      {PLATFORMS.filter(p => p.value !== json.video_metadata?.platform_primary).map(p => (
+                        <option key={p.value} value={p.value}>{p.label}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => handleCaptionPlatform(captionTargetPlatform)}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs"
+                      style={{ background: 'var(--vf-accent-primary)', color: 'white' }}
+                    >
+                      <Globe size={12} /> 🌐 Versi {PLATFORMS.find(p => p.value === captionTargetPlatform)?.label || captionTargetPlatform}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
