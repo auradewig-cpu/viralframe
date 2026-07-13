@@ -33,7 +33,9 @@ function buildVisiblePrompt(form: FormData, needsProductImage: boolean): { promp
     ? ' Both a male and a female character together in the frame.'
     : '';
 
-  const prompt = `A ${age}-year-old ${ethnicity} ${gender} in ${style} style${traits}${duoInstruction}. Shot in 3/4 body portrait${productInstruction}. Setting: ${background}. Photorealistic, natural lighting, sharp focus, high detail skin texture, 9:16 portrait orientation. No text, no watermark, no logo.`;
+  // "no watermark/no ADDED logos" — jangan tulis "no logo" mentah: traits user bisa memuat logo
+  // seragam (mis. "kemeja berlogo SBP") yang justru WAJIB dirender, bukan dihapus.
+  const prompt = `A ${age}-year-old ${ethnicity} ${gender} in ${style} style${traits}${duoInstruction}. Shot in 3/4 body portrait${productInstruction}. Setting: ${background}. Photorealistic, natural lighting, sharp focus, high detail skin texture, 9:16 portrait orientation. No watermark, no text overlay, no added logos other than those described above.`;
 
   return { prompt, needsProductImage };
 }
@@ -44,7 +46,7 @@ function buildFacelessPrompt(form: FormData, needsProductImage: boolean): { prom
   const productInstruction = needsProductImage
     ? ', holding and presenting the product naturally'
     : '';
-  const prompt = `First-person POV shot, only hands visible, no face visible, no reflection showing face. ${handDesc}${productInstruction}. Setting: ${background}. Photorealistic, natural lighting, sharp focus on hands and product, 9:16 portrait orientation. No text, no watermark, no logo.`;
+  const prompt = `First-person POV shot, only hands visible, no face visible, no reflection showing face. ${handDesc}${productInstruction}. Setting: ${background}. Photorealistic, natural lighting, sharp focus on hands and product, 9:16 portrait orientation. No watermark, no text overlay, no added logos other than those described above.`;
 
   return { prompt, needsProductImage };
 }
