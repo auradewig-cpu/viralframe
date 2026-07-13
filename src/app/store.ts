@@ -78,6 +78,9 @@ interface AppState {
   referenceFiles: Record<string, { url: string; blob: Blob }>;
   setReferenceFile: (sourceName: string, url: string, blob: Blob) => void;
   removeReferenceFile: (sourceName: string) => void;
+  // Dipakai tombol "Bersihkan semua foto tersimpan" di Settings (Tugas 3) — kosongkan preview/blob
+  // sesi SAJA, dipasangkan dengan refImageDB.clearAll() di pemanggil untuk hapus salinan IndexedDB.
+  clearReferenceFiles: () => void;
   // true selama hydration dari IndexedDB berjalan (lib/referenceHydration.ts) — dipakai Step1Business
   // & DirectPanel untuk menahan sebentar tombol Download Bahan supaya tidak menghasilkan ZIP yang
   // foto referensinya belum lengkap ter-restore.
@@ -165,6 +168,10 @@ export const useAppStore = create<AppState>()(
         const rest = { ...s.referenceFiles };
         delete rest[sourceName];
         return { referenceFiles: rest };
+      }),
+      clearReferenceFiles: () => set((s) => {
+        Object.values(s.referenceFiles).forEach(entry => URL.revokeObjectURL(entry.url));
+        return { referenceFiles: {} };
       }),
       referenceHydrating: false,
       setReferenceHydrating: (v) => set({ referenceHydrating: v }),
