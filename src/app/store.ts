@@ -70,6 +70,13 @@ interface AppState {
   addTemplate: (t: Template) => void;
   removeTemplate: (id: string) => void;
   getPresetTemplates: () => Template[];
+
+  // Preview foto Referensi Visual (Step1Business) — key = nama file, value = blob URL dari
+  // URL.createObjectURL. NON-persist dengan sengaja (blob URL mati begitu tab ditutup/reload) —
+  // lihat partialize di bawah. Foto TIDAK pernah disimpan base64/localStorage di jalur ini.
+  referenceObjectUrls: Record<string, string>;
+  setReferenceObjectUrl: (file: string, url: string) => void;
+  removeReferenceObjectUrl: (file: string) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -143,6 +150,16 @@ export const useAppStore = create<AppState>()(
       addTemplate: (t) => set((s) => ({ customTemplates: [...s.customTemplates, t] })),
       removeTemplate: (id) => set((s) => ({ customTemplates: s.customTemplates.filter(t => t.id !== id) })),
       getPresetTemplates: () => PRESET_TEMPLATES as Template[],
+
+      referenceObjectUrls: {},
+      setReferenceObjectUrl: (file, url) => set((s) => ({ referenceObjectUrls: { ...s.referenceObjectUrls, [file]: url } })),
+      removeReferenceObjectUrl: (file) => set((s) => {
+        const url = s.referenceObjectUrls[file];
+        if (url) URL.revokeObjectURL(url);
+        const rest = { ...s.referenceObjectUrls };
+        delete rest[file];
+        return { referenceObjectUrls: rest };
+      }),
     }),
     {
       name: 'viralframe-store',
