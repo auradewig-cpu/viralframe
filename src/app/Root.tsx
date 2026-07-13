@@ -2,6 +2,7 @@ import { Outlet } from 'react-router';
 import { useEffect, useLayoutEffect } from 'react';
 import { AppLayout } from './components/Layout';
 import { useAppStore } from './store';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 export function Root() {
   const settings = useAppStore(s => s.settings);
@@ -30,8 +31,10 @@ export function Root() {
   }, [settings.darkMode]);
 
   return (
-    <AppLayout>
-      <Outlet />
-    </AppLayout>
+    <ErrorBoundary>
+      <AppLayout>
+        <Outlet />
+      </AppLayout>
+    </ErrorBoundary>
   );
 }
