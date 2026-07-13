@@ -8,9 +8,48 @@ import {
 } from '../../lib/maps';
 import { TalentStyle, LocationRef } from '../../types';
 import { getContentType, DEFAULT_CONTENT_TYPE_ID } from '../../lib/registry';
+import { ROOM_IDENTITIES } from '../../lib/roomIdentities';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
 
 const formSections = getContentType(DEFAULT_CONTENT_TYPE_ID).formSections;
 import { FieldLabel, FormCard, SelectField, InputField, TagsInput } from './FormFields';
+
+// Dropdown identitas area properti — searchable (cmdk), dipakai per baris Referensi Lokasi/Produk.
+// Pilih identity !== 'custom' → keterangan auto-terisi label preset (tetap bisa diedit user).
+function RoomIdentityCombobox({ value, onSelect }: { value: string; onSelect: (identityValue: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const selected = ROOM_IDENTITIES.find(r => r.value === value);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="w-full px-3 py-2 rounded-lg text-sm outline-none text-left flex items-center justify-between gap-2"
+          style={{ background: 'var(--vf-bg-elevated)', color: selected ? 'var(--vf-text-primary)' : 'var(--vf-text-muted)', border: '1px solid var(--vf-border)' }}
+        >
+          <span className="truncate">{selected ? selected.label : 'Pilih identitas area...'}</span>
+          <ChevronDown size={14} className="shrink-0" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="p-0 w-[280px]">
+        <Command>
+          <CommandInput placeholder="Cari identitas area..." />
+          <CommandList>
+            <CommandEmpty>Tidak ditemukan.</CommandEmpty>
+            <CommandGroup>
+              {ROOM_IDENTITIES.map(r => (
+                <CommandItem key={r.value} value={r.label} onSelect={() => { onSelect(r.value); setOpen(false); }}>
+                  {r.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export function Step3Creative() {
   const formData = useAppStore(s => s.formData);
@@ -44,8 +83,15 @@ export function Step3Creative() {
 
   const score = consistencyScore();
 
+  // Auto-mapping (Tugas 3c): baris baru otomatis ditugaskan ke scene terkecil yang belum punya
+  // referensi spesifik — kalau semua scene 1..sceneCount sudah terisi, fallback ke "Semua scene".
   const addLocationRef = () => {
-    setFormData({ locationRefs: [...formData.locationRefs, { file: '', keterangan: '', sceneNumber: null }] });
+    const usedScenes = new Set(formData.locationRefs.filter(r => r.sceneNumber !== null).map(r => r.sceneNumber as number));
+    let nextScene: number | null = null;
+    for (let i = 1; i <= formData.sceneCount; i++) {
+      if (!usedScenes.has(i)) { nextScene = i; break; }
+    }
+    setFormData({ locationRefs: [...formData.locationRefs, { file: '', identity: '', keterangan: '', sceneNumber: nextScene }] });
   };
 
   const updateLocationRef = (idx: number, patch: Partial<LocationRef>) => {
@@ -56,6 +102,20 @@ export function Step3Creative() {
   const removeLocationRef = (idx: number) => {
     setFormData({ locationRefs: formData.locationRefs.filter((_, i) => i !== idx) });
   };
+
+  // identity !== 'custom' → keterangan auto-terisi label preset, user tetap bisa menambah fakta di
+  // belakangnya. identity === 'custom' → keterangan dikosongkan supaya user ketik manual dari nol.
+  const selectLocationIdentity = (idx: number, identityValue: string) => {
+    const identity = ROOM_IDENTITIES.find(r => r.value === identityValue);
+    updateLocationRef(idx, {
+      identity: identityValue,
+      keterangan: identityValue === 'custom' ? '' : (identity?.label || ''),
+    });
+  };
+
+  // Saran jumlah scene (Tugas 3d): kalau baris ber-scene-spesifik unik melebihi sceneCount saat ini.
+  const uniqueRefScenes = new Set(formData.locationRefs.filter(r => r.sceneNumber !== null).map(r => r.sceneNumber as number));
+  const suggestedSceneCount = uniqueRefScenes.size > formData.sceneCount ? uniqueRefScenes.size : null;
 
   return (
     <div className="space-y-6">
@@ -238,17 +298,34 @@ export function Step3Creative() {
         </p>
 
         {formData.talentStyle !== 'product_only' && (
-          <div>
+          <div className="space-y-3">
             <FieldLabel>🧑 Referensi Karakter</FieldLabel>
-            <InputField
-              value={formData.characterRefFile}
-              onChange={v => setFormData({ characterRefFile: v })}
-              placeholder='Contoh: "lisa.webp"'
-            />
-            <p className="text-xs mt-1" style={{ color: 'var(--vf-text-muted)' }}>
-              Nama file harus persis sama dengan yang kamu lampirkan di AI video tool. Deskripsi wajah/fisik
-              tidak perlu diulang di sini — sudah tercakup di character sheet Blok Karakter di atas.
-            </p>
+            <div>
+              <p className="text-xs mb-1" style={{ color: 'var(--vf-text-secondary)' }}>Sudah punya foto karakter?</p>
+              <InputField
+                value={formData.characterRefFile}
+                onChange={v => setFormData({ characterRefFile: v })}
+                placeholder='Contoh: "lisa.webp"'
+              />
+              <p className="text-xs mt-1" style={{ color: 'var(--vf-text-muted)' }}>
+                Nama file harus persis sama dengan yang kamu lampirkan di AI video tool. Deskripsi wajah/fisik
+                tidak perlu diulang di sini — sudah tercakup di character sheet Blok Karakter di atas.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-px" style={{ background: 'var(--vf-border)' }} />
+              <span className="text-xs" style={{ color: 'var(--vf-text-muted)' }}>atau</span>
+              <div className="flex-1 h-px" style={{ background: 'var(--vf-border)' }} />
+            </div>
+            <button
+              type="button"
+              disabled
+              title="Segera hadir — engine image sedang disiapkan"
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm opacity-60 cursor-not-allowed"
+              style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-text-muted)', border: '1px solid var(--vf-border)' }}
+            >
+              ✨ Generate Foto Karakter
+            </button>
           </div>
         )}
 
@@ -266,6 +343,7 @@ export function Step3Creative() {
                         onChange={v => updateLocationRef(idx, { file: v })}
                         placeholder='Nama file, mis: "scene1_foto.jpg"'
                       />
+                      <RoomIdentityCombobox value={ref.identity} onSelect={v => selectLocationIdentity(idx, v)} />
                       <InputField
                         value={ref.keterangan}
                         onChange={v => updateLocationRef(idx, { keterangan: v })}
@@ -310,6 +388,19 @@ export function Step3Creative() {
           >
             <Plus size={14} /> Tambah referensi
           </button>
+          {suggestedSceneCount && (
+            <div className="mt-3 p-3 rounded-lg text-xs flex flex-wrap items-center justify-between gap-2" style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--vf-accent-primary)' }}>
+              <span>💡 Kamu punya {suggestedSceneCount} foto lokasi — set jumlah scene jadi {suggestedSceneCount}?</span>
+              <button
+                type="button"
+                onClick={() => setFormData({ sceneCount: Math.max(2, Math.min(20, suggestedSceneCount)), sceneDurations: [] })}
+                className="px-2.5 py-1 rounded-md font-medium shrink-0"
+                style={{ background: 'var(--vf-accent-primary)', color: 'white' }}
+              >
+                Set ke {suggestedSceneCount}
+              </button>
+            </div>
+          )}
         </div>
       </FormCard>
       )}

@@ -41,6 +41,7 @@ export const formSchema = z.object({
   characterRefFile: z.string(),
   locationRefs: z.array(z.object({
     file: z.string(),
+    identity: z.string(),
     keterangan: z.string(),
     sceneNumber: z.number().nullable(),
   })),
