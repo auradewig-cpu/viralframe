@@ -2,7 +2,7 @@ import { FormData, VideoJSON, SceneData } from '../types';
 import { getLipsyncSpec } from './lipsync';
 import { AI_TOOLS, NICHE_DATA, AI_TOOL_FORMAT } from './maps';
 import { CONTENT_STYLES } from './contentStyles';
-import { NEGATIVE_PROMPT_BLOCK, CAMERA_REF_RULE } from './negativePrompt';
+import { NEGATIVE_PROMPT_BLOCK, CAMERA_REF_RULE, SPOKEN_NUMBER_RULE } from './negativePrompt';
 import { countWords, ValidationResult } from './jsonParser';
 import { parseJsonResponse } from './registry/shared';
 import {
@@ -109,6 +109,8 @@ ${exp.locationRef?.role === 'environment' ? `\n${CAMERA_REF_RULE}` : ''}
 ---
 
 ${NEGATIVE_PROMPT_BLOCK}
+
+${SPOKEN_NUMBER_RULE}
 
 ---
 

@@ -3,6 +3,11 @@ import { countWords } from './jsonParser';
 import { checkPolicyCompliance, PolicyViolation } from './policyCheck';
 import { getValidLocationRefs, getSceneLocationRef, getCharacterRefFileName } from './locationRefs';
 
+// "X koma Y" (mis. "empat koma lima miliar") adalah bentuk tulisan, belibet diucapkan — lihat
+// SPOKEN_NUMBER_RULE di lib/negativePrompt.ts untuk aturan penuh yang dikirim ke AI. Deteksi ringan
+// ini hanya warning (bukan error), tidak ada auto-fix — beda dari checkPolicyCompliance.
+const SPOKEN_NUMBER_ISSUE_PATTERN = /\b(nol|satu|dua|tiga|empat|lima|enam|tujuh|delapan|sembilan)\s+koma\s+/i;
+
 // Status per-scene SELALU derived — tidak pernah disimpan ke JSON output/history. Dihitung ulang
 // dari videoJSON + form setiap kali dibutuhkan (badge Flagged/OK di SceneCard), supaya tetap akurat
 // walau scene sudah diregenerate/di-rephrase (Tugas 1 & 3) tanpa perlu sinkronisasi status manual.
@@ -34,6 +39,9 @@ export function getSceneIssuesMap(json: VideoJSON, form: FormData): Record<numbe
     }
     if (characterRefFileName && !(scene.ai_ready_prompt || '').includes(characterRefFileName)) {
       addIssue(scene.scene_number, `ai_ready_prompt tidak menyebut nama file foto karakter "${characterRefFileName}" — foto karakter mungkin diabaikan AI video tool.`);
+    }
+    if (scene.script_narration && SPOKEN_NUMBER_ISSUE_PATTERN.test(scene.script_narration)) {
+      addIssue(scene.scene_number, `Sebutan angka "X koma Y" sulit diucapkan — gunakan bentuk lisan (mis. "empat setengah miliar").`);
     }
   });
 

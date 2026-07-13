@@ -38,3 +38,12 @@ AI video tool menghalusinasi ulang struktur bangunan sehingga tidak match foto r
 slow push-in, gentle orbit, atau steady gimbal untuk camera_direction scene ini. Whip-pan tetap boleh
 dipakai khusus di field transition_to_next menuju scene berikutnya, bukan sebagai gerakan utama scene
 itu sendiri.`;
+
+// Aturan pengucapan angka dalam narasi — TEMUAN LAPANGAN: "empat koma lima miliar" adalah bentuk
+// tulisan, belibet diucapkan; bentuk lisan natural = "empat setengah miliar". Dipanggil dari
+// masterPrompt.ts (generate awal), sceneRegen.ts (regenerate per-scene), dan autoRephrase.ts
+// (rewrite policy). JANGAN copy-paste teks ini.
+export const SPOKEN_NUMBER_RULE = `ANGKA DALAM NARASI WAJIB bentuk ucapan paling natural: "empat setengah miliar" BUKAN "empat koma
+lima miliar"; "dua ratus lima puluh lima meter" BUKAN "dua lima lima meter"; HINDARI kata "koma"
+dalam menyebut angka kecuali benar-benar tak terhindarkan; harga dibulatkan ke bentuk lisan (mis.
+"sembilan ratus ribuan" untuk Rp 949.000 kalau konteksnya santai).`;

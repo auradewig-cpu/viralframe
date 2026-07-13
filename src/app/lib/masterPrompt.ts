@@ -2,7 +2,7 @@ import { FormData } from '../types';
 import { getLipsyncSpec } from './lipsync';
 import { NICHE_DATA, AI_TOOL_FORMAT, PLATFORM_BEHAVIOR, AI_TOOLS, EXPRESSIONS, VISUAL_STYLES, BACKSOUNDS, NARRATIVE_TONES } from './maps';
 import { CONTENT_STYLES } from './contentStyles';
-import { NEGATIVE_PROMPT_BLOCK, CAMERA_REF_RULE } from './negativePrompt';
+import { NEGATIVE_PROMPT_BLOCK, CAMERA_REF_RULE, SPOKEN_NUMBER_RULE } from './negativePrompt';
 import {
   getValidLocationRefs, getSceneLocationRef, buildReferenceImageJson, buildBindingSentence, sanitizeRefText,
   buildPromptHintsSentence, buildCharacterBindingSentence,
@@ -232,6 +232,7 @@ Tulis narasi seolah diucapkan oleh presenter/talent yang SUPEL, PERCAYA DIRI, de
 - HINDARI gugus konsonan sulit berturut-turut dalam satu frasa pendek.
 - TARGET JUMLAH KATA: setiap script_narration WAJIB mendekati max_words yang tertera di tabel LIPSYNC PER SCENE di atas — target MINIMAL 85% dari max_words (bukan asal jauh di bawahnya).${form.hookType === 'visual_shock' ? ' PENGECUALIAN: Scene 1 memakai hook Visual Shock (tanpa narasi) — script_narration Scene 1 boleh kosong atau sangat pendek (0–5 kata), dampak hook sepenuhnya dari visual + sound design.' : ''} Kalimat yang terlalu pendek dibanding durasi scene membuat pacing terasa aneh (talent harus memperlambat ucapan tidak natural, atau ada jeda kosong). JANGAN melebihi max_words, tapi JUGA JANGAN terlalu jauh di bawahnya — isi ruang bicara yang tersedia dengan konten yang relevan (detail produk tambahan, penekanan USP, transisi kalimat) alih-alih memotong terlalu pendek.
 - Sebelum submit, HITUNG jumlah kata script_narration dan pastikan berada di rentang 85%–100% dari max_words scene tersebut.
+- ${SPOKEN_NUMBER_RULE}
 
 KARAKTER:
 ${characterBlock}

@@ -1,6 +1,6 @@
 import { FormData, VideoJSON, SceneData } from '../types';
 import { PolicyViolation, checkPolicyCompliance } from './policyCheck';
-import { NEGATIVE_PROMPT_BLOCK, CAMERA_REF_RULE } from './negativePrompt';
+import { NEGATIVE_PROMPT_BLOCK, CAMERA_REF_RULE, SPOKEN_NUMBER_RULE } from './negativePrompt';
 import { ValidationResult } from './jsonParser';
 import { validateSceneData, getSceneRegenExpectation, SceneRegenExpectation } from './sceneRegen';
 import { parseJsonResponse } from './registry/shared';
@@ -41,8 +41,11 @@ ${exp.characterBindingSentence ? `- ai_ready_prompt: jika diubah, WAJIB tetap me
   (${exp.maxWords}) TIDAK BOLEH berubah.
 - Field lain yang TIDAK disebutkan di daftar pelanggaran WAJIB disalin apa adanya, tanpa perubahan.
 ${exp.locationRef?.role === 'environment' ? `- Kalau camera_direction ikut ditulis ulang, tetap patuhi aturan kamera scene ber-referensi lokasi (lihat blok di bawah).` : ''}
+- Kalau script_narration ikut ditulis ulang, tetap patuhi aturan pengucapan angka (lihat blok di bawah).
 
 ${NEGATIVE_PROMPT_BLOCK}
+
+${SPOKEN_NUMBER_RULE}
 ${exp.locationRef?.role === 'environment' ? `\n${CAMERA_REF_RULE}` : ''}
 
 [SCENE JSON LENGKAP YANG HARUS DIPERBAIKI]
