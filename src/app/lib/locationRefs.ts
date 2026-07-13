@@ -1,4 +1,5 @@
 import { FormData, LocationRef } from '../types';
+import { getRoomIdentity } from './roomIdentities';
 
 // Resolusi Multi-Reference Image berbasis TEKS (short_video saja) — dipakai masterPrompt.ts,
 // sceneRegen.ts, jsonParser.ts, sceneStatus.ts, dan Step3Creative.tsx supaya logic role/matching
@@ -8,6 +9,7 @@ export type LocationRefRole = 'environment' | 'product';
 
 export interface ResolvedLocationRef {
   file: string;
+  identity: string;
   keterangan: string;
   sceneNumber: number | null;
   role: LocationRefRole;
@@ -25,7 +27,7 @@ export function getEffectiveLocationRefs(form: FormData): ResolvedLocationRef[] 
   const raw: LocationRef[] = form.locationRefs.length > 0
     ? form.locationRefs
     : (form.referencePhotos.length > 0 && form.referenceImageFilename.trim()
-      ? [{ file: form.referenceImageFilename.trim(), keterangan: '', sceneNumber: null }]
+      ? [{ file: form.referenceImageFilename.trim(), identity: 'custom', keterangan: '', sceneNumber: null }]
       : []);
 
   return raw
@@ -70,4 +72,17 @@ export function buildBindingSentence(ref: ResolvedLocationRef): string {
   const ket = sanitizeRefText(ref.keterangan);
   const label = ref.role === 'environment' ? 'location' : 'product';
   return ket ? `${label} matches reference photo ${file}: ${ket}` : `${label} matches reference photo ${file}`;
+}
+
+// promptHints preset identitas ruangan (camera/lighting/caution) — diinject ke ai_ready_prompt/
+// camera_direction scene ybs, di atas aturan CAMERA_REF_RULE umum untuk scene environment.
+export function buildPromptHintsSentence(ref: ResolvedLocationRef): string {
+  const identity = getRoomIdentity(ref.identity);
+  if (!identity) return '';
+  const { camera, lighting, caution } = identity.promptHints;
+  const parts: string[] = [];
+  if (camera) parts.push(`camera: ${camera}`);
+  if (lighting) parts.push(`lighting: ${lighting}`);
+  if (caution) parts.push(`caution: ${caution}`);
+  return parts.join('; ');
 }
