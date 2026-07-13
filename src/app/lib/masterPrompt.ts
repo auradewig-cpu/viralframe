@@ -120,8 +120,12 @@ export function compileMasterPrompt(form: FormData, narrationWPM: number = 165):
   const hasEnvironmentRef = validLocationRefs.some(r => r.role === 'environment');
   const scene1LocationRef = getSceneLocationRef(validLocationRefs, 1);
   const scene1RefJson = scene1LocationRef ? buildReferenceImageJson(scene1LocationRef) : refImageJson;
-  const characterRefInstruction = (form.talentStyle === 'visible_character' && form.characterRefFile.trim())
-    ? `\nCHARACTER REFERENCE PHOTO: Character must match the attached reference photo "${sanitizeRefText(form.characterRefFile)}" exactly — same face, hair, and body type. CHARACTER ANCHOR STRING di atas TETAP menentukan detail deskriptif dan TETAP wajib jadi awalan setiap ai_ready_prompt; foto ini memperkuat konsistensi wajah, bukan menggantikan anchor.`
+  // UI menampilkan field ini untuk semua talentStyle !== 'product_only' — compiler harus meng-cover
+  // keduanya: visible_character (match wajah) dan faceless_pov (match tangan, wajah tidak tampil).
+  const characterRefInstruction = (form.talentStyle !== 'product_only' && form.characterRefFile.trim())
+    ? (isFacelessPov
+      ? `\nCHARACTER REFERENCE PHOTO: The hands in every scene must match the attached reference photo "${sanitizeRefText(form.characterRefFile)}" exactly — same hands, skin tone, nails, and accessories. No face visible. CHARACTER ANCHOR STRING di atas TETAP menentukan detail deskriptif dan TETAP wajib jadi awalan setiap ai_ready_prompt; foto ini memperkuat konsistensi tangan, bukan menggantikan anchor.`
+      : `\nCHARACTER REFERENCE PHOTO: Character must match the attached reference photo "${sanitizeRefText(form.characterRefFile)}" exactly — same face, hair, and body type. CHARACTER ANCHOR STRING di atas TETAP menentukan detail deskriptif dan TETAP wajib jadi awalan setiap ai_ready_prompt; foto ini memperkuat konsistensi wajah, bukan menggantikan anchor.`)
     : '';
 
   let langInstruction = '';
