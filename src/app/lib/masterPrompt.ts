@@ -92,7 +92,7 @@ export function compileMasterPrompt(form: FormData, narrationWPM: number = 165):
 
   const sceneDurationTable = durations.map((d, i) => {
     const spec = getLipsyncSpec(d, narrationWPM);
-    const type = effectiveStyle.getSceneRole(i, form.sceneCount);
+    const type = effectiveStyle.getSceneRole(i, form.sceneCount, form);
     return `Scene ${i + 1} [${type}]: ${d}s → maks ${spec.maxWords} kata (${spec.pace}) — ${spec.instruction}`;
   }).join('\n');
 
@@ -215,9 +215,9 @@ GAYA KONTEN: ${effectiveStyle.label} — ${effectiveStyle.description}
 STRUKTUR: ${effectiveStyle.structureDescription}
 GAYA BAHASA NARASI UNTUK GAYA KONTEN INI: ${effectiveStyle.narrativeVoiceGuidance}
 INTENSITAS CTA: ${effectiveStyle.ctaIntensity === 'hard' ? 'CTA WAJIB keras dan eksplisit di scene terakhir (ajakan bertindak jelas).' : effectiveStyle.ctaIntensity === 'soft' ? 'CTA HARUS lembut/tersirat (misal ajakan follow untuk konten berikutnya), BUKAN hard-selling.' : 'JANGAN ada CTA komersial sama sekali — akhiri secara natural sesuai gaya konten.'}
-PERAN TIAP SCENE: ${durations.map((_, i) => `Scene ${i + 1} = ${effectiveStyle.getSceneRole(i, form.sceneCount)}`).join(' · ')}
+PERAN TIAP SCENE: ${durations.map((_, i) => `Scene ${i + 1} = ${effectiveStyle.getSceneRole(i, form.sceneCount, form)}`).join(' · ')}
     HOOK TYPE: ${form.hookType === 'auto' ? 'AI bebas memilih teknik hook paling kuat sesuai niche & target audience.' : `WAJIB gunakan teknik hook "${form.hookType}" di Scene 1 — bangun SELURUH narasi & visual scene pembuka di sekitar teknik ini secara eksplisit, bukan cuma disinggung sekilas.`}
-    HOOK PACING (WAJIB, berlaku APAPUN total durasi Scene 1): Meskipun Scene 1 berdurasi ${durations[0]} detik penuh, inti hook (kejutan/klaim/pertanyaan/pain point) WAJIB tersampaikan TUNTAS dalam ${Math.min(5, durations[0])} DETIK PERTAMA narasi — sekitar ${getLipsyncSpec(Math.min(5, durations[0]), narrationWPM).maxWords} kata pertama dari script_narration. JANGAN menunda inti hook sampai pertengahan/akhir scene. Sisa durasi (${Math.max(0, durations[0] - Math.min(5, durations[0]))} detik terakhir, jika ada) boleh dipakai untuk transisi natural, elaborasi singkat, atau jembatan ke scene berikutnya — TAPI dampak/kejutan utama harus SUDAH tersampaikan di awal, bukan di bagian ini.
+    HOOK PACING (WAJIB, berlaku APAPUN total durasi Scene 1): Meskipun Scene 1 berdurasi ${durations[0]} detik penuh, inti hook (kejutan/klaim/pertanyaan/pain point) WAJIB tersampaikan TUNTAS dalam ${Math.min(5, durations[0])} DETIK PERTAMA narasi — sekitar ${getLipsyncSpec(Math.min(5, durations[0]), narrationWPM).maxWords} kata pertama dari script_narration. HOOK FRONT-LOADED: KALIMAT PERTAMA script_narration (bukan kalimat kedua/ketiga) HARUS langsung berisi inti hook — DILARANG membuka dengan basa-basi/sapaan ("Hari ini aku main ke...") lalu menaruh hook di kalimat berikutnya.${form.contentStyle === 'property_tour' ? ' KHUSUS PROPERTY TOUR (WAJIB KERAS): kalimat pertama harus berupa angka mengejutkan / pertanyaan / klaim menarik tentang properti (harga, lokasi, keunikan) — sapaan/konteks/teaser isi rumah baru boleh menyusul SETELAH hook tersampaikan.' : ''} JANGAN menunda inti hook sampai pertengahan/akhir scene. Sisa durasi (${Math.max(0, durations[0] - Math.min(5, durations[0]))} detik terakhir, jika ada) boleh dipakai untuk transisi natural, elaborasi singkat, atau jembatan ke scene berikutnya — TAPI dampak/kejutan utama harus SUDAH tersampaikan di awal, bukan di bagian ini.
 CTA TYPE: ${form.ctaType === 'auto' ? 'AI bebas memilih jenis CTA paling kuat sesuai niche & platform.' : `WAJIB gunakan jenis CTA "${form.ctaType}" di scene terakhir — bangun SELURUH narasi & visual scene penutup di sekitar CTA ini secara eksplisit.`}
 ${form.ctaType === 'comment_keyword' && form.ctaKeyword ? `CTA Keyword WAJIB dipakai persis: "${form.ctaKeyword}" — sertakan kata ini secara eksplisit di script_narration atau text_overlay scene CTA.` : ''}
 
@@ -240,6 +240,7 @@ ${hasRefPhotos ? `\nREFERENCE IMAGE INSTRUCTION: User mengupload ${form.referenc
 ${hasLocation ? `\nLOKASI YANG HARUS DIGUNAKAN: ${form.locationDescription}. Semua scene HARUS menampilkan lokasi/properti yang SAMA dari sudut pandang berbeda.` : ''}
 ${validLocationRefs.length > 0 ? `\nREFERENSI LOKASI/PRODUK PER SCENE (Multi-Reference Image, WAJIB DIPATUHI PERSIS — reference_image BOLEH BERBEDA antar scene, ikuti tabel ini per scene, JANGAN disalin rata dari satu scene ke scene lain):\n${sceneLocationRefTable}` : ''}
 ${hasEnvironmentRef ? `\n${CAMERA_REF_RULE}` : ''}
+${form.contentStyle === 'property_tour' ? `\nPROPERTY TOUR — SINKRONISASI URUTAN TUR: Urutan scene tur ruangan (Scene 2 s.d. Scene ${Math.max(2, form.sceneCount - 1)}) WAJIB mengikuti penugasan REFERENSI LOKASI/PRODUK PER SCENE di atas persis — 1 scene = 1 ruangan sesuai locationRefs, JANGAN acak urutannya. Tiap narasi ruangan WAJIB menyebut MINIMAL 1 fakta konkret dari PRODUK/LAYANAN atau keterangan foto di atas (luas, jumlah kamar, material) — bukan pujian kosong ("bagus banget", "keren abis") tanpa fakta. transition_to_next antar ruangan WAJIB bergaya walk-through berkelanjutan (whip-pan / walk-and-talk melewati pintu/lorong) supaya terasa satu kunjungan utuh, BUKAN cut terpisah-pisah.` : ''}
 
 GAYA VISUAL: ${form.visualStyle === 'auto' ? 'AI bebas menentukan gaya visual paling sesuai niche & platform.' : `WAJIB gunakan gaya visual "${VISUAL_STYLES.find(v => v.value === form.visualStyle)?.label || form.visualStyle}" di SETIAP scene tanpa kecuali — cerminkan gaya ini secara eksplisit dalam kalimat natural di visual_description, camera_direction, dan field "visual_style" pada global_style. JANGAN tulis ulang slug/kode teknis apapun ke output JSON.`}
 BACKSOUND: ${form.backsound === 'auto' ? 'AI bebas menentukan backsound/musik paling sesuai mood video.' : `WAJIB gunakan backsound/musik bergaya "${BACKSOUNDS.find(b => b.value === form.backsound)?.label || form.backsound}" — cerminkan dalam kalimat natural di field "music_direction" dan "sfx_palette" pada global_style. JANGAN tulis ulang slug/kode teknis apapun ke output JSON.`}
@@ -334,7 +335,7 @@ OUTPUT JSON SCHEMA:
     "camera_style_global": "string",
     "music_direction": "string dengan BPM dan mood — HARUS mencerminkan gaya: ${form.backsound === 'auto' ? 'sesuai pilihan AI' : (BACKSOUNDS.find(b => b.value === form.backsound)?.label || form.backsound)}",
     "sfx_palette": "string",
-    "overall_emotional_arc": "${effectiveStyle.getSceneRole(0, form.sceneCount)}: X → ... → ${effectiveStyle.getSceneRole(form.sceneCount - 1, form.sceneCount)}: Z (ikuti PERAN TIAP SCENE di Blok 3) — HARUS mencerminkan tone: ${form.narrativeTone === 'auto' ? 'sesuai pilihan AI' : (NARRATIVE_TONES.find(t => t.value === form.narrativeTone)?.label || form.narrativeTone)}",
+    "overall_emotional_arc": "${effectiveStyle.getSceneRole(0, form.sceneCount, form)}: X → ... → ${effectiveStyle.getSceneRole(form.sceneCount - 1, form.sceneCount, form)}: Z (ikuti PERAN TIAP SCENE di Blok 3) — HARUS mencerminkan tone: ${form.narrativeTone === 'auto' ? 'sesuai pilihan AI' : (NARRATIVE_TONES.find(t => t.value === form.narrativeTone)?.label || form.narrativeTone)}",
     "subtitle_style": "string — HARUS: ${form.subtitleStyle && form.subtitleStyle !== 'None' ? form.subtitleStyle : 'AI bebas tentukan atau none'}",
     "font_overlay_style": "string"
   },
@@ -347,7 +348,7 @@ OUTPUT JSON SCHEMA:
   "scenes": [
     {
       "scene_number": 1,
-      "scene_type": "${effectiveStyle.getSceneRole(0, form.sceneCount).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')}",
+      "scene_type": "${effectiveStyle.getSceneRole(0, form.sceneCount, form).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')}",
       "duration_seconds": ${durations[0]},
       "max_words": ${getLipsyncSpec(durations[0], narrationWPM).maxWords},
       "speech_pace": "${getLipsyncSpec(durations[0], narrationWPM).pace}",
@@ -367,7 +368,7 @@ OUTPUT JSON SCHEMA:
       "cliffhanger_to_next": "string",
       "reference_image": ${scene1RefJson}
     }
-    // ... repeat for all ${form.sceneCount} scenes, scene_type sesuai PERAN TIAP SCENE di atas (contoh scene terakhir: "${effectiveStyle.getSceneRole(form.sceneCount - 1, form.sceneCount).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')}")
+    // ... repeat for all ${form.sceneCount} scenes, scene_type sesuai PERAN TIAP SCENE di atas (contoh scene terakhir: "${effectiveStyle.getSceneRole(form.sceneCount - 1, form.sceneCount, form).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')}")
     // "reference_image" contoh di atas HANYA untuk scene 1 — kalau ada REFERENSI LOKASI/PRODUK PER SCENE
     // di Blok 3, reference_image WAJIB BERBEDA per scene mengikuti tabel itu persis (JANGAN disalin rata
     // ke semua scene). Kalau tidak ada tabel itu (hanya referencePhotos upload lama atau tidak ada
