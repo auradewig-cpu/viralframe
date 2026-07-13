@@ -71,12 +71,13 @@ interface AppState {
   removeTemplate: (id: string) => void;
   getPresetTemplates: () => Template[];
 
-  // Preview foto Referensi Visual (Step1Business) — key = nama file, value = blob URL dari
-  // URL.createObjectURL. NON-persist dengan sengaja (blob URL mati begitu tab ditutup/reload) —
-  // lihat partialize di bawah. Foto TIDAK pernah disimpan base64/localStorage di jalur ini.
-  referenceObjectUrls: Record<string, string>;
-  setReferenceObjectUrl: (file: string, url: string) => void;
-  removeReferenceObjectUrl: (file: string) => void;
+  // Preview + blob foto Referensi Visual (Step1Business) — key = sourceName (nama file ASLI upload,
+  // permanen, lihat LocationRef.sourceName). NON-persist dengan sengaja (blob URL mati begitu tab
+  // ditutup/reload) — lihat partialize di bawah. Foto TIDAK pernah disimpan base64/localStorage di
+  // jalur ini. blob disimpan (bukan cuma url) supaya bisa di-ZIP langsung oleh Download Bahan.
+  referenceFiles: Record<string, { url: string; blob: Blob }>;
+  setReferenceFile: (sourceName: string, url: string, blob: Blob) => void;
+  removeReferenceFile: (sourceName: string) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -151,14 +152,14 @@ export const useAppStore = create<AppState>()(
       removeTemplate: (id) => set((s) => ({ customTemplates: s.customTemplates.filter(t => t.id !== id) })),
       getPresetTemplates: () => PRESET_TEMPLATES as Template[],
 
-      referenceObjectUrls: {},
-      setReferenceObjectUrl: (file, url) => set((s) => ({ referenceObjectUrls: { ...s.referenceObjectUrls, [file]: url } })),
-      removeReferenceObjectUrl: (file) => set((s) => {
-        const url = s.referenceObjectUrls[file];
-        if (url) URL.revokeObjectURL(url);
-        const rest = { ...s.referenceObjectUrls };
-        delete rest[file];
-        return { referenceObjectUrls: rest };
+      referenceFiles: {},
+      setReferenceFile: (sourceName, url, blob) => set((s) => ({ referenceFiles: { ...s.referenceFiles, [sourceName]: { url, blob } } })),
+      removeReferenceFile: (sourceName) => set((s) => {
+        const entry = s.referenceFiles[sourceName];
+        if (entry) URL.revokeObjectURL(entry.url);
+        const rest = { ...s.referenceFiles };
+        delete rest[sourceName];
+        return { referenceFiles: rest };
       }),
     }),
     {

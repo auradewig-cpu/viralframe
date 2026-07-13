@@ -13,6 +13,10 @@ export interface LocationRef {
   identity: string;
   keterangan: string;
   sceneNumber: number | null; // null = "Semua scene"
+  // Nama file ASLI upload — TIDAK PERNAH berubah, kunci permanen ke store.referenceFiles (blob/preview
+  // sesi). undefined = entry manual (diketik user, tidak pernah di-rename otomatis). Lihat
+  // lib/canonicalRefNames.ts untuk aturan rename `file` jadi nama kanonik saat identity/scene berubah.
+  sourceName?: string;
 }
 
 export interface FormData {
@@ -72,6 +76,9 @@ export interface FormData {
   // Multi-Reference Image berbasis TEKS (short_video saja) — nama file + keterangan yang disebut
   // user di AI video tool, BUKAN upload. Lihat lib/locationRefs.ts untuk resolusi & derive role.
   characterRefFile: string;
+  // Nama file ASLI upload untuk characterRefFile — pasangan sourceName di LocationRef, dipakai
+  // lib/canonicalRefNames.ts. '' = characterRefFile diketik manual (tidak pernah di-rename otomatis).
+  characterRefSourceName: string;
   locationRefs: LocationRef[];
 
   // YouTube Long Form — hanya dipakai content type 'youtube_long'
@@ -265,6 +272,7 @@ export const DEFAULT_FORM: FormData = {
   referenceImageFilename: '',
   locationDescription: '',
   characterRefFile: '',
+  characterRefSourceName: '',
   locationRefs: [],
   targetDurationMinutes: 10,
   chapterCount: 5,
