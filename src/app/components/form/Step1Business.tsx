@@ -249,11 +249,16 @@ export function Step1Business() {
     });
   };
 
-  // Scene tertinggi yang ditugaskan di antara SEMUA entry — dasar saran & tombol "Set jumlah scene".
+  // Scene tertinggi yang ditugaskan di antara SEMUA entry — dasar banner & tombol "Set jumlah scene".
   const assignedSceneNumbers = formData.locationRefs.filter(r => r.sceneNumber !== null).map(r => r.sceneNumber as number);
   const maxAssignedScene = assignedSceneNumbers.length > 0 ? Math.max(...assignedSceneNumbers) : null;
-  const suggestedSceneCount = maxAssignedScene !== null && maxAssignedScene > formData.sceneCount ? maxAssignedScene : null;
   const setSceneCountTo = (n: number) => setFormData({ sceneCount: Math.max(2, Math.min(20, n)), sceneDurations: [] });
+
+  // Scene di luar jumlah scene saat ini tapi masih <=20 → resolvable sekali klik (naikkan sceneCount).
+  // >20 (di luar batas maksimal aplikasi) → TIDAK bisa diselesaikan satu klik, tetap tampil merah per-kartu.
+  const outOfRangeRefs = formData.locationRefs.filter(r => r.sceneNumber !== null && (r.sceneNumber as number) > formData.sceneCount);
+  const resolvableOutOfRangeCount = outOfRangeRefs.filter(r => (r.sceneNumber as number) <= 20).length;
+  const resolveSceneCountTarget = maxAssignedScene !== null ? Math.min(maxAssignedScene, 20) : null;
 
   // Duplikat penugasan scene — 2+ entry menunjuk scene sama, hanya yang pertama (index terkecil)
   // yang benar-benar dipakai binding (lihat lib/locationRefs.ts getSceneLocationRef).
@@ -429,6 +434,19 @@ export function Step1Business() {
           {swapNotice && (
             <p className="text-xs mt-2" style={{ color: 'var(--vf-accent-primary)' }}>ℹ️ {swapNotice}</p>
           )}
+          {resolvableOutOfRangeCount > 0 && resolveSceneCountTarget !== null && (
+            <div className="mt-2 p-3 rounded-lg text-xs flex flex-wrap items-center justify-between gap-2" style={{ background: 'rgba(245,158,11,0.1)', color: 'var(--vf-accent-warning)' }}>
+              <span>⚠️ {resolvableOutOfRangeCount} foto menunjuk scene di luar jumlah scene saat ini ({formData.sceneCount}).</span>
+              <button
+                type="button"
+                onClick={() => setSceneCountTo(resolveSceneCountTarget)}
+                className="px-2.5 py-1 rounded-md font-medium shrink-0"
+                style={{ background: 'var(--vf-accent-warning)', color: 'white' }}
+              >
+                Set jumlah scene ke {resolveSceneCountTarget}
+              </button>
+            </div>
+          )}
 
           {hasVisualRefs && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
@@ -532,6 +550,15 @@ export function Step1Business() {
                               className="w-20 px-2 py-1.5 rounded-lg text-sm outline-none disabled:opacity-50"
                               style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-text-primary)', border: '1px solid var(--vf-border)' }}
                             />
+                            {isInvalid && (
+                              <span
+                                className="text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
+                                style={{ background: 'rgba(245,158,11,0.15)', color: 'var(--vf-accent-warning)' }}
+                                title={`Scene ${ref.sceneNumber} tidak ada — jumlah scene sekarang ${formData.sceneCount}`}
+                              >
+                                Scene {ref.sceneNumber} ⚠
+                              </span>
+                            )}
                           </div>
                         </div>
                         {!hasBlob && (
@@ -550,22 +577,10 @@ export function Step1Business() {
                         <X size={14} />
                       </button>
                     </div>
-                    {isInvalid && (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-xs" style={{ color: 'var(--vf-accent-danger)' }}>
-                          ⚠️ Scene {ref.sceneNumber} tidak ada — jumlah scene sekarang {formData.sceneCount}. Baris ini akan diabaikan saat generate.
-                        </p>
-                        {maxAssignedScene !== null && (
-                          <button
-                            type="button"
-                            onClick={() => setSceneCountTo(maxAssignedScene)}
-                            className="text-xs px-2 py-1 rounded-md font-medium shrink-0"
-                            style={{ background: 'var(--vf-accent-primary)', color: 'white' }}
-                          >
-                            Set jumlah scene ke {maxAssignedScene}
-                          </button>
-                        )}
-                      </div>
+                    {isInvalid && (ref.sceneNumber as number) > 20 && (
+                      <p className="text-xs" style={{ color: 'var(--vf-accent-danger)' }}>
+                        ⚠️ Scene {ref.sceneNumber} di luar batas maksimal (20) — tidak bisa diperbaiki otomatis, ubah nomor scene-nya. Baris ini akan diabaikan saat generate.
+                      </p>
                     )}
                     {isDuplicateScene && (
                       <p className="text-xs" style={{ color: 'var(--vf-accent-warning)' }}>
@@ -600,20 +615,6 @@ export function Step1Business() {
           </div>
           {downloadNotice && (
             <p className="text-xs mt-2" style={{ color: 'var(--vf-accent-success)' }}>✅ {downloadNotice}</p>
-          )}
-
-          {suggestedSceneCount && (
-            <div className="mt-3 p-3 rounded-lg text-xs flex flex-wrap items-center justify-between gap-2" style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--vf-accent-primary)' }}>
-              <span>💡 Kamu punya foto sampai Scene {suggestedSceneCount} — set jumlah scene jadi {suggestedSceneCount}?</span>
-              <button
-                type="button"
-                onClick={() => setSceneCountTo(suggestedSceneCount)}
-                className="px-2.5 py-1 rounded-md font-medium shrink-0"
-                style={{ background: 'var(--vf-accent-primary)', color: 'white' }}
-              >
-                Set ke {suggestedSceneCount}
-              </button>
-            </div>
           )}
 
           {unidentifiedCount > 0 && (
