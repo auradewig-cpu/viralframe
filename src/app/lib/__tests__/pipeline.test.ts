@@ -52,6 +52,8 @@ describe('buildShortVideoPrefillFromCalendarPost', () => {
     expect(result.pipelineBrief).toContain('HOOK IDEA: Ekspresi terkejut');
     expect(result.pipelineBrief).toContain('CAPTION DRAFT: Produk ini...');
     expect(result.pipelineBrief).toContain('TIME SUGGESTION: 08:00 WIB');
+    expect(result.pipelineSource).toContain('Kalender Konten');
+    expect(result.pipelineSource).toContain('Review Produk X');
     expect(result.platforms).toEqual(['tiktok']);
     expect(result.ratio).toBe('9:16');
     expect(result.niche).toBe('fashion_beauty');
@@ -103,12 +105,23 @@ describe('buildShortVideoPrefillFromCalendarPost', () => {
   });
 });
 
+describe('clear pipeline', () => {
+  it('mengosongkan pipelineBrief dan pipelineSource bersamaan', () => {
+    const form = makeForm({ pipelineBrief: 'some brief', pipelineSource: 'some source' });
+    const cleared = { ...form, pipelineBrief: '', pipelineSource: '' };
+    expect(cleared.pipelineBrief).toBe('');
+    expect(cleared.pipelineSource).toBe('');
+  });
+});
+
 describe('buildThumbnailPrefillFromYoutube', () => {
   it('menyimpan chosenTitle sebagai thumbnailTopic', () => {
     const form = makeForm({ niche: 'education_course', targetAudience: ['student'] });
     const json = makeYoutubeJSON();
     const result = buildThumbnailPrefillFromYoutube(form, json, 'Judul Alternatif 1');
     expect(result.thumbnailTopic).toBe('Judul Alternatif 1');
+    expect(result.pipelineSource).toContain('YouTube Long:');
+    expect(result.pipelineSource).toContain('Judul Alternatif 1');
   });
 
   it('membawa niche dan targetAudience dari form', () => {
@@ -117,6 +130,7 @@ describe('buildThumbnailPrefillFromYoutube', () => {
     const result = buildThumbnailPrefillFromYoutube(form, json, 'Judul Utama');
     expect(result.niche).toBe('food_beverage');
     expect(result.targetAudience).toEqual(['millennial', 'female']);
+    expect(result.pipelineSource).toContain('YouTube Long: Judul Utama');
   });
 
   it('field lain tidak tersentuh', () => {

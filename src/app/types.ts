@@ -101,6 +101,7 @@ export interface FormData {
 
   // Pipeline
   pipelineBrief: string;
+  pipelineSource: string;
 
   // Mode
   mode: GenerateMode;
@@ -296,5 +297,6 @@ export const DEFAULT_FORM: FormData = {
   postsPerDay: 1,
   accountInsightText: '',
   pipelineBrief: '',
+  pipelineSource: '',
   mode: 'direct',
 };

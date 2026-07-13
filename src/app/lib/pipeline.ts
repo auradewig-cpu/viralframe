@@ -37,8 +37,10 @@ export function buildShortVideoPrefillFromCalendarPost(
     `TIME SUGGESTION: ${post.time_suggestion}`,
   ].join('\n');
 
+  const platformLabel = PLATFORMS.find(p => p.value === platform)?.label || calendarPlatform;
   return {
     pipelineBrief,
+    pipelineSource: `Kalender Konten — Hari ${dayNumber}, ${platformLabel}: ${post.topic}`,
     platforms: validPlatform ? [validPlatform.value] : [],
     ratio,
     niche: form.niche,
@@ -55,6 +57,7 @@ export function buildThumbnailPrefillFromYoutube(
 ): Partial<FormData> {
   return {
     thumbnailTopic: chosenTitle,
+    pipelineSource: `YouTube Long: ${chosenTitle}`,
     niche: form.niche,
     targetAudience: form.targetAudience,
   };

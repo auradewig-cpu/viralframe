@@ -239,7 +239,7 @@ function ContentCalendarForm() {
 // ==================== RENDERER ====================
 
 function PostCard({ post, calendarPlatform, dayNumber, onPipeline }: {
-  post: CalendarPost; calendarPlatform?: string; dayNumber?: number; onPipeline?: (post: CalendarPost) => void;
+  post: CalendarPost; calendarPlatform?: string; dayNumber?: number; onPipeline?: (post: CalendarPost, dayNumber: number) => void;
 }) {
   return (
     <div className="p-3 rounded-lg space-y-1" style={{ background: 'var(--vf-bg-secondary)' }}>
@@ -257,7 +257,7 @@ function PostCard({ post, calendarPlatform, dayNumber, onPipeline }: {
       {post.format === 'video' && onPipeline && (
         <button
           type="button"
-          onClick={() => onPipeline(post)}
+          onClick={() => onPipeline(post, dayNumber || 0)}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs mt-1 transition-all hover:opacity-90"
           style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--vf-accent-primary)', border: '1px solid var(--vf-accent-primary)' }}
         >
@@ -269,7 +269,7 @@ function PostCard({ post, calendarPlatform, dayNumber, onPipeline }: {
 }
 
 function DayCard({ day, calendarPlatform, onPipeline }: {
-  day: CalendarDay; calendarPlatform?: string; onPipeline?: (post: CalendarPost) => void;
+  day: CalendarDay; calendarPlatform?: string; onPipeline?: (post: CalendarPost, dayNumber: number) => void;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -288,7 +288,7 @@ function DayCard({ day, calendarPlatform, onPipeline }: {
 }
 
 function ContentCalendarOutput({ data, calendarPlatform, onPipeline }: {
-  data: ContentCalendarJSON; calendarPlatform?: string; onPipeline?: (post: CalendarPost) => void;
+  data: ContentCalendarJSON; calendarPlatform?: string; onPipeline?: (post: CalendarPost, dayNumber: number) => void;
 }) {
   const exportAll = () => {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -325,15 +325,16 @@ function ContentCalendarDirectRenderer({ data, form, onRegenerate, onEdit }: Dir
   const setActiveContentTypeId = useAppStore(s => s.setActiveContentTypeId);
   const loadFormData = useAppStore(s => s.loadFormData);
   const setCurrentStep = useAppStore(s => s.setCurrentStep);
-  const [confirmPost, setConfirmPost] = useState<CalendarPost | null>(null);
+  const [confirmPost, setConfirmPost] = useState<{ post: CalendarPost; dayNumber: number } | null>(null);
 
-  const handlePipeline = (post: CalendarPost) => {
-    setConfirmPost(post);
+  const handlePipeline = (post: CalendarPost, dayNumber: number) => {
+    setConfirmPost({ post, dayNumber });
   };
 
   const confirmPipeline = () => {
     if (!confirmPost) return;
-    const prefill = buildShortVideoPrefillFromCalendarPost(form, confirmPost, form.calendarPlatform, 0);
+    const { post, dayNumber } = confirmPost;
+    const prefill = buildShortVideoPrefillFromCalendarPost(form, post, form.calendarPlatform, dayNumber);
     loadFormData({ ...form, ...prefill });
     setActiveContentTypeId('short_video');
     setCurrentStep(1);

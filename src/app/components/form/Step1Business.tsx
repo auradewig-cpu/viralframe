@@ -311,8 +311,45 @@ export function Step1Business() {
     setTimeout(() => setDownloadNotice(null), 6000);
   };
 
+  const clearPipeline = () => setFormData({ pipelineBrief: '', pipelineSource: '' });
+  const [briefOpen, setBriefOpen] = useState(false);
+
   return (
     <div className="space-y-6">
+      {formData.pipelineBrief && (
+        <div className="p-4 rounded-xl" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid var(--vf-accent-primary)' }}>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1">
+              <p className="text-xs font-medium" style={{ color: 'var(--vf-accent-primary)' }}>📋 Brief dari pipeline aktif</p>
+              {formData.pipelineSource && (
+                <p className="text-xs mt-0.5" style={{ color: 'var(--vf-text-muted)' }}>Sumber: {formData.pipelineSource}</p>
+              )}
+              <button
+                type="button"
+                onClick={() => setBriefOpen(!briefOpen)}
+                className="text-xs mt-1"
+                style={{ color: 'var(--vf-accent-primary)' }}
+              >
+                {briefOpen ? '▲ Sembunyikan brief' : '▼ Lihat brief'}
+              </button>
+              {briefOpen && (
+                <pre className="text-xs mt-2 p-2 rounded whitespace-pre-wrap font-sans" style={{ background: 'var(--vf-bg-secondary)', color: 'var(--vf-text-secondary)' }}>
+                  {formData.pipelineBrief}
+                </pre>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={clearPipeline}
+              className="p-1.5 rounded-lg shrink-0"
+              style={{ color: 'var(--vf-accent-danger)' }}
+              title="Hapus brief pipeline"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
       {formSections.includes('business_context') && (
       <FormCard title="🏢 Konteks Bisnis">
         <div>
