@@ -3,7 +3,7 @@ import { Copy, Check, Download, CheckCircle, XCircle, AlertCircle } from 'lucide
 import Prism from 'prismjs';
 import 'prismjs/components/prism-json';
 import 'prismjs/themes/prism-tomorrow.css';
-import { VideoJSON } from '../../types';
+import { VideoJSON, FormData } from '../../types';
 import { parseAiResponse, validateVideoJSON } from '../../lib/jsonParser';
 import { applySceneTypeSlugs, getSceneRoleLabel } from '../../lib/contentStyles';
 import { checkPolicyCompliance, formatPolicyViolations } from '../../lib/policyCheck';
@@ -17,6 +17,9 @@ interface ManualPanelProps {
   onJsonValidated: (json: VideoJSON) => void;
   referencePhotos?: string[];
   captionVariationCount?: number;
+  // Opsional — kalau tersedia, dipakai supaya scene_type property_tour ("tour_<identitas>") konsisten
+  // dengan Direct mode (lihat lib/contentStyles.ts). Tanpa ini, fallback ke slug generik.
+  form?: FormData;
 }
 
 function CopyButton({ text, label }: { text: string; label: string }) {
@@ -33,7 +36,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   );
 }
 
-export function ManualPanel({ masterPrompt, sceneCount, aiTool, contentStyle = 'direct_response', onJsonValidated, referencePhotos, captionVariationCount = 1 }: ManualPanelProps) {
+export function ManualPanel({ masterPrompt, sceneCount, aiTool, contentStyle = 'direct_response', onJsonValidated, referencePhotos, captionVariationCount = 1, form }: ManualPanelProps) {
   const [tab, setTab] = useState<'prompt' | 'inspect' | 'brief' | 'validate'>('prompt');
   const [pastedJson, setPastedJson] = useState('');
   const [validationResult, setValidationResult] = useState<{ valid: boolean; errors: string[]; warnings: string[]; json: VideoJSON | null } | null>(null);
@@ -56,7 +59,7 @@ export function ManualPanel({ masterPrompt, sceneCount, aiTool, contentStyle = '
     }
     // Sanitasi scene_type juga di Manual mode — nama folder ZIP dibangun dari field ini.
     if (json.scenes && Array.isArray(json.scenes)) {
-      applySceneTypeSlugs(json.scenes, contentStyle);
+      applySceneTypeSlugs(json.scenes, contentStyle, form);
     }
     const result = validateVideoJSON(json, sceneCount, captionVariationCount, aiTool);
     const policyMsgs = formatPolicyViolations(checkPolicyCompliance(json));

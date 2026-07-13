@@ -24,6 +24,7 @@ function ShortVideoManualRenderer({ masterPrompt, form, onValidated }: ManualRen
       onJsonValidated={onValidated}
       referencePhotos={form.referencePhotos}
       captionVariationCount={form.captionVariationCount}
+      form={form}
     />
   );
 }
