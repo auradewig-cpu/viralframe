@@ -1,6 +1,9 @@
+import { useState } from 'react';
+import { Image } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { FormData } from '../../types';
 import { NICHES, TARGET_AUDIENCES, AI_TOOLS, LANGUAGES, CONTENT_GOALS } from '../maps';
+import { buildThumbnailPrefillFromYoutube } from '../../lib/pipeline';
 import { FieldLabel, FormCard, SelectField, TextareaField, InputField, NumberInput, TagsInput } from '../../components/form/FormFields';
 import { parseJsonResponse, scanTextsForPolicyViolations, POLICY_COMPLIANCE_BLOCK, contentGoalInstructionBlock } from './shared';
 import { OutputToolbar, GenericManualPanel, CopyButton } from './sharedUI';
@@ -288,7 +291,7 @@ function SegmentCard({ segment }: { segment: YoutubeSegment }) {
   );
 }
 
-function YoutubeLongOutput({ data }: { data: YoutubeLongJSON }) {
+function YoutubeLongOutput({ data, onPipeline }: { data: YoutubeLongJSON; onPipeline?: () => void }) {
   return (
     <div className="space-y-4">
       <div className="rounded-xl p-4 space-y-2" style={{ background: 'var(--vf-bg-elevated)', border: '1px solid var(--vf-border)' }}>
@@ -296,6 +299,11 @@ function YoutubeLongOutput({ data }: { data: YoutubeLongJSON }) {
           <p key={i} className="text-sm font-medium" style={{ color: 'var(--vf-text-primary)' }}>📹 {t}</p>
         ))}
         <p className="text-xs" style={{ color: 'var(--vf-text-muted)' }}>{data.video_metadata.tags.join(', ')}</p>
+        {onPipeline && (
+          <button type="button" onClick={onPipeline} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs mt-1 transition-all hover:opacity-90" style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--vf-accent-primary)', border: '1px solid var(--vf-accent-primary)' }}>
+            <Image size={12} /> 🖼️ Buat Thumbnail-nya
+          </button>
+        )}
       </div>
       <div className="space-y-3">
         {data.segments.map((seg, i) => <SegmentCard key={i} segment={seg} />)}
@@ -304,11 +312,56 @@ function YoutubeLongOutput({ data }: { data: YoutubeLongJSON }) {
   );
 }
 
-function YoutubeLongDirectRenderer({ data, onRegenerate, onEdit }: DirectRendererProps<YoutubeLongJSON>) {
+function YoutubeLongDirectRenderer({ data, form, onRegenerate, onEdit }: DirectRendererProps<YoutubeLongJSON>) {
+  const setActiveContentTypeId = useAppStore(s => s.setActiveContentTypeId);
+  const loadFormData = useAppStore(s => s.loadFormData);
+  const setCurrentStep = useAppStore(s => s.setCurrentStep);
+  const [showPicker, setShowPicker] = useState(false);
+  const [selectedTitleIdx, setSelectedTitleIdx] = useState(0);
+  const [confirmTitle, setConfirmTitle] = useState(false);
+
+  const titles = data.video_metadata?.title_variants || [];
+
+  const handlePipeline = () => {
+    setShowPicker(true);
+    setSelectedTitleIdx(0);
+  };
+
+  const confirmPipeline = () => {
+    const chosen = titles[selectedTitleIdx] || titles[0] || 'Video tanpa judul';
+    const prefill = buildThumbnailPrefillFromYoutube(form, data, chosen);
+    loadFormData({ ...form, ...prefill });
+    setActiveContentTypeId('thumbnail_pack');
+    setCurrentStep(1);
+  };
+
   return (
     <div className="space-y-4">
+      {showPicker && (
+        <div className="p-4 rounded-xl" style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid var(--vf-accent-primary)' }}>
+          <p className="text-sm font-medium mb-2" style={{ color: 'var(--vf-text-primary)' }}>Pipeline ke Thumbnail Pack</p>
+          <p className="text-xs mb-2" style={{ color: 'var(--vf-text-secondary)' }}>Pilih judul yang akan jadi topik thumbnail:</p>
+          {titles.map((t, i) => (
+            <label key={i} className="flex items-center gap-2 py-1 cursor-pointer">
+              <input type="radio" checked={selectedTitleIdx === i} onChange={() => setSelectedTitleIdx(i)} className="accent-indigo-500" />
+              <span className="text-xs" style={{ color: 'var(--vf-text-primary)' }}>{t}</span>
+            </label>
+          ))}
+          <p className="text-xs mt-2 mb-3" style={{ color: 'var(--vf-text-secondary)' }}>
+            Form Thumbnail Pack akan diisi dari data ini — isian form sebelumnya akan tertimpa. Lanjut?
+          </p>
+          <div className="flex gap-2">
+            <button onClick={confirmPipeline} className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: 'var(--vf-accent-primary)', color: 'white' }}>
+              ✅ Lanjut ke Thumbnail Pack
+            </button>
+            <button onClick={() => setShowPicker(false)} className="px-3 py-1.5 rounded-lg text-xs" style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-text-secondary)', border: '1px solid var(--vf-border)' }}>
+              Batal
+            </button>
+          </div>
+        </div>
+      )}
       <OutputToolbar data={data} filename="viralframe-youtube-long.json" onRegenerate={onRegenerate} onEdit={onEdit} />
-      <YoutubeLongOutput data={data} />
+      <YoutubeLongOutput data={data} onPipeline={titles.length > 0 ? handlePipeline : undefined} />
     </div>
   );
 }
