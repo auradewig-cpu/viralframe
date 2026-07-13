@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Download } from 'lucide-react';
+import { ChevronDown, ChevronUp, Download, Video } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { FormData } from '../../types';
 import { NICHES, CONTENT_GOALS } from '../maps';
+import { buildShortVideoPrefillFromCalendarPost } from '../../lib/pipeline';
 import { FieldLabel, FormCard, SelectField, TextareaField, NumberInput } from '../../components/form/FormFields';
 import { parseJsonResponse, scanTextsForPolicyViolations, POLICY_COMPLIANCE_BLOCK, contentGoalInstructionBlock } from './shared';
 import { OutputToolbar, GenericManualPanel, CopyButton } from './sharedUI';
@@ -237,7 +238,9 @@ function ContentCalendarForm() {
 
 // ==================== RENDERER ====================
 
-function PostCard({ post }: { post: CalendarPost }) {
+function PostCard({ post, calendarPlatform, dayNumber, onPipeline }: {
+  post: CalendarPost; calendarPlatform?: string; dayNumber?: number; onPipeline?: (post: CalendarPost) => void;
+}) {
   return (
     <div className="p-3 rounded-lg space-y-1" style={{ background: 'var(--vf-bg-secondary)' }}>
       <div className="flex items-center justify-between">
@@ -251,11 +254,23 @@ function PostCard({ post }: { post: CalendarPost }) {
         <code className="text-xs flex-1" style={{ color: 'var(--vf-text-secondary)' }}>{post.production_prompt}</code>
         <CopyButton text={post.production_prompt} label="Copy" />
       </div>
+      {post.format === 'video' && onPipeline && (
+        <button
+          type="button"
+          onClick={() => onPipeline(post)}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs mt-1 transition-all hover:opacity-90"
+          style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--vf-accent-primary)', border: '1px solid var(--vf-accent-primary)' }}
+        >
+          <Video size={12} /> 🎬 Buat video ini
+        </button>
+      )}
     </div>
   );
 }
 
-function DayCard({ day }: { day: CalendarDay }) {
+function DayCard({ day, calendarPlatform, onPipeline }: {
+  day: CalendarDay; calendarPlatform?: string; onPipeline?: (post: CalendarPost) => void;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--vf-border)' }}>
@@ -265,14 +280,16 @@ function DayCard({ day }: { day: CalendarDay }) {
       </button>
       {open && (
         <div className="p-3 space-y-2" style={{ background: 'var(--vf-bg-elevated)' }}>
-          {day.posts.map((p, i) => <PostCard key={i} post={p} />)}
+          {day.posts.map((p, i) => <PostCard key={i} post={p} calendarPlatform={calendarPlatform} dayNumber={day.day_number} onPipeline={onPipeline} />)}
         </div>
       )}
     </div>
   );
 }
 
-function ContentCalendarOutput({ data }: { data: ContentCalendarJSON }) {
+function ContentCalendarOutput({ data, calendarPlatform, onPipeline }: {
+  data: ContentCalendarJSON; calendarPlatform?: string; onPipeline?: (post: CalendarPost) => void;
+}) {
   const exportAll = () => {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -292,7 +309,7 @@ function ContentCalendarOutput({ data }: { data: ContentCalendarJSON }) {
         </button>
       </div>
       <div className="space-y-2">
-        {data.days.map((d, i) => <DayCard key={i} day={d} />)}
+        {data.days.map((d, i) => <DayCard key={i} day={d} calendarPlatform={calendarPlatform} onPipeline={onPipeline} />)}
       </div>
       <div className="rounded-xl p-4" style={{ background: 'var(--vf-bg-elevated)', border: '1px solid var(--vf-border)' }}>
         <p className="text-xs font-semibold mb-2" style={{ color: 'var(--vf-text-secondary)' }}>✅ WEEKLY REVIEW CHECKLIST</p>
@@ -304,11 +321,44 @@ function ContentCalendarOutput({ data }: { data: ContentCalendarJSON }) {
   );
 }
 
-function ContentCalendarDirectRenderer({ data, onRegenerate, onEdit }: DirectRendererProps<ContentCalendarJSON>) {
+function ContentCalendarDirectRenderer({ data, form, onRegenerate, onEdit }: DirectRendererProps<ContentCalendarJSON>) {
+  const setActiveContentTypeId = useAppStore(s => s.setActiveContentTypeId);
+  const loadFormData = useAppStore(s => s.loadFormData);
+  const setCurrentStep = useAppStore(s => s.setCurrentStep);
+  const [confirmPost, setConfirmPost] = useState<CalendarPost | null>(null);
+
+  const handlePipeline = (post: CalendarPost) => {
+    setConfirmPost(post);
+  };
+
+  const confirmPipeline = () => {
+    if (!confirmPost) return;
+    const prefill = buildShortVideoPrefillFromCalendarPost(form, confirmPost, form.calendarPlatform, 0);
+    loadFormData({ ...form, ...prefill });
+    setActiveContentTypeId('short_video');
+    setCurrentStep(1);
+  };
+
   return (
     <div className="space-y-4">
+      {confirmPost && (
+        <div className="p-4 rounded-xl" style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid var(--vf-accent-primary)' }}>
+          <p className="text-sm font-medium mb-2" style={{ color: 'var(--vf-text-primary)' }}>Pipeline ke Short Video</p>
+          <p className="text-xs mb-3" style={{ color: 'var(--vf-text-secondary)' }}>
+            Form Short Video akan diisi dari slot ini — isian form sebelumnya akan tertimpa. Lanjut?
+          </p>
+          <div className="flex gap-2">
+            <button onClick={confirmPipeline} className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: 'var(--vf-accent-primary)', color: 'white' }}>
+              ✅ Lanjut ke Short Video
+            </button>
+            <button onClick={() => setConfirmPost(null)} className="px-3 py-1.5 rounded-lg text-xs" style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-text-secondary)', border: '1px solid var(--vf-border)' }}>
+              Batal
+            </button>
+          </div>
+        </div>
+      )}
       <OutputToolbar data={data} filename="viralframe-content-calendar.json" onRegenerate={onRegenerate} onEdit={onEdit} />
-      <ContentCalendarOutput data={data} />
+      <ContentCalendarOutput data={data} calendarPlatform={form.calendarPlatform} onPipeline={handlePipeline} />
     </div>
   );
 }
