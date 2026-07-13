@@ -5,6 +5,7 @@ import { CONTENT_STYLES } from './contentStyles';
 import { NEGATIVE_PROMPT_BLOCK, CAMERA_REF_RULE } from './negativePrompt';
 import {
   getValidLocationRefs, getSceneLocationRef, buildReferenceImageJson, buildBindingSentence, sanitizeRefText,
+  buildPromptHintsSentence,
 } from './locationRefs';
 
 function getSceneDurations(form: FormData): number[] {
@@ -113,7 +114,8 @@ export function compileMasterPrompt(form: FormData, narrationWPM: number = 165):
     const ref = getSceneLocationRef(validLocationRefs, sceneNum);
     if (!ref) return `Scene ${sceneNum}: reference_image = null (tidak ada foto referensi untuk scene ini).`;
     const label = ref.role === 'environment' ? 'lokasi' : 'produk';
-    return `Scene ${sceneNum}: reference_image WAJIB PERSIS ${buildReferenceImageJson(ref)} — ai_ready_prompt WAJIB sertakan kalimat singkat: "${buildBindingSentence(ref)}". Deskripsi ${label} HANYA boleh berasal dari keterangan ini + label scene, JANGAN mengarang detail generik di luar itu (contoh larangan eksplisit: "a modern luxury house").`;
+    const hints = buildPromptHintsSentence(ref);
+    return `Scene ${sceneNum}: reference_image WAJIB PERSIS ${buildReferenceImageJson(ref)} — ai_ready_prompt WAJIB sertakan kalimat singkat: "${buildBindingSentence(ref)}". Deskripsi ${label} HANYA boleh berasal dari keterangan ini + label scene, JANGAN mengarang detail generik di luar itu (contoh larangan eksplisit: "a modern luxury house").${hints ? ` Panduan tambahan untuk area ini (terapkan ke camera_direction/ai_ready_prompt scene ini): ${hints}.` : ''}`;
   }).join('\n');
   const hasEnvironmentRef = validLocationRefs.some(r => r.role === 'environment');
   const scene1LocationRef = getSceneLocationRef(validLocationRefs, 1);
