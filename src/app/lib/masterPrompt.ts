@@ -151,6 +151,7 @@ WAJIB DIPATUHI di SEMUA script_narration, ai_ready_prompt, text_overlay, dan cap
   if (form.textOverlay) advancedBlocks += `Sertakan text overlay per scene\n`;
   if (form.subtitleStyle !== 'None') advancedBlocks += `Subtitle style: ${form.subtitleStyle}\n`;
   if (hasLocation) advancedBlocks += `DESKRIPSI LOKASI/PROPERTI: ${form.locationDescription}\n`;
+  if (form.pipelineBrief) advancedBlocks += `\nBRIEF DARI PIPELINE (konteks perencanaan, WAJIB dijadikan dasar topik/hook/narasi):\n${form.pipelineBrief}\n`;
 
   return `=== VIRALFRAME MASTER PROMPT v4.1 ===
 INSTRUKSI KRITIS: Baca seluruh prompt ini sebelum mulai bekerja.

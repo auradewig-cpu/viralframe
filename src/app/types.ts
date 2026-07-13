@@ -99,6 +99,9 @@ export interface FormData {
   postsPerDay: number;
   accountInsightText: string;
 
+  // Pipeline
+  pipelineBrief: string;
+
   // Mode
   mode: GenerateMode;
 }
@@ -292,5 +295,6 @@ export const DEFAULT_FORM: FormData = {
   calendarDays: 7,
   postsPerDay: 1,
   accountInsightText: '',
+  pipelineBrief: '',
   mode: 'direct',
 };
