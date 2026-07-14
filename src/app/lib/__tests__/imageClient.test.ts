@@ -303,6 +303,90 @@ describe('generateImageWithFallback - Puter timeout', () => {
   });
 });
 
+// ── Fallback tanpa foto input saat Gemini gagal ────────────────
+
+describe('generateImageWithFallback - fallback tanpa foto input saat Gemini gagal', () => {
+  beforeEach(() => {
+    _resetPuterBreakerForTest();
+    vi.stubGlobal('fetch', vi.fn());
+    vi.stubGlobal('FileReader', class MockFileReader {
+      result: string | null = null;
+      onloadend: (() => void) | null = null;
+      readAsDataURL() {
+        this.result = 'data:image/png;base64,ZmFrZS1pbWFnZS1kYXRh';
+        if (this.onloadend) this.onloadend();
+      }
+    } as unknown as typeof FileReader);
+  });
+
+  it('inputImage ada, Gemini gagal QUOTA_EXCEEDED → onInputImageDropped dipanggil, fallback Pollinations berhasil', async () => {
+    const fakeBlob = new Blob(['fake-product'], { type: 'image/png' });
+    (globalThis.fetch as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ ok: false, status: 429 }) // Gemini — quota habis
+      .mockResolvedValueOnce({ ok: true, blob: async () => new Blob(['pollinations-fallback']) }); // Pollinations fallback
+
+    const onInputImageDropped = vi.fn();
+    const result = await generateImageWithFallback('test prompt', { ratio: '1:1', inputImage: fakeBlob }, {
+      geminiApiKey: 'test-key',
+      puterEnabled: false,
+      onInputImageDropped,
+    });
+
+    expect(onInputImageDropped).toHaveBeenCalledTimes(1);
+    expect(result).toBeInstanceOf(Blob);
+
+    const calls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[0][0]).toContain('generativelanguage.googleapis.com');
+    expect(calls[1][0]).toContain('pollinations');
+  });
+
+  it('inputImage TIDAK diberikan sejak awal → onInputImageDropped tidak pernah dipanggil (regresi)', async () => {
+    const geminiResponse = {
+      ok: true,
+      json: async () => ({
+        candidates: [{ content: { parts: [{ inlineData: { mimeType: 'image/png', data: btoa('gemini-image') } }] } }],
+      }),
+    };
+    (globalThis.fetch as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ ok: false, status: 500 }) // Pollinations gagal
+      .mockResolvedValueOnce(geminiResponse);             // Gemini sukses
+
+    const onInputImageDropped = vi.fn();
+    const result = await generateImageWithFallback('test', { ratio: '1:1' }, {
+      geminiApiKey: 'test-key',
+      puterEnabled: false,
+      onInputImageDropped,
+    });
+
+    expect(result).toBeInstanceOf(Blob);
+    expect(onInputImageDropped).not.toHaveBeenCalled();
+  });
+
+  it('inputImage ada, Gemini gagal DAN fallback Puter+Pollinations juga gagal semua → ALL_FAILED dengan pesan gabungan', async () => {
+    const fakeBlob = new Blob(['fake-product'], { type: 'image/png' });
+    (globalThis.fetch as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ ok: false, status: 429 }) // Gemini — quota habis
+      .mockResolvedValueOnce({ ok: false, status: 500 }); // Pollinations fallback gagal juga
+
+    const onInputImageDropped = vi.fn();
+    try {
+      await generateImageWithFallback('test prompt', { ratio: '1:1', inputImage: fakeBlob }, {
+        geminiApiKey: 'test-key',
+        puterEnabled: false,
+        onInputImageDropped,
+      });
+      expect.unreachable('should have thrown');
+    } catch (e) {
+      expect(e).toBeInstanceOf(ImageGenError);
+      expect((e as ImageGenError).code).toBe('ALL_FAILED');
+      expect((e as ImageGenError).message).toContain('Gemini');
+      expect((e as ImageGenError).message).toContain('Quota harian Gemini habis');
+      expect((e as ImageGenError).message).toContain('Provider cadangan');
+    }
+    expect(onInputImageDropped).toHaveBeenCalledTimes(1);
+  });
+});
+
 // ── Circuit breaker ────────────────────────────────────────────
 
 describe('generateImageWithFallback - circuit breaker', () => {
