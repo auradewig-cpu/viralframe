@@ -108,6 +108,10 @@ ${exp.locationRef
     : (scene.reference_image ? `WAJIB disalin verbatim persis seperti ini ke field "reference_image" scene baru:\n${JSON.stringify(scene.reference_image, null, 2)}` : 'Tidak ada reference_image di scene ini — field "reference_image" tetap null.')}
 ${exp.locationRef?.role === 'environment' ? `\n${CAMERA_REF_RULE}` : ''}
 
+${(exp.aiTool === 'google_flow' || exp.aiTool === 'veo3')
+    ? `[AUDIO/DIALOG — WAJIB untuk ${exp.aiTool}]\nSetelah deskripsi visual scene selesai, ai_ready_prompt WAJIB sisipkan dialog sebagai kalimat TERKUTIP LANGSUNG persis begini: [Subjek] says, "<script_narration WORD-FOR-WORD, SAMA PERSIS dengan field script_narration, JANGAN diterjemahkan/diparafrase>" (no subtitles). Ini konvensi RESMI Veo3 — model menyimpulkan bahasa ucapan dari ISI kalimat yang ditulis di dalam kutip, BUKAN dari label bahasa. PRIORITAS: dialog terkutip TIDAK BOLEH dipotong/disingkat demi charLimit — PERSINGKAT deskripsi visual/kamera secukupnya. Tutup dengan [${exp.durationSeconds}s, 9:16 vertical frame].`
+    : ''}
+
 ---
 
 ${NEGATIVE_PROMPT_BLOCK}
@@ -123,7 +127,7 @@ ${SPOKEN_NUMBER_RULE}
   "duration_seconds": ${exp.durationSeconds},
   "max_words": ${exp.maxWords},
   "speech_pace": "${scene.speech_pace}",
-  "ai_ready_prompt": "WAJIB diawali character_sheet verbatim (jika ada), max ${exp.charLimit} karakter",
+  "ai_ready_prompt": "WAJIB diawali character_sheet verbatim (jika ada), max ${exp.charLimit} karakter.${(exp.aiTool === 'google_flow' || exp.aiTool === 'veo3') ? ` WAJIB sisipkan dialog terkutip: [Subjek] says, \\"<script_narration verbatim>\\" (no subtitles).` : ''}",
   "script_narration": "narasi baru, maks ${exp.maxWords} kata, bahasa ${form.language}",
   "script_subtitle": ${scene.script_subtitle ? '"string atau null sesuai aturan bahasa video ini"' : 'null'},
   "script_word_count": 0,
