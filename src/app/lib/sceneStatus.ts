@@ -1,5 +1,5 @@
 import { VideoJSON, FormData } from '../types';
-import { countWords, hasDialogueTag, hasValidDialogueTagContent, hasTimingInTextOverlay } from './jsonParser';
+import { countWords, hasDialogueTag, hasValidDialogueTagContent, hasEmbeddedDialogue, hasTimingInTextOverlay } from './jsonParser';
 import { checkPolicyCompliance, PolicyViolation } from './policyCheck';
 import { getValidLocationRefs, getSceneLocationRef, getCharacterRefFileName } from './locationRefs';
 
@@ -40,7 +40,11 @@ export function getSceneIssuesMap(json: VideoJSON, form: FormData): Record<numbe
     if (characterRefFileName && !(scene.ai_ready_prompt || '').includes(characterRefFileName)) {
       addIssue(scene.scene_number, `ai_ready_prompt tidak menyebut nama file foto karakter "${characterRefFileName}" — foto karakter mungkin diabaikan AI video tool.`);
     }
-    if (scene.ai_ready_prompt && !hasDialogueTag(scene.ai_ready_prompt)) {
+    if (scene.ai_ready_prompt && (form.aiTool === 'google_flow' || form.aiTool === 'veo3')) {
+      if (!hasEmbeddedDialogue(scene.ai_ready_prompt, scene.script_narration)) {
+        addIssue(scene.scene_number, 'ai_ready_prompt tidak menyisipkan dialog terkutip dari script_narration — Veo3/Flow tidak akan tahu harus mengucapkan apa, berisiko default ke Bahasa Inggris atau dialog karangan sendiri.');
+      }
+    } else if (scene.ai_ready_prompt && !hasDialogueTag(scene.ai_ready_prompt)) {
       const isVisualShockNoNarration =
         form.hookType === 'visual_shock' &&
         scene.scene_number === 1 &&

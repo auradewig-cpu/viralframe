@@ -52,6 +52,15 @@ export function hasValidDialogueTagContent(aiReadyPrompt: string): boolean {
   return true;
 }
 
+// Untuk google_flow/veo3 — cek apakah script_narration disisipkan verbatim sebagai dialog
+// terkutip di ai_ready_prompt (konvensi resmi Veo3), bukan lewat tag [DIALOGUE: ...].
+export function hasEmbeddedDialogue(aiReadyPrompt: string, scriptNarration: string | null | undefined): boolean {
+  if (!scriptNarration || !scriptNarration.trim()) return true;
+  const firstFourWords = scriptNarration.trim().split(/\s+/).slice(0, 4).join(' ');
+  if (!firstFourWords) return true;
+  return aiReadyPrompt.includes(firstFourWords);
+}
+
 export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number, expectedCaptionCount: number = 1, expectedAiTool?: string, expectHasRefImage: boolean = false, form?: FormData): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -102,7 +111,11 @@ export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number, e
       if (expectHasRefImage && !scene.reference_image) {
         warnings.push(`Scene ${i + 1}: field "reference_image" kosong padahal ada foto referensi diupload — engine AI video terstruktur mungkin mengabaikan foto referensi.`);
       }
-      if (scene.ai_ready_prompt && !hasDialogueTag(scene.ai_ready_prompt)) {
+      if (scene.ai_ready_prompt && (aiTool === 'google_flow' || aiTool === 'veo3')) {
+        if (!hasEmbeddedDialogue(scene.ai_ready_prompt, scene.script_narration)) {
+          warnings.push(`Scene ${i + 1}: ai_ready_prompt tidak menyisipkan dialog terkutip dari script_narration — Veo3/Flow tidak akan tahu harus mengucapkan apa, berisiko default ke Bahasa Inggris atau dialog karangan sendiri.`);
+        }
+      } else if (scene.ai_ready_prompt && !hasDialogueTag(scene.ai_ready_prompt)) {
         const isVisualShockNoNarration =
           json.video_metadata?.hook_type === 'visual_shock' &&
           scene.scene_number === 1 &&
@@ -162,6 +175,10 @@ export function buildRepairPrompt(json: VideoJSON, problems: string[], expectedS
           : `  Scene ${i + 1}: reference_image = null`;
       }).join('\n')}`
     : '';
+  const needsEmbeddedDialogueFix = problems.some(p => p.includes('tidak menyisipkan dialog terkutip'));
+  const embeddedDialogueRule = needsEmbeddedDialogueFix
+    ? `\n- Untuk scene dengan masalah dialog tidak tersisip: WAJIB sisipkan dialog sebagai kalimat TERKUTIP LANGSUNG persis begini: [Subjek] says, "<script_narration WORD-FOR-WORD, SAMA PERSIS dengan field script_narration, JANGAN diterjemahkan/diparafrase>" (no subtitles) — ini konvensi RESMI Veo3, BUKAN tag [DIALOGUE: ...]. Model menyimpulkan bahasa ucapan dari ISI kalimat dalam kutip, bukan label bahasa.`
+    : '';
   return `Kamu sebelumnya menghasilkan JSON video berikut, tetapi validator menemukan masalah.
 
 DAFTAR MASALAH YANG HARUS DIPERBAIKI:
@@ -170,7 +187,7 @@ ${problems.map((p, i) => `${i + 1}. ${p}`).join('\n')}
 ATURAN PERBAIKAN:
 - Perbaiki HANYA field yang bermasalah di daftar atas. Field lain WAJIB disalin apa adanya tanpa perubahan.
 - Total scene HARUS PERSIS ${expectedSceneCount}. Total caption_variations HARUS PERSIS ${expectedCaptionCount}.
-- Setiap ai_ready_prompt maksimal ${charLimit} karakter dan (jika ada karakter) WAJIB diawali character_sheet.description verbatim.${characterRefFileName ? ` Setiap ai_ready_prompt WAJIB juga menyebut nama file foto karakter "${characterRefFileName}" (kalimat pengikat karakter) — tanpa ini AI video tool mengabaikan foto referensi.` : ''}
+- Setiap ai_ready_prompt maksimal ${charLimit} karakter dan (jika ada karakter) WAJIB diawali character_sheet.description verbatim.${characterRefFileName ? ` Setiap ai_ready_prompt WAJIB juga menyebut nama file foto karakter "${characterRefFileName}" (kalimat pengikat karakter) — tanpa ini AI video tool mengabaikan foto referensi.` : ''}${embeddedDialogueRule}
 - Setiap script_narration: jumlah kata aktual antara 85%–100% dari max_words scene tersebut.
 - Semua klaim absolut/medis/testimonial di-rewrite menjadi observasi netral yang policy-safe.${locationRefRules}
 - Output kamu HANYA JSON lengkap yang sudah diperbaiki, dengan struktur identik. Mulai dengan { dan akhiri dengan }. Tanpa penjelasan, tanpa markdown.

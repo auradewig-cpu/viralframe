@@ -3,7 +3,7 @@ import { getLipsyncSpec } from './lipsync';
 import { AI_TOOLS, NICHE_DATA, AI_TOOL_FORMAT } from './maps';
 import { CONTENT_STYLES } from './contentStyles';
 import { NEGATIVE_PROMPT_BLOCK, CAMERA_REF_RULE, SPOKEN_NUMBER_RULE } from './negativePrompt';
-import { countWords, ValidationResult, hasDialogueTag, hasValidDialogueTagContent, hasTimingInTextOverlay } from './jsonParser';
+import { countWords, ValidationResult, hasDialogueTag, hasValidDialogueTagContent, hasEmbeddedDialogue, hasTimingInTextOverlay } from './jsonParser';
 import { parseJsonResponse } from './registry/shared';
 import {
   getValidLocationRefs, getSceneLocationRef, buildReferenceImageJson, buildBindingSentence, buildPromptHintsSentence,
@@ -23,6 +23,7 @@ export interface SceneRegenExpectation {
   locationRef: ResolvedLocationRef | null;
   characterBindingSentence: string | null;
   characterRefFileName: string;
+  aiTool: string;
 }
 
 export function getSceneRegenExpectation(videoJSON: VideoJSON, sceneIndex: number, form: FormData, narrationWPM: number): SceneRegenExpectation {
@@ -40,6 +41,7 @@ export function getSceneRegenExpectation(videoJSON: VideoJSON, sceneIndex: numbe
     locationRef,
     characterBindingSentence: buildCharacterBindingSentence(form),
     characterRefFileName: getCharacterRefFileName(form),
+    aiTool: form.aiTool || videoJSON.video_metadata?.ai_video_tool || '',
   };
 }
 
@@ -171,7 +173,11 @@ export function validateSceneData(scene: SceneData, expectation: SceneRegenExpec
     if (expectation.characterRefFileName && !scene.ai_ready_prompt.includes(expectation.characterRefFileName)) {
       warnings.push(`ai_ready_prompt tidak menyebut nama file foto karakter "${expectation.characterRefFileName}" — foto karakter mungkin diabaikan AI video tool.`);
     }
-    if (!hasDialogueTag(scene.ai_ready_prompt)) {
+    if (expectation.aiTool === 'google_flow' || expectation.aiTool === 'veo3') {
+      if (!hasEmbeddedDialogue(scene.ai_ready_prompt, scene.script_narration)) {
+        warnings.push('ai_ready_prompt tidak menyisipkan dialog terkutip dari script_narration — Veo3/Flow tidak akan tahu harus mengucapkan apa, berisiko default ke Bahasa Inggris atau dialog karangan sendiri.');
+      }
+    } else if (!hasDialogueTag(scene.ai_ready_prompt)) {
       const isVisualShockNoNarration =
         hookType === 'visual_shock' &&
         expectation.sceneNumber === 1 &&
@@ -209,6 +215,10 @@ export function validateSceneData(scene: SceneData, expectation: SceneRegenExpec
 }
 
 export function buildSceneRegenRepairPrompt(scene: SceneData, problems: string[], expectation: SceneRegenExpectation): string {
+  const needsEmbeddedDialogueFix = problems.some(p => p.includes('tidak menyisipkan dialog terkutip'));
+  const embeddedDialogueRule = needsEmbeddedDialogueFix
+    ? `\n- Masalah dialog tidak tersisip: WAJIB sisipkan dialog sebagai kalimat TERKUTIP LANGSUNG persis begini: [Subjek] says, "<script_narration WORD-FOR-WORD, SAMA PERSIS dengan field script_narration, JANGAN diterjemahkan/diparafrase>" (no subtitles) — ini konvensi RESMI Veo3, BUKAN tag [DIALOGUE: ...]. Model menyimpulkan bahasa ucapan dari ISI kalimat dalam kutip, bukan label bahasa.`
+    : '';
   return `Kamu sebelumnya menghasilkan JSON scene tunggal berikut, tetapi validator menemukan masalah.
 
 DAFTAR MASALAH:
@@ -217,7 +227,7 @@ ${problems.map((p, i) => `${i + 1}. ${p}`).join('\n')}
 ATURAN PERBAIKAN:
 - Perbaiki HANYA field yang bermasalah. Field lain WAJIB disalin apa adanya.
 - scene_number HARUS PERSIS ${expectation.sceneNumber}, duration_seconds HARUS PERSIS ${expectation.durationSeconds}, max_words HARUS PERSIS ${expectation.maxWords}.
-- ai_ready_prompt maksimal ${expectation.charLimit} karakter${expectation.characterAnchor ? `, WAJIB diawali persis: '${expectation.characterAnchor}'` : ''}.${expectation.characterBindingSentence ? ` WAJIB tetap menyertakan kalimat pengikat karakter: "${expectation.characterBindingSentence}".` : ''}
+- ai_ready_prompt maksimal ${expectation.charLimit} karakter${expectation.characterAnchor ? `, WAJIB diawali persis: '${expectation.characterAnchor}'` : ''}.${expectation.characterBindingSentence ? ` WAJIB tetap menyertakan kalimat pengikat karakter: "${expectation.characterBindingSentence}".` : ''}${embeddedDialogueRule}
 - Jumlah kata script_narration aktual harus antara 85%-100% dari ${expectation.maxWords} kata.
 - Output kamu HANYA satu objek JSON scene tunggal yang sudah diperbaiki, struktur identik. Mulai {, akhiri }.
 
