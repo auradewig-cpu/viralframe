@@ -99,6 +99,11 @@ export interface FormData {
   postsPerDay: number;
   accountInsightText: string;
 
+  // Carousel IG — hanya dipakai content type 'carousel_ig'
+  carouselTopic: string;
+  carouselSlideCount: number;
+  carouselRatio: '4:5' | '1:1';
+
   // Pipeline
   pipelineBrief: string;
   pipelineSource: string;
@@ -298,6 +303,9 @@ export const DEFAULT_FORM: FormData = {
   calendarDays: 7,
   postsPerDay: 1,
   accountInsightText: '',
+  carouselTopic: '',
+  carouselSlideCount: 6,
+  carouselRatio: '4:5',
   pipelineBrief: '',
   pipelineSource: '',
   mode: 'direct',
