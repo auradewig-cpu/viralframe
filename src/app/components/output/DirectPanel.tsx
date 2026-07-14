@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Copy, Check, Download, RefreshCw, Edit, Loader2, Globe } from 'lucide-react';
+import { Copy, Check, Download, RefreshCw, Edit, Loader2, Globe, AlertCircle } from 'lucide-react';
 import JSZip from 'jszip';
-import { VideoJSON, FormData } from '../../types';
+import { VideoJSON, FormData, SceneData } from '../../types';
 import { SceneCard } from './SceneCard';
 import { useAppStore } from '../../store';
 import { addReferenceSectionToZip } from '../../lib/referenceZip';
@@ -18,6 +18,7 @@ import {
   buildSceneRephrasePrompt, validateSceneRephrase, parseSceneRephraseResponse,
   buildCaptionRephrasePrompt, validateCaptionRephrase, parseCaptionRephraseResponse, CaptionVariation,
 } from '../../lib/autoRephrase';
+import { buildHookVariantsPrompt, parseHookVariantsResponse, validateHookVariants, buildHookExpectation } from '../../lib/hookVariator';
 
 interface DirectPanelProps {
   json: VideoJSON;
@@ -209,6 +210,7 @@ export function DirectPanel({ json, form, onRegenerate, onEdit, referencePhotos 
   const [captionTargetPlatform, setCaptionTargetPlatform] = useState(alternativePlatforms[0]?.value || '');
   const [captionPlatformLoading, setCaptionPlatformLoading] = useState<string | null>(null);
   const [captionPlatformResults, setCaptionPlatformResults] = useState<Array<{ platform: string; variations: { caption_text: string; hashtags: string[] }[]; error?: string }>>([]);
+  const [hookVariants, setHookVariants] = useState<{ loading: boolean; error: string; variants: SceneData[]; invalidIndices: number[] }>({ loading: false, error: '', variants: [], invalidIndices: [] });
 
   const patchSceneRegenState = (index: number, patch: Partial<SceneRegenState>) => {
     setSceneRegen(prev => ({ ...prev, [index]: { ...prev[index], loading: false, error: null, justRegenerated: false, ...patch } }));
@@ -386,6 +388,43 @@ Each caption_text must be adapted to ${targetPlatform} audience and format. Tota
     }
   };
 
+  const generateHookVariants = async () => {
+    setHookVariants({ loading: true, error: '', variants: [], invalidIndices: [] });
+    try {
+      const narrationWPM = settings.narrationWPM || 165;
+      const prompt = buildHookVariantsPrompt(json, form, narrationWPM, 3);
+      const raw = await generateWithFallback(prompt, apiKeys, parseHookVariantsResponse, () => {}, undefined, geminiModel, settings.providerOrder);
+      if (!raw) { setHookVariants(prev => ({ ...prev, loading: false, error: 'Gagal mengurai respons dari AI.' })); return; }
+      const expectation = buildHookExpectation(json, form, narrationWPM);
+      const validation = validateHookVariants(raw, 3, expectation);
+      if (!validation.valid) { setHookVariants({ loading: false, error: validation.errors.join(' '), variants: [], invalidIndices: [] }); return; }
+      const invalidIndices: number[] = [];
+      raw.variants.forEach((v, i) => {
+        const ve = validateHookVariants({ variants: [v] }, 1, expectation);
+        if (!ve.valid) invalidIndices.push(i);
+      });
+      setHookVariants({ loading: false, error: '', variants: raw.variants, invalidIndices });
+    } catch (e: unknown) {
+      const msg = e instanceof ApiCallError ? e.message : 'Gagal generate variasi hook.';
+      setHookVariants({ loading: false, error: msg, variants: [], invalidIndices: [] });
+    }
+  };
+
+  const applyHookVariant = (variant: SceneData) => {
+    const newScenes = [...json.scenes];
+    newScenes[0] = {
+      ...variant,
+      scene_type: getSceneTypeSlug(form.contentStyle, 0, json.scenes.length, form),
+    };
+    const newVideoJSON: VideoJSON = { ...json, scenes: newScenes };
+    setGeneratedOutput(generatedOutput?.contentTypeId || 'short_video', newVideoJSON);
+    if (currentHistoryId) updateHistoryOutput(currentHistoryId, newVideoJSON);
+    setGenerateWarningsByScene(getSceneIssuesMap(newVideoJSON, form));
+    setHookVariants({ loading: false, error: '', variants: [], invalidIndices: [] });
+    patchSceneRegenState(0, { justRegenerated: true });
+    setTimeout(() => patchSceneRegenState(0, { justRegenerated: false }), 5000);
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -530,25 +569,78 @@ Each caption_text must be adapted to ${targetPlatform} audience and format. Tota
       {/* Scene Cards */}
       <div className="space-y-4">
         {json.scenes.map((scene, i) => (
-          <SceneCard
-            key={i}
-            scene={scene}
-            aiTool={aiTool}
-            isFirst={i === 0}
-            isLast={i === json.scenes.length - 1}
-            characterAnchor={json.character_sheet?.description}
-            referencePhotos={referencePhotos}
-            onRegenerateScene={() => regenerateScene(i)}
-            regenLoading={sceneRegen[i]?.loading || false}
-            regenError={sceneRegen[i]?.error || null}
-            justRegenerated={sceneRegen[i]?.justRegenerated || false}
-            issues={generateWarningsByScene[scene.scene_number] || []}
-            hasPolicyIssue={(scenePolicyMap[scene.scene_number]?.length || 0) > 0}
-            onAutoFixScene={() => autoFixScene(i)}
-            autoFixLoading={sceneAutoFix[i]?.loading || false}
-            autoFixError={sceneAutoFix[i]?.error || null}
-            autoFixRemainingWarning={sceneAutoFix[i]?.remainingWarning || null}
-          />
+          <div key={i} className="space-y-3">
+            <SceneCard
+              scene={scene}
+              aiTool={aiTool}
+              isFirst={i === 0}
+              isLast={i === json.scenes.length - 1}
+              characterAnchor={json.character_sheet?.description}
+              referencePhotos={referencePhotos}
+              onRegenerateScene={() => regenerateScene(i)}
+              regenLoading={sceneRegen[i]?.loading || false}
+              regenError={sceneRegen[i]?.error || null}
+              justRegenerated={sceneRegen[i]?.justRegenerated || false}
+              issues={generateWarningsByScene[scene.scene_number] || []}
+              hasPolicyIssue={(scenePolicyMap[scene.scene_number]?.length || 0) > 0}
+              onAutoFixScene={() => autoFixScene(i)}
+              autoFixLoading={sceneAutoFix[i]?.loading || false}
+              autoFixError={sceneAutoFix[i]?.error || null}
+              autoFixRemainingWarning={sceneAutoFix[i]?.remainingWarning || null}
+            />
+            {i === 0 && (
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={generateHookVariants}
+                  disabled={hookVariants.loading}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all hover:opacity-90 disabled:opacity-60"
+                  style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-text-secondary)', border: '1px solid var(--vf-border)' }}
+                >
+                  {hookVariants.loading ? <Loader2 size={14} className="animate-spin" /> : null}
+                  🅰️🅱️ Variasi Hook (3x)
+                </button>
+
+                {hookVariants.loading && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg" style={{ background: 'var(--vf-bg-secondary)' }}>
+                    <Loader2 size={14} className="animate-spin" style={{ color: 'var(--vf-accent-primary)' }} />
+                    <span className="text-xs" style={{ color: 'var(--vf-text-secondary)' }}>Membuat 3 variasi hook...</span>
+                  </div>
+                )}
+
+                {hookVariants.error && (
+                  <div className="flex items-start gap-2 p-3 rounded-lg text-xs" style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--vf-accent-danger)' }}>
+                    <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                    <span>{hookVariants.error}</span>
+                  </div>
+                )}
+
+                {hookVariants.variants.length > 0 && (
+                  <div className="space-y-2 p-3 rounded-lg" style={{ background: 'var(--vf-bg-secondary)' }}>
+                    <p className="text-xs font-semibold" style={{ color: 'var(--vf-text-primary)' }}>🅰️🅱️ Variasi Hook Scene 1</p>
+                    <p className="text-xs" style={{ color: 'var(--vf-text-muted)' }}>Saat ini: "{scene.script_narration?.slice(0, 80)}..."</p>
+                    {hookVariants.variants.map((v, vi) => (
+                      !hookVariants.invalidIndices.includes(vi) && (
+                        <div key={vi} className="p-3 rounded-lg space-y-1" style={{ background: 'var(--vf-bg-elevated)', border: '1px solid var(--vf-border)' }}>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: 'var(--vf-accent-primary)', color: 'white' }}>Varian {vi + 1} — {v.viral_element_in_scene || 'hook'}</span>
+                          <p className="text-xs mt-1" style={{ color: 'var(--vf-text-secondary)' }}>{v.script_narration}</p>
+                          <p className="text-[11px]" style={{ color: 'var(--vf-text-muted)' }}>{v.ai_ready_prompt?.slice(0, 100)}...</p>
+                          <button
+                            type="button"
+                            onClick={() => applyHookVariant(v)}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs mt-1"
+                            style={{ background: 'var(--vf-accent-primary)', color: 'white' }}
+                          >
+                            ✅ Pakai varian ini
+                          </button>
+                        </div>
+                      )
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         ))}
       </div>
     </div>
