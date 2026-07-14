@@ -470,6 +470,13 @@ Each caption_text must be adapted to ${targetPlatform} audience and format. Tota
               </div>
             )}
 
+            {/* AI disclosure reminder */}
+            <div className="md:col-span-2">
+              <p className="text-xs" style={{ color: 'var(--vf-text-muted)' }}>
+                ℹ️ Video hasil AI — jangan lupa aktifkan label "AI-generated content" saat upload di TikTok/YouTube/Instagram (kewajiban platform, di luar caption).
+              </p>
+            </div>
+
             {/* Caption platform variants */}
             <div className="md:col-span-2">
               <span className="text-xs font-medium" style={{ color: 'var(--vf-text-muted)' }}>Versi Platform Lain</span>

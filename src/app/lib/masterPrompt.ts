@@ -376,7 +376,8 @@ OUTPUT JSON SCHEMA:
         "caption_text": "1 kalimat caption pembuka yang menarik dan unik",
         "hashtags": ["#tag1", "#tag2", "#tag3", "#tag4", "#tag5"]
       }
-      // WAJIB DIISI: generate PERSIS ${form.captionVariationCount} object di array ini. Setiap object = 1 caption_text UNIK + PERSIS 5 hashtags (array string, masing-masing diawali #). Antar object, caption_text dan hashtags HARUS berbeda satu sama lain (bukan pengulangan). Field ini TIDAK BOLEH kosong atau kurang dari ${form.captionVariationCount} object.
+      // WAJIB DIISI: generate PERSIS ${form.captionVariationCount} object di array ini. Setiap object = 1 caption_text UNIK + PERSIS 5 hashtags (array string, masing-masing diawali #). Antar object, caption_text dan hashtags HARUS berbeda satu sama lain (bukan pengulangan). Field ini TIDAK BOLEH kosong atau kurang dari ${form.captionVariationCount} object.${form.contentGoal === 'conversion' ? `
+      // AFFILIATE/KOMERSIAL DISCLOSURE (WAJIB untuk contentGoal=conversion): Setiap caption WAJIB menyertakan penanda komersial yang wajar di akhir caption_text ATAU di hashtags (pilih yang natural: "#ad", "#affiliate", atau frasa ringan seperti "yang dibeli lewat link ini mendukung channel").` : ''}
     ],
     "lipsync_summary": "ringkasan pace per scene",
     "editing_sequence": "urutan scene dengan transisi",
