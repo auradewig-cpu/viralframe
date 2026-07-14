@@ -30,8 +30,26 @@ export function countWords(text: string | null | undefined): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
+// Cek apakah text_overlay mengandung pola timing seperti "(5s)" atau "(0:01-0:05)".
+export function hasTimingInTextOverlay(text: string | null | undefined): boolean {
+  if (!text) return false;
+  return /\(\s*\d+s\s*\)|\(\s*\d+:\d+/.test(text);
+}
+
 export function hasDialogueTag(aiReadyPrompt: string): boolean {
   return aiReadyPrompt.includes('[DIALOGUE:');
+}
+
+// Cek apakah isi tag [DIALOGUE: ...] berupa nama bahasa (valid) atau kalimat penuh (invalid).
+// Kalau tidak ada tag sama sekali → return true (bukan urusan fungsi ini, serahkan ke hasDialogueTag).
+// Invalid: isi > 30 karakter ATAU mengandung tanda '?'/'!' (ciri kalimat, bukan nama bahasa).
+export function hasValidDialogueTagContent(aiReadyPrompt: string): boolean {
+  const match = /\[DIALOGUE:\s*([^\]]*)\]/.exec(aiReadyPrompt);
+  if (!match) return true;
+  const content = match[1].trim();
+  if (content.length > 30) return false;
+  if (/[?!]/.test(content)) return false;
+  return true;
 }
 
 export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number, expectedCaptionCount: number = 1, expectedAiTool?: string, expectHasRefImage: boolean = false, form?: FormData): ValidationResult {
@@ -92,6 +110,11 @@ export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number, e
         if (!isVisualShockNoNarration) {
           warnings.push(`Scene ${i + 1}: ai_ready_prompt tidak menyertakan tag [DIALOGUE: ...] — AI video tool kemungkinan akan menghasilkan dialog berbahasa Inggris alih-alih bahasa yang diminta.`);
         }
+      } else if (scene.ai_ready_prompt && !hasValidDialogueTagContent(scene.ai_ready_prompt)) {
+        warnings.push(`Scene ${i + 1}: tag [DIALOGUE: ...] berisi kalimat penuh, bukan nama bahasa saja — WAJIB hanya nama bahasa (mis. "Bahasa Indonesia"). Berisiko membuat dialog video berulang/rusak di AI video tool.`);
+      }
+      if (hasTimingInTextOverlay(scene.text_overlay)) {
+        warnings.push(`Scene ${i + 1}: text_overlay mengandung timing/timestamp (mis. "(5s)") — akan ikut tercetak sebagai teks kalau di-burn ke video. Durasi sudah tercakup di duration_seconds.`);
       }
       if (validLocationRefs.length > 0) {
         const expectedRef = getSceneLocationRef(validLocationRefs, scene.scene_number);

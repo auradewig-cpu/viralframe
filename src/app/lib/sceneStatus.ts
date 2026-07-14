@@ -1,5 +1,5 @@
 import { VideoJSON, FormData } from '../types';
-import { countWords, hasDialogueTag } from './jsonParser';
+import { countWords, hasDialogueTag, hasValidDialogueTagContent, hasTimingInTextOverlay } from './jsonParser';
 import { checkPolicyCompliance, PolicyViolation } from './policyCheck';
 import { getValidLocationRefs, getSceneLocationRef, getCharacterRefFileName } from './locationRefs';
 
@@ -48,6 +48,11 @@ export function getSceneIssuesMap(json: VideoJSON, form: FormData): Record<numbe
       if (!isVisualShockNoNarration) {
         addIssue(scene.scene_number, 'ai_ready_prompt tidak menyertakan tag [DIALOGUE: ...] — AI video tool kemungkinan akan menghasilkan dialog berbahasa Inggris alih-alih bahasa yang diminta.');
       }
+    } else if (scene.ai_ready_prompt && !hasValidDialogueTagContent(scene.ai_ready_prompt)) {
+      addIssue(scene.scene_number, 'Tag [DIALOGUE: ...] berisi kalimat penuh, bukan nama bahasa saja — WAJIB hanya nama bahasa (mis. "Bahasa Indonesia"). Berisiko membuat dialog video berulang/rusak di AI video tool.');
+    }
+    if (hasTimingInTextOverlay(scene.text_overlay)) {
+      addIssue(scene.scene_number, 'text_overlay mengandung timing/timestamp (mis. "(5s)") — akan ikut tercetak sebagai teks kalau di-burn ke video. Durasi sudah tercakup di duration_seconds.');
     }
     if (scene.script_narration && SPOKEN_NUMBER_ISSUE_PATTERN.test(scene.script_narration)) {
       addIssue(scene.scene_number, `Sebutan angka "X koma Y" sulit diucapkan — gunakan bentuk lisan (mis. "empat setengah miliar").`);

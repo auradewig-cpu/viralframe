@@ -3,7 +3,7 @@ import { getLipsyncSpec } from './lipsync';
 import { AI_TOOLS, NICHE_DATA, AI_TOOL_FORMAT } from './maps';
 import { CONTENT_STYLES } from './contentStyles';
 import { NEGATIVE_PROMPT_BLOCK, CAMERA_REF_RULE, SPOKEN_NUMBER_RULE } from './negativePrompt';
-import { countWords, ValidationResult, hasDialogueTag } from './jsonParser';
+import { countWords, ValidationResult, hasDialogueTag, hasValidDialogueTagContent, hasTimingInTextOverlay } from './jsonParser';
 import { parseJsonResponse } from './registry/shared';
 import {
   getValidLocationRefs, getSceneLocationRef, buildReferenceImageJson, buildBindingSentence, buildPromptHintsSentence,
@@ -179,6 +179,8 @@ export function validateSceneData(scene: SceneData, expectation: SceneRegenExpec
       if (!isVisualShockNoNarration) {
         warnings.push('ai_ready_prompt tidak menyertakan tag [DIALOGUE: ...] — AI video tool kemungkinan akan menghasilkan dialog berbahasa Inggris alih-alih bahasa yang diminta.');
       }
+    } else if (!hasValidDialogueTagContent(scene.ai_ready_prompt)) {
+      warnings.push('Tag [DIALOGUE: ...] berisi kalimat penuh, bukan nama bahasa saja — WAJIB hanya nama bahasa (mis. "Bahasa Indonesia"). Berisiko membuat dialog video berulang/rusak di AI video tool.');
     }
   }
 
@@ -197,6 +199,10 @@ export function validateSceneData(scene: SceneData, expectation: SceneRegenExpec
     } else if (actual < Math.ceil(expectation.maxWords * 0.6)) {
       warnings.push(`Narasi aktual ${actual} kata, jauh di bawah target 85% dari ${expectation.maxWords} kata.`);
     }
+  }
+
+  if (hasTimingInTextOverlay(scene.text_overlay)) {
+    warnings.push('text_overlay mengandung timing/timestamp (mis. "(5s)") — akan ikut tercetak sebagai teks kalau di-burn ke video. Durasi sudah tercakup di duration_seconds.');
   }
 
   return { valid: errors.length === 0, errors, warnings };

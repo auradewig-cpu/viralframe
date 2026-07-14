@@ -9,7 +9,7 @@ import {
 import { TalentStyle } from '../../types';
 import { getEffectiveLocationRefs } from '../../lib/locationRefs';
 import { buildCanonicalName, resolveUniqueCanonicalName, inferExtension } from '../../lib/canonicalRefNames';
-import { buildCharacterPhotoPrompt } from '../../lib/characterPhotoPrompt';
+import { buildCharacterPhotoPrompt, buildBackground } from '../../lib/characterPhotoPrompt';
 import { generateImageWithFallback, ImageGenError } from '../../lib/imageClient';
 import { putImage } from '../../lib/refImageDB';
 import { getContentType, DEFAULT_CONTENT_TYPE_ID } from '../../lib/registry';
@@ -83,7 +83,8 @@ function CharacterPhotoGenerator() {
     ]);
     const unique = resolveUniqueCanonicalName(canonical, existingFiles);
 
-    setFormData({ characterRefFile: unique, characterRefSourceName: sourceName });
+    const locationNote = buildBackground(formData);
+    setFormData({ characterRefFile: unique, characterRefSourceName: sourceName, characterLocationNote: locationNote });
     if (previewUrl && generatedBlob) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
     setGeneratedBlob(null);

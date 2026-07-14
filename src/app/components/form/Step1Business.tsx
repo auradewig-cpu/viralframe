@@ -241,15 +241,15 @@ export function Step1Business() {
     const identity = getRoomIdentity(identityValue);
     applyLocationChange(idx, {
       identity: identityValue,
-      keterangan: identityValue === 'custom' ? '' : (identity?.label || ''),
+      keterangan: identityValue === 'custom' || identityValue === 'produk' ? '' : (identity?.label || ''),
     });
   };
 
   // Un-mark kartu karakter kembali jadi referensi lokasi/produk biasa.
   const selectCharacterCardIdentity = (identityValue: string) => {
     if (identityValue === CHARACTER_IDENTITY) return;
-    const identity = ROOM_IDENTITIES.find(r => r.value === identityValue);
-    const keterangan = identityValue === 'custom' ? '' : (identity?.label || '');
+    const identity = getRoomIdentity(identityValue);
+    const keterangan = identityValue === 'custom' || identityValue === 'produk' ? '' : (identity?.label || '');
     const file = formData.characterRefFile;
     const sourceName = formData.characterRefSourceName;
     let newFile = file;
@@ -489,6 +489,11 @@ export function Step1Business() {
                           <p className="text-[11px] truncate" style={{ color: 'var(--vf-text-muted)' }}>dari: {formData.characterRefSourceName}</p>
                         )}
                         <RoomIdentityCombobox value={CHARACTER_IDENTITY} options={getIdentityOptions(formData.niche)} onSelect={selectCharacterCardIdentity} />
+                        <InputField
+                          value={formData.characterLocationNote}
+                          onChange={v => setFormData({ characterLocationNote: v })}
+                          placeholder="🌍 Latar/Lokasi Karakter (opsional)"
+                        />
                         {!hasBlob && (
                           <p className="text-[11px]" style={{ color: 'var(--vf-text-muted)' }}>
                             {formData.characterRefSourceName ? 'Preview tidak tersimpan & tidak ikut download bahan lengkap (tanpa file di sesi ini).' : 'Referensi manual — tidak ikut download bahan lengkap.'}

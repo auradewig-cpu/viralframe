@@ -5,7 +5,7 @@ import { CONTENT_STYLES } from './contentStyles';
 import { NEGATIVE_PROMPT_BLOCK, CAMERA_REF_RULE, SPOKEN_NUMBER_RULE } from './negativePrompt';
 import {
   getValidLocationRefs, getSceneLocationRef, buildReferenceImageJson, buildBindingSentence, sanitizeRefText,
-  buildPromptHintsSentence, buildCharacterBindingSentence,
+  buildPromptHintsSentence, buildCharacterBindingSentence, getCharacterRefFileName,
 } from './locationRefs';
 
 function getSceneDurations(form: FormData): number[] {
@@ -118,10 +118,13 @@ export function compileMasterPrompt(form: FormData, narrationWPM: number = 165):
   // UI menampilkan field ini untuk semua talentStyle !== 'product_only' — compiler harus meng-cover
   // keduanya: visible_character (match wajah) dan faceless_pov (match tangan, wajah tidak tampil).
   const characterBindingSentence = buildCharacterBindingSentence(form);
+  const characterLocationInstruction = (form.characterLocationNote?.trim() && getCharacterRefFileName(form))
+    ? `\nLATAR/LOKASI KARAKTER (dari referensi foto karakter): ${form.characterLocationNote.trim()} — WAJIB konsisten sebagai environment/latar di SEMUA scene yang TIDAK punya referensi lokasi spesifik sendiri (locationRefs scene-specific TETAP prioritas lebih tinggi kalau ada). Terjemahkan ke English presisi saat menyertakan di ai_ready_prompt/visual_description tiap scene, ikuti pola terjemahan character anchor yang sudah ada.`
+    : '';
   const characterRefInstruction = characterBindingSentence
     ? (isFacelessPov
-      ? `\nCHARACTER REFERENCE PHOTO: The hands in every scene must match the attached reference photo "${sanitizeRefText(form.characterRefFile)}" exactly — same hands, skin tone, nails, and accessories. No face visible. CHARACTER ANCHOR STRING di atas TETAP menentukan detail deskriptif dan TETAP wajib jadi awalan setiap ai_ready_prompt; foto ini memperkuat konsistensi tangan, bukan menggantikan anchor. SETIAP ai_ready_prompt WAJIB menyertakan kalimat pengikat SINGKAT setelah character anchor: "${characterBindingSentence}" — tanpa kalimat ini, AI video tool (Google Flow dll) akan mengabaikan foto referensi dan mengarang ulang tangan/aksesorinya. Tetap jaga kalimat ini SINGKAT, batas ${charLimit} karakter per ai_ready_prompt tetap berlaku.`
-      : `\nCHARACTER REFERENCE PHOTO: Character must match the attached reference photo "${sanitizeRefText(form.characterRefFile)}" exactly — same face, hair, outfit/uniform, and body type. CHARACTER ANCHOR STRING di atas TETAP menentukan detail deskriptif dan TETAP wajib jadi awalan setiap ai_ready_prompt; foto ini memperkuat konsistensi wajah, bukan menggantikan anchor. SETIAP ai_ready_prompt WAJIB menyertakan kalimat pengikat SINGKAT setelah character anchor: "${characterBindingSentence}" — tanpa kalimat ini, AI video tool (Google Flow dll) akan mengabaikan foto referensi dan mengarang ulang wajah/seragam/pakaiannya. Tetap jaga kalimat ini SINGKAT, batas ${charLimit} karakter per ai_ready_prompt tetap berlaku.`)
+      ? `\nCHARACTER REFERENCE PHOTO: The hands in every scene must match the attached reference photo "${sanitizeRefText(form.characterRefFile)}" exactly — same hands, skin tone, nails, and accessories. No face visible. CHARACTER ANCHOR STRING di atas TETAP menentukan detail deskriptif dan TETAP wajib jadi awalan setiap ai_ready_prompt; foto ini memperkuat konsistensi tangan, bukan menggantikan anchor. SETIAP ai_ready_prompt WAJIB menyertakan kalimat pengikat SINGKAT setelah character anchor: "${characterBindingSentence}" — tanpa kalimat ini, AI video tool (Google Flow dll) akan mengabaikan foto referensi dan mengarang ulang tangan/aksesorinya. Tetap jaga kalimat ini SINGKAT, batas ${charLimit} karakter per ai_ready_prompt tetap berlaku.${characterLocationInstruction}`
+      : `\nCHARACTER REFERENCE PHOTO: Character must match the attached reference photo "${sanitizeRefText(form.characterRefFile)}" exactly — same face, hair, outfit/uniform, and body type. CHARACTER ANCHOR STRING di atas TETAP menentukan detail deskriptif dan TETAP wajib jadi awalan setiap ai_ready_prompt; foto ini memperkuat konsistensi wajah, bukan menggantikan anchor. SETIAP ai_ready_prompt WAJIB menyertakan kalimat pengikat SINGKAT setelah character anchor: "${characterBindingSentence}" — tanpa kalimat ini, AI video tool (Google Flow dll) akan mengabaikan foto referensi dan mengarang ulang wajah/seragam/pakaiannya. Tetap jaga kalimat ini SINGKAT, batas ${charLimit} karakter per ai_ready_prompt tetap berlaku.${characterLocationInstruction}`)
     : '';
 
   let langInstruction = '';
@@ -358,7 +361,7 @@ OUTPUT JSON SCHEMA:
       "camera_direction": "${isFacelessPov ? 'shot + movement + angle — WAJIB sebutkan eksplisit \\"first-person POV, hand entering frame from bottom\\", TANPA wajah/cermin yang menampilkan wajah' : 'shot + movement + angle'}",
       "character_action": "string",
       "character_expression": "${isFacelessPov ? 'string — deskripsi natural GESTUR TANGAN (bukan ekspresi wajah) dalam Bahasa Indonesia, JANGAN sebut wajah/ekspresi wajah sama sekali' : 'string — deskripsi natural ekspresi wajah/tubuh karakter dalam Bahasa Indonesia, JANGAN gunakan kode/slug teknis'}",
-      "text_overlay": "string dengan timing, atau none",
+      "text_overlay": "string TANPA timing/durasi/timestamp apa pun (JANGAN tulis pola seperti '(5s)' atau '(0:01-0:05)') — durasi sudah tercakup di duration_seconds scene ini. Hanya teks murni yang akan tampil di layar, atau 'none'.",
       "sound_design": "string",
       "transition_to_next": "string",
       "viral_element_in_scene": "string",

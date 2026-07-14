@@ -83,6 +83,10 @@ export interface FormData {
   characterRefSourceName: string;
   locationRefs: LocationRef[];
 
+  // Deskripsi latar/lokasi karakter dari generate foto karakter — auto-terisi saat user submit
+  // "Pakai sebagai Referensi Karakter". Bisa diedit manual. Dipakai masterPrompt.ts untuk konsistensi.
+  characterLocationNote: string;
+
   // YouTube Long Form — hanya dipakai content type 'youtube_long'
   targetDurationMinutes: number;
   chapterCount: number;
@@ -293,6 +297,7 @@ export const DEFAULT_FORM: FormData = {
   characterRefFile: '',
   characterRefSourceName: '',
   locationRefs: [],
+  characterLocationNote: '',
   targetDurationMinutes: 10,
   chapterCount: 5,
   channelStyle: 'edukasi',

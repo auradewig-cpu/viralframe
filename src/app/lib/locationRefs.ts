@@ -23,7 +23,9 @@ export interface ResolvedLocationRef {
 }
 
 export function sanitizeRefText(text: string): string {
-  return text.trim().replace(/"/g, '');
+  // trim() dua kali: emoji di ujung string bisa meninggalkan spasi sisa setelah dihapus
+  // (mis. "🛍️ Produk" -> " Produk" kalau cuma di-trim sebelum strip emoji).
+  return text.trim().replace(/"/g, '').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}]/gu, '').trim();
 }
 
 // role di-DERIVE dari sceneNumber: sceneNumber !== null (ditugaskan ke scene spesifik) → environment,

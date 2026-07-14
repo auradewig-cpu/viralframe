@@ -51,7 +51,7 @@ function buildFacelessPrompt(form: FormData, needsProductImage: boolean): { prom
   return { prompt, needsProductImage };
 }
 
-function buildBackground(form: FormData): string {
+export function buildBackground(form: FormData): string {
   if (form.characterBackground === 'custom' && form.characterBackgroundCustom.trim()) {
     return form.characterBackgroundCustom.trim();
   }
