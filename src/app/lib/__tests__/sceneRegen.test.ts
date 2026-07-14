@@ -12,6 +12,7 @@ function makeExpectation(overrides?: Partial<SceneRegenExpectation>): SceneRegen
     locationRef: null,
     characterBindingSentence: null,
     characterRefFileName: '',
+    aiTool: 'kling_ai',
     ...overrides,
   };
 }
@@ -93,5 +94,34 @@ describe('validateSceneData — dialogue tag', () => {
       'visual_shock',
     );
     expect(result.warnings.some(w => w.includes('[DIALOGUE:'))).toBe(true);
+  });
+});
+
+describe('validateSceneData — embedded dialogue (google_flow/veo3)', () => {
+  it('warns when ai_ready_prompt does not embed quoted dialogue from script_narration', () => {
+    const result = validateSceneData(
+      makeScene({ ai_ready_prompt: 'A woman applying skincare in a bright bathroom.' }),
+      makeExpectation({ aiTool: 'google_flow' }),
+    );
+    expect(result.warnings.some(w => w.includes('tidak menyisipkan dialog terkutip'))).toBe(true);
+  });
+
+  it('does not warn when ai_ready_prompt embeds quoted dialogue verbatim', () => {
+    const result = validateSceneData(
+      makeScene({
+        ai_ready_prompt: 'A woman in a bathroom. She says, "Coba produk terbaru kami untuk kulit sehat." (no subtitles).',
+        script_narration: 'Coba produk terbaru kami untuk kulit sehat.',
+      }),
+      makeExpectation({ aiTool: 'veo3' }),
+    );
+    expect(result.warnings.some(w => w.includes('tidak menyisipkan dialog terkutip'))).toBe(false);
+  });
+
+  it('does not check hasDialogueTag for google_flow/veo3 even if [DIALOGUE: ...] tag is missing', () => {
+    const result = validateSceneData(
+      makeScene({ ai_ready_prompt: 'A woman applying skincare in a bright bathroom. She says, "Coba produk terbaru kami untuk kulit sehat."' }),
+      makeExpectation({ aiTool: 'veo3' }),
+    );
+    expect(result.warnings.some(w => w.includes('[DIALOGUE:'))).toBe(false);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseAiResponse, countWords, validateVideoJSON, hasDialogueTag, hasValidDialogueTagContent, hasTimingInTextOverlay } from '../jsonParser';
+import { parseAiResponse, countWords, validateVideoJSON, hasDialogueTag, hasValidDialogueTagContent, hasEmbeddedDialogue, hasTimingInTextOverlay } from '../jsonParser';
 import type { VideoJSON, FormData } from '../../types';
 import { DEFAULT_FORM } from '../../types';
 
@@ -378,25 +378,25 @@ describe('validateVideoJSON', () => {
     expect(result.warnings.some(w => w.includes('CHARACTER ANCHOR'))).toBe(true);
   });
 
-  // ── Dialogue tag [DIALOGUE: ...] ─────────────────────────
+  // ── Dialogue tag [DIALOGUE: ...] — TOOL SELAIN google_flow/veo3 (regresi, behavior lama) ──
 
-  it('warns when ai_ready_prompt lacks [DIALOGUE: ...] tag', () => {
+  it('warns when ai_ready_prompt lacks [DIALOGUE: ...] tag (tool selain google_flow/veo3)', () => {
     const json = makeMinimalVideoJSON({
       scenes: [makeScene({ ai_ready_prompt: 'A woman applying skincare in a bright bathroom.' })],
     });
-    const result = validateVideoJSON(json, 1, 1, 'veo3');
+    const result = validateVideoJSON(json, 1, 1, 'kling_ai');
     expect(result.warnings.some(w => w.includes('[DIALOGUE:'))).toBe(true);
   });
 
-  it('does not warn when [DIALOGUE: ...] tag is present', () => {
+  it('does not warn when [DIALOGUE: ...] tag is present (tool selain google_flow/veo3)', () => {
     const json = makeMinimalVideoJSON({
       scenes: [makeScene({ ai_ready_prompt: 'A woman applying skincare in a bright bathroom. [DIALOGUE: Bahasa Indonesia]' })],
     });
-    const result = validateVideoJSON(json, 1, 1, 'veo3');
+    const result = validateVideoJSON(json, 1, 1, 'kling_ai');
     expect(result.warnings.some(w => w.includes('[DIALOGUE:'))).toBe(false);
   });
 
-  it('does not warn for visual_shock scene 1 with empty narration', () => {
+  it('does not warn for visual_shock scene 1 with empty narration (tool selain google_flow/veo3)', () => {
     const json = makeMinimalVideoJSON({
       video_metadata: {
         ...makeMinimalVideoJSON().video_metadata,
@@ -408,11 +408,11 @@ describe('validateVideoJSON', () => {
         max_words: 15,
       })],
     });
-    const result = validateVideoJSON(json, 1, 1, 'veo3');
+    const result = validateVideoJSON(json, 1, 1, 'kling_ai');
     expect(result.warnings.some(w => w.includes('[DIALOGUE:'))).toBe(false);
   });
 
-  it('warns for visual_shock scene 2 (not first scene) despite empty narration', () => {
+  it('warns for visual_shock scene 2 (not first scene) despite empty narration (tool selain google_flow/veo3)', () => {
     const json = makeMinimalVideoJSON({
       video_metadata: {
         ...makeMinimalVideoJSON().video_metadata,
@@ -423,7 +423,74 @@ describe('validateVideoJSON', () => {
         makeScene({ scene_number: 2, ai_ready_prompt: 'The aftermath of the explosion.', script_narration: '' }),
       ],
     });
-    const result = validateVideoJSON(json, 2, 1, 'veo3');
+    const result = validateVideoJSON(json, 2, 1, 'kling_ai');
     expect(result.warnings.filter(w => w.includes('[DIALOGUE:'))).toHaveLength(1);
+  });
+
+  // ── Embedded dialogue (dialog terkutip) — google_flow/veo3 ──────
+
+  it('warns when ai_ready_prompt (google_flow) does not embed quoted dialogue from script_narration', () => {
+    const json = makeMinimalVideoJSON({
+      video_metadata: { ...makeMinimalVideoJSON().video_metadata, ai_video_tool: 'google_flow' },
+      scenes: [makeScene({
+        ai_ready_prompt: 'A woman applying skincare in a bright bathroom.',
+        script_narration: 'Coba produk terbaru kami untuk kulit sehat.',
+      })],
+    });
+    const result = validateVideoJSON(json, 1, 1, 'google_flow');
+    expect(result.warnings.some(w => w.includes('tidak menyisipkan dialog terkutip'))).toBe(true);
+  });
+
+  it('does not warn when ai_ready_prompt (veo3) embeds quoted dialogue verbatim', () => {
+    const json = makeMinimalVideoJSON({
+      scenes: [makeScene({
+        ai_ready_prompt: 'A woman in a bathroom. She says, "Coba produk terbaru kami untuk kulit sehat." (no subtitles). [10s, 9:16 vertical frame].',
+        script_narration: 'Coba produk terbaru kami untuk kulit sehat.',
+      })],
+    });
+    const result = validateVideoJSON(json, 1, 1, 'veo3');
+    expect(result.warnings.some(w => w.includes('tidak menyisipkan dialog terkutip'))).toBe(false);
+  });
+
+  it('does not warn for veo3 scene with empty script_narration (nothing to embed)', () => {
+    const json = makeMinimalVideoJSON({
+      scenes: [makeScene({
+        ai_ready_prompt: 'Explosion and bright flash fill the screen.',
+        script_narration: '',
+      })],
+    });
+    const result = validateVideoJSON(json, 1, 1, 'veo3');
+    expect(result.warnings.some(w => w.includes('tidak menyisipkan dialog terkutip'))).toBe(false);
+  });
+});
+
+// ── hasEmbeddedDialogue ────────────────────────────────────────
+
+describe('hasEmbeddedDialogue', () => {
+  it('returns true when script_narration is empty', () => {
+    expect(hasEmbeddedDialogue('A woman in a bathroom.', '')).toBe(true);
+  });
+
+  it('returns true when script_narration is null/undefined', () => {
+    expect(hasEmbeddedDialogue('A woman in a bathroom.', null)).toBe(true);
+    expect(hasEmbeddedDialogue('A woman in a bathroom.', undefined)).toBe(true);
+  });
+
+  it('returns true when ai_ready_prompt contains the first 4 words of script_narration verbatim', () => {
+    const narration = 'Baterai HP habis di jalan? RAPAtech ini solusinya!';
+    const prompt = '25-year-old woman... She says, "Baterai HP habis di jalan? RAPAtech ini solusinya!" (no subtitles).';
+    expect(hasEmbeddedDialogue(prompt, narration)).toBe(true);
+  });
+
+  it('returns false when ai_ready_prompt has no trace of the narration at all', () => {
+    const narration = 'Baterai HP habis di jalan? RAPAtech ini solusinya!';
+    const prompt = 'A woman standing in a modern kitchen, smiling confidently.';
+    expect(hasEmbeddedDialogue(prompt, narration)).toBe(false);
+  });
+
+  it('returns false when the embedded dialogue is paraphrased/translated instead of verbatim', () => {
+    const narration = 'Baterai HP habis di jalan? RAPAtech ini solusinya!';
+    const prompt = 'She says, "Is your phone battery dead? RAPAtech is the solution!" (no subtitles).';
+    expect(hasEmbeddedDialogue(prompt, narration)).toBe(false);
   });
 });
