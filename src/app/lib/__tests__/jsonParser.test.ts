@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseAiResponse, countWords, validateVideoJSON, hasDialogueTag } from '../jsonParser';
+import { parseAiResponse, countWords, validateVideoJSON, hasDialogueTag, hasValidDialogueTagContent, hasTimingInTextOverlay } from '../jsonParser';
 import type { VideoJSON, FormData } from '../../types';
 import { DEFAULT_FORM } from '../../types';
 
@@ -174,6 +174,56 @@ describe('hasDialogueTag', () => {
 
   it('returns false for empty string', () => {
     expect(hasDialogueTag('')).toBe(false);
+  });
+});
+
+// ── hasValidDialogueTagContent ───────────────────────────────────
+
+describe('hasValidDialogueTagContent', () => {
+  it('returns true for a plain language name', () => {
+    expect(hasValidDialogueTagContent('... [10s, 9:16]. [DIALOGUE: Bahasa Indonesia]')).toBe(true);
+  });
+
+  it('returns true when tag is missing entirely (not this function\'s concern)', () => {
+    expect(hasValidDialogueTagContent('A woman applying skincare.')).toBe(true);
+  });
+
+  it('returns false when full narration is stuffed into the tag', () => {
+    const prompt = '... [DIALOGUE: Baterai iPhone kamu sering habis di tengah jalan? Tenang, ini solusinya!]';
+    expect(hasValidDialogueTagContent(prompt)).toBe(false);
+  });
+
+  it('returns false when tag content exceeds 30 characters even without punctuation', () => {
+    expect(hasValidDialogueTagContent('[DIALOGUE: Bahasa Indonesia yang sangat panjang sekali]')).toBe(false);
+  });
+
+  it('returns true for a short two-word language label', () => {
+    expect(hasValidDialogueTagContent('[DIALOGUE: English]')).toBe(true);
+  });
+});
+
+// ── hasTimingInTextOverlay ─────────────────────────────────────
+
+describe('hasTimingInTextOverlay', () => {
+  it('detects "(5s)" pattern', () => {
+    expect(hasTimingInTextOverlay('Solusi Baterai iPhone! (5s)')).toBe(true);
+  });
+
+  it('detects "(0:01 - 0:05)" pattern', () => {
+    expect(hasTimingInTextOverlay('Support Strava! (0:01 - 0:05)')).toBe(true);
+  });
+
+  it('returns false for clean text overlay', () => {
+    expect(hasTimingInTextOverlay('Klik Keranjang Kuning!')).toBe(false);
+  });
+
+  it('returns false for "none"', () => {
+    expect(hasTimingInTextOverlay('none')).toBe(false);
+  });
+
+  it('returns false for null/undefined', () => {
+    expect(hasTimingInTextOverlay(null)).toBe(false);
+    expect(hasTimingInTextOverlay(undefined)).toBe(false);
   });
 });
 

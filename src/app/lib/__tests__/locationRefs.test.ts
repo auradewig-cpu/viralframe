@@ -33,6 +33,14 @@ describe('sanitizeRefText', () => {
   it('handles empty string', () => {
     expect(sanitizeRefText('')).toBe('');
   });
+
+  it('strips emoji from label text (e.g. "🛍️ Produk" default identity label)', () => {
+    expect(sanitizeRefText('🛍️ Produk')).toBe('Produk');
+  });
+
+  it('strips emoji while preserving surrounding words', () => {
+    expect(sanitizeRefText('fasad ✨ rumah 2 lantai putih')).toBe('fasad  rumah 2 lantai putih');
+  });
 });
 
 describe('getEffectiveLocationRefs', () => {
