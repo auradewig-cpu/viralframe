@@ -3,7 +3,7 @@ import { Upload, X, ImageOff, Plus } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { NICHES, TARGET_AUDIENCES, PLATFORMS, CONTENT_GOALS, GROWTH_ALLOWED_CTAS } from '../../lib/maps';
 import { CONTENT_STYLES } from '../../lib/contentStyles';
-import { ROOM_IDENTITIES } from '../../lib/roomIdentities';
+import { ROOM_IDENTITIES, UNIVERSAL_IDENTITIES, PROPERTY_ROOM_IDENTITIES, getRoomIdentity } from '../../lib/roomIdentities';
 import { getContentType, DEFAULT_CONTENT_TYPE_ID } from '../../lib/registry';
 import { LocationRef } from '../../types';
 import { buildCanonicalName, inferExtension, resolveUniqueCanonicalName, CanonicalNameInput } from '../../lib/canonicalRefNames';
@@ -17,10 +17,21 @@ const formSections = getContentType(DEFAULT_CONTENT_TYPE_ID).formSections;
 // properti butuh ±7 lokasi + 1 karakter, kasih ruang lebih dari cukup.
 const MAX_REFS = 15;
 const CHARACTER_IDENTITY = '__character__';
-const IDENTITY_OPTIONS: ComboboxOption[] = [
-  { value: CHARACTER_IDENTITY, label: '👤 Karakter' },
-  ...ROOM_IDENTITIES.map(r => ({ value: r.value, label: r.label })),
-];
+
+function getIdentityOptions(niche: string): ComboboxOption[] {
+  const universal = UNIVERSAL_IDENTITIES.map(r => ({ value: r.value, label: r.label }));
+  if (niche === 'real_estate') {
+    return [
+      { value: CHARACTER_IDENTITY, label: '👤 Karakter' },
+      ...universal,
+      ...PROPERTY_ROOM_IDENTITIES.map(r => ({ value: r.value, label: r.label })),
+    ];
+  }
+  return [
+    { value: CHARACTER_IDENTITY, label: '👤 Karakter' },
+    ...universal,
+  ];
+}
 
 export function Step1Business() {
   const formData = useAppStore(s => s.formData);
@@ -227,7 +238,7 @@ export function Step1Business() {
       setFormData({ characterRefFile: newCharacterFile, characterRefSourceName: ref.sourceName || '', locationRefs: remaining });
       return;
     }
-    const identity = ROOM_IDENTITIES.find(r => r.value === identityValue);
+    const identity = getRoomIdentity(identityValue);
     applyLocationChange(idx, {
       identity: identityValue,
       keterangan: identityValue === 'custom' ? '' : (identity?.label || ''),
@@ -477,7 +488,7 @@ export function Step1Business() {
                         {formData.characterRefSourceName && formData.characterRefSourceName !== formData.characterRefFile && (
                           <p className="text-[11px] truncate" style={{ color: 'var(--vf-text-muted)' }}>dari: {formData.characterRefSourceName}</p>
                         )}
-                        <RoomIdentityCombobox value={CHARACTER_IDENTITY} options={IDENTITY_OPTIONS} onSelect={selectCharacterCardIdentity} />
+                        <RoomIdentityCombobox value={CHARACTER_IDENTITY} options={getIdentityOptions(formData.niche)} onSelect={selectCharacterCardIdentity} />
                         {!hasBlob && (
                           <p className="text-[11px]" style={{ color: 'var(--vf-text-muted)' }}>
                             {formData.characterRefSourceName ? 'Preview tidak tersimpan & tidak ikut download bahan lengkap (tanpa file di sesi ini).' : 'Referensi manual — tidak ikut download bahan lengkap.'}
@@ -529,7 +540,7 @@ export function Step1Business() {
                             placeholder='Nama file, mis: "scene1_foto.jpg"'
                           />
                         )}
-                        <RoomIdentityCombobox value={ref.identity} options={IDENTITY_OPTIONS} onSelect={v => selectLocationIdentity(idx, v)} />
+                        <RoomIdentityCombobox value={ref.identity} options={getIdentityOptions(formData.niche)} onSelect={v => selectLocationIdentity(idx, v)} />
                         <InputField
                           value={ref.keterangan}
                           onChange={v => updateLocationRef(idx, { keterangan: v })}

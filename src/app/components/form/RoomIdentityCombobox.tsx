@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
+import { getRoomIdentity } from '../../lib/roomIdentities';
 
 export interface ComboboxOption {
   value: string;
@@ -11,11 +12,17 @@ export interface ComboboxOption {
 // Dropdown identitas searchable (cmdk) — dipakai grid Referensi Visual di Step1Business.tsx.
 // Generik lewat prop `options` supaya bisa disisipi opsi "👤 Karakter" di atas ROOM_IDENTITIES
 // tanpa menduplikasi komponen combobox itu sendiri.
+// Label yang DITAMPILKAN (trigger button) di-resolve dari ROOM_IDENTITIES penuh (getRoomIdentity),
+// BUKAN dari `options` terfilter — supaya entry lama dengan identitas properti tetap terbaca
+// meski niche non-properti (yang options-nya tidak menyertakan preset ruangan).
 export function RoomIdentityCombobox({ value, options, onSelect, placeholder = 'Pilih identitas...' }: {
   value: string; options: ComboboxOption[]; onSelect: (value: string) => void; placeholder?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const selected = options.find(o => o.value === value);
+  const selected = options.find(o => o.value === value) || (value ? (() => {
+    const full = getRoomIdentity(value);
+    return full ? { value: full.value, label: full.label } : undefined;
+  })() : undefined);
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
