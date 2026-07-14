@@ -212,7 +212,8 @@ export async function generateWithFallback<T>(
       } else {
         onProgress(`${PROVIDER_LABELS[provider]} gagal (${err.code}).`);
       }
-      if (NON_TRANSIENT.includes(err.code)) break;
+      // NON_TRANSIENT hanya berarti "jangan retry provider yang SAMA" — provider
+      // BERIKUTNYA tetap dicoba (quota Gemini habis justru alasan utama fallback ke Groq).
     }
   }
 
