@@ -219,11 +219,18 @@ function ContentCalendarForm() {
           <NumberInput label="Jumlah Hari Rencana (3-30) *" value={formData.calendarDays} onChange={v => setFormData({ calendarDays: Math.max(3, Math.min(30, v)) })} min={3} max={30} />
           <NumberInput label="Post per Hari *" value={formData.postsPerDay} onChange={v => setFormData({ postsPerDay: Math.max(1, Math.min(3, v)) })} min={1} max={3} />
         </div>
-        {formData.calendarDays > 14 && (
-          <p className="text-xs p-2 rounded" style={{ background: 'rgba(245,158,11,0.1)', color: 'var(--vf-accent-warning)' }}>
-            ⚠️ Rencana &gt;14 hari menghasilkan prompt panjang — production_prompt per post dibuat lebih ringkas (bukan JSON scene penuh) supaya tetap muat dalam satu kali generate.
-          </p>
-        )}
+        {(() => {
+          const totalSlots = formData.calendarDays * formData.postsPerDay;
+          return totalSlots > 40 ? (
+            <p className="text-xs p-2 rounded" style={{ background: 'rgba(245,158,11,0.1)', color: 'var(--vf-accent-warning)' }}>
+              ⚠️ Kombinasi {formData.calendarDays} hari × {formData.postsPerDay} post = {totalSlots} slot — output bisa terpotong di tengah. Sarankan pecah jadi beberapa rencana ≤ 40 slot (mis. 2 × {Math.ceil(formData.calendarDays / 2)} hari).
+            </p>
+          ) : formData.calendarDays > 14 ? (
+            <p className="text-xs p-2 rounded" style={{ background: 'rgba(245,158,11,0.1)', color: 'var(--vf-accent-warning)' }}>
+              ⚠️ Rencana &gt;14 hari menghasilkan prompt panjang — production_prompt per post dibuat lebih ringkas (bukan JSON scene penuh) supaya tetap muat dalam satu kali generate.
+            </p>
+          ) : null;
+        })()}
         <div>
           <FieldLabel>Data Akun & Insight (paste manual)</FieldLabel>
           <p className="text-xs mb-2" style={{ color: 'var(--vf-text-muted)' }}>

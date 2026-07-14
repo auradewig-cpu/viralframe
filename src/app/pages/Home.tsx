@@ -237,7 +237,7 @@ export function Home() {
         }
         if (mapped.percent !== null) setGenerateProgressPercent(mapped.percent);
       };
-      let json = await generateWithFallback(prompt, keys, contentType.parseOutput, onProgress, (percent) => setGroqQuotaPercent(percent), settings.geminiModel || 'gemini-3.5-flash');
+      let json = await generateWithFallback(prompt, keys, contentType.parseOutput, onProgress, (percent) => setGroqQuotaPercent(percent), settings.geminiModel || 'gemini-3.5-flash', settings.providerOrder);
       if (json) contentType.applyPostProcess?.(json, formData);
 
       let validation = contentType.validateOutput(json, formData);
@@ -288,7 +288,12 @@ export function Home() {
       });
     } catch (e: unknown) {
       const err = e as ApiCallError;
-      setGenerateError(err.message || 'Terjadi kesalahan tidak diketahui.');
+      let msg = err.message || 'Terjadi kesalahan tidak diketahui.';
+      if (err.code === 'JSON_PARSE_ERROR' && contentType.id === 'content_calendar') {
+        const slots = formData.calendarDays * formData.postsPerDay;
+        if (slots > 40) msg += ' Kemungkinan output terpotong — kurangi jumlah hari/post (saat ini ' + slots + ' slot).';
+      }
+      setGenerateError(msg);
     } finally {
       setIsGenerating(false);
       setGenerateProgress('');
