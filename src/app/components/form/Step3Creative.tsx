@@ -32,6 +32,7 @@ function CharacterPhotoGenerator() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [generatedBlob, setGeneratedBlob] = useState<Blob | null>(null);
   const [savedNotice, setSavedNotice] = useState<string | null>(null);
+  const [inputImageDropped, setInputImageDropped] = useState(false);
 
   // Cari foto produk pertama yang punya blob
   const productRefs = getEffectiveLocationRefs(formData).filter(r => r.role === 'product' && r.sourceName && referenceFiles[r.sourceName]?.blob);
@@ -44,6 +45,7 @@ function CharacterPhotoGenerator() {
     setPreviewUrl(null);
     setGeneratedBlob(null);
     setSavedNotice(null);
+    setInputImageDropped(false);
 
     try {
       const blob = await generateImageWithFallback(prompt, { ratio: '9:16', inputImage: productBlob || undefined }, {
@@ -55,6 +57,7 @@ function CharacterPhotoGenerator() {
             setProviderLabel('Puter.js');
           }
         },
+        onInputImageDropped: () => setInputImageDropped(true),
       });
       const url = URL.createObjectURL(blob);
       setPreviewUrl(url);
@@ -158,6 +161,12 @@ function CharacterPhotoGenerator() {
 
       {previewUrl && generatedBlob && (
         <div className="space-y-3 rounded-xl p-3" style={{ background: 'var(--vf-bg-secondary)', border: '1px solid var(--vf-border)' }}>
+          {inputImageDropped && (
+            <div className="flex items-start gap-2 p-2 rounded-lg text-xs" style={{ background: 'rgba(245,158,11,0.1)', color: 'var(--vf-accent-warning)', border: '1px solid var(--vf-accent-warning)' }}>
+              <AlertCircle size={14} className="shrink-0 mt-0.5" />
+              <span>⚠️ Kuota/API Gemini bermasalah — foto ini digenerate TANPA foto produk sebagai acuan (pakai provider cadangan). Produk tidak akan terlihat presisi. Coba lagi nanti untuk hasil dengan produk, atau lampirkan foto produk secara manual di Referensi Lokasi setelah karakter ini dipakai.</span>
+            </div>
+          )}
           <img src={previewUrl} alt="Preview karakter" className="w-full rounded-lg" style={{ maxHeight: 320, objectFit: 'contain', background: 'var(--vf-bg-elevated)' }} />
           <div className="flex flex-wrap gap-2">
             <button

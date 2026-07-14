@@ -164,16 +164,27 @@ export interface ImageGenDeps {
   geminiImageModel?: string;
   puterEnabled?: boolean;
   onProviderStatus?: OnImageProviderStatus;
+  // Dipanggil TEPAT SEBELUM sistem mencoba ulang TANPA foto input (Gemini gagal padahal
+  // opts.inputImage awalnya ada) — supaya pemanggil bisa memberi tahu user hasilnya nanti
+  // digenerate tanpa foto produk sebagai acuan.
+  onInputImageDropped?: () => void;
 }
 
 const NON_TRANSIENT_IMAGE: ImageGenErrorCode[] = ['API_KEY_INVALID', 'QUOTA_EXCEEDED', 'UNSUPPORTED_INPUT'];
 
-export async function generateImageWithFallback(prompt: string, opts: ImageGenOptions, deps: ImageGenDeps): Promise<Blob> {
-  const errors: ImageGenError[] = [];
-  const notify = (provider: ImageProvider, status: ProviderStatus) => deps.onProviderStatus?.(provider, status);
-
-  // 1. Puter — skip jika inputImage diberikan (Puter txt2img tidak menerima input gambar)
-  if (deps.puterEnabled !== false && !opts.inputImage) {
+// Puter lalu Pollinations — keduanya TIDAK mendukung inputImage. Dipakai dua kali: sebagai chain
+// awal saat tidak ada inputImage sejak awal, dan sebagai fallback saat Gemini gagal padahal
+// inputImage awalnya ada (lihat generateImageWithFallback). `opts` yang dioper ke sini WAJIB
+// sudah tanpa inputImage (dijamin oleh caller).
+async function tryPuterThenPollinations(
+  prompt: string,
+  opts: ImageGenOptions,
+  deps: ImageGenDeps,
+  notify: (provider: ImageProvider, status: ProviderStatus) => void,
+  errors: ImageGenError[],
+): Promise<Blob | undefined> {
+  // 1. Puter
+  if (deps.puterEnabled !== false) {
     if (isPuterSkipped()) {
       notify('puter', 'skipped');
       errors.push(new ImageGenError('TIMEOUT', 'Puter dilewati (gagal sebelumnya — coba lagi nanti atau nonaktifkan di Settings).'));
@@ -189,27 +200,42 @@ export async function generateImageWithFallback(prompt: string, opts: ImageGenOp
         markPuterFailed();
         errors.push(err);
         notify('puter', 'failed');
-        if (NON_TRANSIENT_IMAGE.includes(err.code)) return Promise.reject(err);
+        if (NON_TRANSIENT_IMAGE.includes(err.code)) throw err;
       }
     }
   }
 
-  // 2. Pollinations — skip jika inputImage diberikan (tidak mendukung)
+  // 2. Pollinations
+  try {
+    notify('pollinations', 'trying');
+    const result = await withTimeout((signal) => callPollinations(prompt, opts.ratio, signal), 60_000);
+    notify('pollinations', 'success');
+    return result;
+  } catch (e: unknown) {
+    const err = e instanceof ImageGenError ? e : new ImageGenError('UNKNOWN', String(e));
+    errors.push(err);
+    notify('pollinations', 'failed');
+    if (NON_TRANSIENT_IMAGE.includes(err.code)) throw err;
+  }
+
+  return undefined;
+}
+
+export async function generateImageWithFallback(prompt: string, opts: ImageGenOptions, deps: ImageGenDeps): Promise<Blob> {
+  const errors: ImageGenError[] = [];
+  const notify = (provider: ImageProvider, status: ProviderStatus) => deps.onProviderStatus?.(provider, status);
+
+  // 1+2. Puter & Pollinations — skip sepenuhnya kalau ada inputImage (keduanya tidak mendukung gambar input)
   if (!opts.inputImage) {
     try {
-      notify('pollinations', 'trying');
-      const result = await withTimeout((signal) => callPollinations(prompt, opts.ratio, signal), 60_000);
-      notify('pollinations', 'success');
-      return result;
-    } catch (e: unknown) {
-      const err = e instanceof ImageGenError ? e : new ImageGenError('UNKNOWN', String(e));
-      errors.push(err);
-      notify('pollinations', 'failed');
-      if (NON_TRANSIENT_IMAGE.includes(err.code)) return Promise.reject(err);
+      const result = await tryPuterThenPollinations(prompt, opts, deps, notify, errors);
+      if (result) return result;
+    } catch (err) {
+      return Promise.reject(err);
     }
   }
 
-  // 3. Gemini Image — butuh API key
+  // 3. Gemini Image — satu-satunya provider yang mendukung inputImage — butuh API key
   if (deps.geminiApiKey) {
     try {
       notify('gemini_image', 'trying');
@@ -220,11 +246,30 @@ export async function generateImageWithFallback(prompt: string, opts: ImageGenOp
       const err = e instanceof ImageGenError ? e : new ImageGenError('UNKNOWN', String(e));
       errors.push(err);
       notify('gemini_image', 'failed');
-      if (NON_TRANSIENT_IMAGE.includes(err.code)) return Promise.reject(err);
+
+      if (opts.inputImage) {
+        // Gemini gagal (apa pun alasannya) padahal ada foto input — daripada gagal total, coba
+        // lagi TANPA foto lewat Puter/Pollinations supaya user tetap dapat hasil (tanpa acuan produk).
+        deps.onInputImageDropped?.();
+        try {
+          const fallbackResult = await tryPuterThenPollinations(prompt, { ...opts, inputImage: undefined }, deps, notify, errors);
+          if (fallbackResult) return fallbackResult;
+        } catch (fallbackErr) {
+          return Promise.reject(fallbackErr);
+        }
+      } else if (NON_TRANSIENT_IMAGE.includes(err.code)) {
+        return Promise.reject(err);
+      }
     }
   }
 
   if (errors.length > 0) {
+    if (opts.inputImage) {
+      // errors[0] = percobaan Gemini (dengan foto), sisanya = fallback Puter/Pollinations (tanpa foto).
+      const geminiErr = errors[0];
+      const fallbackErr = errors[errors.length - 1];
+      throw new ImageGenError('ALL_FAILED', `Semua provider gagal. Gemini (dengan foto produk): ${geminiErr.message} — Provider cadangan (tanpa foto): ${fallbackErr.message}`);
+    }
     const lastMsg = errors[errors.length - 1].message;
     throw new ImageGenError('ALL_FAILED', `Semua provider gagal. Error terakhir: ${lastMsg}`);
   }
