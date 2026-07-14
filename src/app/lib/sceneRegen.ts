@@ -3,7 +3,7 @@ import { getLipsyncSpec } from './lipsync';
 import { AI_TOOLS, NICHE_DATA, AI_TOOL_FORMAT } from './maps';
 import { CONTENT_STYLES } from './contentStyles';
 import { NEGATIVE_PROMPT_BLOCK, CAMERA_REF_RULE, SPOKEN_NUMBER_RULE } from './negativePrompt';
-import { countWords, ValidationResult, hasDialogueTag, hasValidDialogueTagContent, hasEmbeddedDialogue, hasTimingInTextOverlay } from './jsonParser';
+import { countWords, ValidationResult, hasDialogueTag, hasValidDialogueTagContent, hasEmbeddedDialogue, hasTimingInTextOverlay, MIN_NARRATION_RATIO } from './jsonParser';
 import { parseJsonResponse } from './registry/shared';
 import {
   getValidLocationRefs, getSceneLocationRef, buildReferenceImageJson, buildBindingSentence, buildPromptHintsSentence,
@@ -206,7 +206,7 @@ export function validateSceneData(scene: SceneData, expectation: SceneRegenExpec
     const actual = countWords(scene.script_narration);
     if (actual > expectation.maxWords) {
       warnings.push(`Narasi aktual ${actual} kata, melebihi batas lipsync ${expectation.maxWords} kata.`);
-    } else if (actual < Math.ceil(expectation.maxWords * 0.6)) {
+    } else if (actual < Math.ceil(expectation.maxWords * MIN_NARRATION_RATIO)) {
       warnings.push(`Narasi aktual ${actual} kata, jauh di bawah target 85% dari ${expectation.maxWords} kata.`);
     }
   }

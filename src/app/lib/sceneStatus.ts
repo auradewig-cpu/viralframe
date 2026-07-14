@@ -1,5 +1,5 @@
 import { VideoJSON, FormData } from '../types';
-import { countWords, hasDialogueTag, hasValidDialogueTagContent, hasEmbeddedDialogue, hasTimingInTextOverlay } from './jsonParser';
+import { countWords, hasDialogueTag, hasValidDialogueTagContent, hasEmbeddedDialogue, hasTimingInTextOverlay, MIN_NARRATION_RATIO } from './jsonParser';
 import { checkPolicyCompliance, PolicyViolation } from './policyCheck';
 import { getValidLocationRefs, getSceneLocationRef, getCharacterRefFileName } from './locationRefs';
 
@@ -27,7 +27,7 @@ export function getSceneIssuesMap(json: VideoJSON, form: FormData): Record<numbe
       const actual = countWords(scene.script_narration);
       if (actual > scene.max_words) {
         addIssue(scene.scene_number, `Narasi ${actual} kata, melebihi batas lipsync ${scene.max_words} kata.`);
-      } else if (actual < Math.ceil(scene.max_words * 0.6)) {
+      } else if (actual < Math.ceil(scene.max_words * MIN_NARRATION_RATIO)) {
         addIssue(scene.scene_number, `Narasi ${actual} kata, jauh di bawah target 85% dari ${scene.max_words} kata.`);
       }
     }

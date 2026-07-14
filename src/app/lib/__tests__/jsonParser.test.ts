@@ -268,7 +268,7 @@ describe('validateVideoJSON', () => {
     expect(result.warnings.some(w => w.includes('melebihi batas lipsync'))).toBe(true);
   });
 
-  it('returns warning when narration is far below 60% of max_words', () => {
+  it('returns warning when narration is far below 85% of max_words', () => {
     const json = makeMinimalVideoJSON({
       scenes: [makeScene({
         script_narration: 'Halo.',
@@ -280,7 +280,7 @@ describe('validateVideoJSON', () => {
   });
 
   it('does not warn when narration is at ~88% of max_words', () => {
-    // 22 words with max_words=25 → 88%, between 60% and 100% → no warning
+    // 22 words with max_words=25 → 88%, at/above 85% threshold → no warning
     const json = makeMinimalVideoJSON({
       scenes: [makeScene({
         script_narration: 'a b c d e f g h i j k l m n o p q r s t u v',
@@ -290,6 +290,57 @@ describe('validateVideoJSON', () => {
     const result = validateVideoJSON(json, 1, 1, 'veo3');
     expect(result.warnings.some(w => w.includes('melebihi batas lipsync'))).toBe(false);
     expect(result.warnings.some(w => w.includes('jauh di bawah target'))).toBe(false);
+  });
+
+  // ── Celah 60%→85%: narasi 65%-74% dari max_words HARUS memicu warning ──
+
+  it('warns when narration is 74% of max_words (17/23) — used to slip through the old 60% gate', () => {
+    const json = makeMinimalVideoJSON({
+      scenes: [makeScene({
+        // 17 tokens (a..q), max_words=23 → 74%
+        script_narration: 'a b c d e f g h i j k l m n o p q',
+        max_words: 23,
+      })],
+    });
+    const result = validateVideoJSON(json, 1, 1, 'veo3');
+    expect(result.warnings.some(w => w.includes('jauh di bawah target'))).toBe(true);
+  });
+
+  it('warns when narration is 65% of max_words (15/23)', () => {
+    const json = makeMinimalVideoJSON({
+      scenes: [makeScene({
+        // 15 tokens (a..o), max_words=23 → 65%
+        script_narration: 'a b c d e f g h i j k l m n o',
+        max_words: 23,
+      })],
+    });
+    const result = validateVideoJSON(json, 1, 1, 'veo3');
+    expect(result.warnings.some(w => w.includes('jauh di bawah target'))).toBe(true);
+  });
+
+  it('does not warn when narration is ~91% of max_words (21/23)', () => {
+    const json = makeMinimalVideoJSON({
+      scenes: [makeScene({
+        // 21 tokens (a..u), max_words=23 → 91%
+        script_narration: 'a b c d e f g h i j k l m n o p q r s t u',
+        max_words: 23,
+      })],
+    });
+    const result = validateVideoJSON(json, 1, 1, 'veo3');
+    expect(result.warnings.some(w => w.includes('jauh di bawah target'))).toBe(false);
+  });
+
+  it('does not warn when narration is exactly 100% of max_words (23/23)', () => {
+    const json = makeMinimalVideoJSON({
+      scenes: [makeScene({
+        // 23 tokens (a..w), max_words=23 → 100%
+        script_narration: 'a b c d e f g h i j k l m n o p q r s t u v w',
+        max_words: 23,
+      })],
+    });
+    const result = validateVideoJSON(json, 1, 1, 'veo3');
+    expect(result.warnings.some(w => w.includes('jauh di bawah target'))).toBe(false);
+    expect(result.warnings.some(w => w.includes('melebihi batas lipsync'))).toBe(false);
   });
 
   it('returns warning when ai_ready_prompt exceeds tool char limit', () => {

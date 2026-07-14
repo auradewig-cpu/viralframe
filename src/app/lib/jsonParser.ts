@@ -25,6 +25,11 @@ export interface ValidationResult {
   warnings: string[];
 }
 
+// Ambang minimum rasio script_narration terhadap max_words — samakan dengan target 85%-100%
+// yang dijanjikan di instruksi GAYA BICARA & ARTIKULASI master prompt. Satu sumber kebenaran
+// dipakai lintas jsonParser/sceneRegen/sceneStatus supaya tidak drift jadi angka berbeda-beda.
+export const MIN_NARRATION_RATIO = 0.85;
+
 export function countWords(text: string | null | undefined): number {
   if (!text) return 0;
   return text.trim().split(/\s+/).filter(Boolean).length;
@@ -103,7 +108,7 @@ export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number, e
         const actual = countWords(scene.script_narration);
         if (actual > scene.max_words) {
           warnings.push(`Scene ${i + 1}: narasi aktual ${actual} kata, melebihi batas lipsync ${scene.max_words} kata — talent tidak akan sempat mengucapkannya.`);
-        } else if (actual < Math.ceil(scene.max_words * 0.6)) {
+        } else if (actual < Math.ceil(scene.max_words * MIN_NARRATION_RATIO)) {
           warnings.push(`Scene ${i + 1}: narasi aktual ${actual} kata, jauh di bawah target 85% dari ${scene.max_words} kata — pacing akan terasa kosong.`);
         }
       }

@@ -125,3 +125,37 @@ describe('validateSceneData — embedded dialogue (google_flow/veo3)', () => {
     expect(result.warnings.some(w => w.includes('[DIALOGUE:'))).toBe(false);
   });
 });
+
+describe('validateSceneData — narration word-count ratio (celah 60%→85%)', () => {
+  it('warns when narration is 74% of max_words (17/23) — used to slip through the old 60% gate', () => {
+    const result = validateSceneData(
+      makeScene({ script_narration: 'a b c d e f g h i j k l m n o p q', max_words: 23 }),
+      makeExpectation({ maxWords: 23 }),
+    );
+    expect(result.warnings.some(w => w.includes('jauh di bawah target'))).toBe(true);
+  });
+
+  it('warns when narration is 65% of max_words (15/23)', () => {
+    const result = validateSceneData(
+      makeScene({ script_narration: 'a b c d e f g h i j k l m n o', max_words: 23 }),
+      makeExpectation({ maxWords: 23 }),
+    );
+    expect(result.warnings.some(w => w.includes('jauh di bawah target'))).toBe(true);
+  });
+
+  it('does not warn when narration is ~91% of max_words (21/23)', () => {
+    const result = validateSceneData(
+      makeScene({ script_narration: 'a b c d e f g h i j k l m n o p q r s t u', max_words: 23 }),
+      makeExpectation({ maxWords: 23 }),
+    );
+    expect(result.warnings.some(w => w.includes('jauh di bawah target'))).toBe(false);
+  });
+
+  it('does not warn when narration is exactly 100% of max_words (23/23)', () => {
+    const result = validateSceneData(
+      makeScene({ script_narration: 'a b c d e f g h i j k l m n o p q r s t u v w', max_words: 23 }),
+      makeExpectation({ maxWords: 23 }),
+    );
+    expect(result.warnings.some(w => w.includes('jauh di bawah target'))).toBe(false);
+  });
+});
