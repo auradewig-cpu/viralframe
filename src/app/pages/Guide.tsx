@@ -169,8 +169,103 @@ App menghasilkan Master Prompt teks yang bisa kamu copy-paste ke ChatGPT, Claude
 Settings → API Configuration → Masukkan Gemini API Key (dari aistudio.google.com) atau Groq API Key (dari console.groq.com).`,
   },
   {
+    id: 'image-engine',
+    title: '11. Image Engine — Generate Gambar Langsung di App',
+    content: `Image Engine memungkinkan generate gambar dari prompt langsung di browser tanpa perlu aplikasi eksternal. Dipakai oleh Thumbnail Pack (per konsep) dan Carousel IG (per slide).
+
+**Chain Provider (urutan fallback):**
+1. **Puter.js** — Gratis, User-Pays (panggilan pertama bisa popup login — itu normal, bukan error). Hanya dipakai untuk txt2img (tanpa input gambar). Bisa dimatikan di Settings → Image Engine. Kalau gagal, sistem otomatis pindah provider.
+2. **Pollinations** — Gratis, tanpa API key. Tanpa input gambar.
+3. **Gemini Image** — Butuh Gemini API key. Satu-satunya provider yang support input gambar (image+text→image).
+
+Urutan bisa diatur di Settings → API Configuration → Urutan Fallback Provider.
+
+**Generate Foto Karakter (Step 3):**
+Di Parameter Kreatif → blok Karakter, tombol ✨ Generate Foto Karakter aktif untuk talentStyle visible_character dan faceless_pov.
+• Klik → sistem merangkai prompt English dari parameter karakter + latar
+• Jika ada foto produk di Referensi Visual (role product), otomatis dikirim sebagai input image — karakter digenerate memegang produk
+• Preview muncul: Download / Generate Ulang / ✅ Pakai sebagai Referensi Karakter
+• "Pakai" → foto disimpan sebagai karakter.png di sistem referensi, ikut Download Bahan (ZIP) dan binding prompt
+• Hint: tanpa foto produk, karakter tetap bisa digenerate tapi tanpa memegang produk`,
+  },
+  {
+    id: 'pipeline',
+    title: '12. Pipeline Antar-Konten',
+    content: `Pipeline memungkinkan output satu content type menjadi input content type lain. Prinsip: PREFILL + pindah + notice — BUKAN generate otomatis berantai. User tetap meninjau form lalu generate sendiri.
+
+**Kalender Konten → Short Video (format video):**
+Tombol "🎬 Buat video ini" di setiap post → konfirmasi → form Short Video terisi dengan topik, hook, caption draft dari kalender. Banner "📋 Brief dari pipeline aktif" muncul di atas form dengan tombol ✕ untuk menghapus.
+
+**Kalender Konten → Carousel IG (format carousel/image):**
+Tombol "🖼️ Buat carousel ini" → konfirmasi → form Carousel IG terisi.
+
+**YouTube Long → Thumbnail Pack:**
+Tombol "🖼️ Buat Thumbnail-nya" di metadata → pilih 1 dari 3 title_variants → prefill ke Thumbnail Pack.
+
+**Short Video → Caption versi platform lain:**
+Di output Scene Cards → bagian Captions → dropdown pilih platform target → tombol 🌐 Versi [Platform] → generate caption adapted via API. Hasil ditampilkan di bawah caption asli, tidak disimpan ke history (sesi saja).`,
+  },
+  {
+    id: 'carousel-ig',
+    title: '13. Carousel IG — Konten Slide-by-Slide',
+    content: `Carousel IG adalah content type ke-5: slide carousel untuk Instagram Feed. Output: JSON dengan slide per halaman + prompt gambar siap generate.
+
+**Struktur Slide Wajib:**
+• Slide 1 = COVER — hook visual + cover_hook_text (maks 8 kata) yang bikin orang berhenti scroll
+• Slide 2 s.d. slide sebelum terakhir = CONTENT — 1 ide per slide, bernilai edukatif
+• Slide terakhir = CTA — ajakan sesuai contentGoal (growth → save/share jangan transaksi)
+
+**🎨 Style Anchor — Kenapa Semua Slide Seragam:**
+design_system.style_anchor = SATU kalimat English yang mendeskripsikan gaya visual seragam (style, palette, lighting, mood). SETIAP image_prompt.prompt_full WAJIB diawali style_anchor VERBATIM kata-per-kata sebelum deskripsi spesifik slide. Tanpa ini, tiap slide akan terlihat seperti desainer berbeda.
+
+**Generate Gambar:**
+• Per slide: tombol 🎨 Generate Gambar → loading/error/preview per slide + Download slide_<N>.png
+• Generate Semua Slide: tombol → berurutan satu per satu (BUKAN paralel — hormati rate limit) dengan progress "Slide 3/6..." + tombol Batalkan antar slide
+
+**Teks Tidak Dirender di Gambar:**
+image_prompt.prompt_full TIDAK boleh menyertakan teks/tipografi di gambar. Gunakan layout_note sebagai panduan tata letak teks saat menyusun slide di Canva/CapCut.`,
+  },
+  {
+    id: 'settings-baru',
+    title: '14. Pengaturan Baru',
+    content: `Beberapa pengaturan baru telah ditambahkan sejak versi awal:
+
+**🎨 Image Engine (Settings → Image Engine):**
+• Toggle Puter.js (User-Pays, bisa popup login)
+• Dropdown model Gemini Image (default: gemini-3.1-flash-image)
+• Urutan chain read-only
+
+**🔄 Urutan Prioritas Provider Teks (Settings → API Configuration):**
+• Daftar 3 provider dengan tombol ▲ ▼ untuk mengatur prioritas
+• Provider tanpa API key otomatis dilewati
+• Default: Gemini → Groq → OpenRouter
+• Nilai korup (bukan permutasi valid 3 provider) otomatis direset ke default
+
+**🖼️ Penyimpanan Foto Referensi (Settings → bawah):**
+• Foto referensi (karakter, lokasi, produk) disimpan di IndexedDB browser
+• Bisa dibersihkan dengan tombol "Bersihkan semua foto tersimpan"
+• Foto di IndexedDB TIDAK ikut terhapus saat Reset Data Aplikasi (yang menghapus localStorage)`,
+  },
+  {
+    id: 'disclosure',
+    title: '15. Disclosure & Kepatuhan Platform',
+    content: `Platform media sosial mewajibkan penanda konten buatan AI dan konten komersial. ViralFrame membantu memenuhinya secara otomatis:
+
+**🤖 Label AI-generated Content:**
+Di output Scene Cards → bagian Captions, ada pengingat statis: "Video hasil AI — jangan lupa aktifkan label 'AI-generated content' saat upload di TikTok/YouTube/Instagram (kewajiban platform, di luar caption)."
+
+**💰 Penanda Komersial (Affiliate Disclosure):**
+Jika contentGoal = Konversi, master prompt secara otomatis menginstruksikan AI untuk menyertakan penanda komersial yang wajar di setiap caption:
+• Di akhir caption_text: "#ad", "#affiliate", atau frasa ringan seperti "yang dibeli lewat link ini mendukung channel"
+• ATAU di hashtags: #ad atau #affiliate
+Untuk Growth/Engagement: TIDAK perlu disclosure (tidak ada transaksi).
+
+**✅ Policy Compliance:**
+Semua output AI melewati policy linter yang mendeteksi klaim absolut, klaim medis, testimonial fiktif, dan (mode Growth) bahasa komersial.`,
+  },
+  {
     id: 'faq',
-    title: '10. FAQ',
+    title: '16. FAQ',
     content: `**Q: Kenapa AI tidak mengeluarkan JSON?**
 A: AI kadang menambah teks sebelum/sesudah JSON. ViralFrame sudah memiliki auto-strip parser yang mengekstrak JSON secara otomatis. Jika gagal, coba regenerate sekali lagi.
 
