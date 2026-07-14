@@ -23,6 +23,10 @@ describe('getDimensions', () => {
     expect(getDimensions('1:1')).toEqual({ width: 1024, height: 1024 });
   });
 
+  it('4:5 → 1024x1280', () => {
+    expect(getDimensions('4:5')).toEqual({ width: 1024, height: 1280 });
+  });
+
   it('unknown ratio falls back to 1024x1024', () => {
     expect(getDimensions('4:3')).toEqual({ width: 1024, height: 1024 });
   });

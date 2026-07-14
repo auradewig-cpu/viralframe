@@ -1,5 +1,5 @@
 export interface ImageGenOptions {
-  ratio: '16:9' | '9:16' | '1:1';
+  ratio: '16:9' | '9:16' | '1:1' | '4:5';
   inputImage?: Blob;
 }
 
@@ -33,6 +33,7 @@ const RATIO_DIMENSIONS: Record<string, { width: number; height: number }> = {
   '16:9': { width: 1280, height: 720 },
   '9:16': { width: 720, height: 1280 },
   '1:1': { width: 1024, height: 1024 },
+  '4:5': { width: 1024, height: 1280 },
 };
 
 export function getDimensions(ratio: string): { width: number; height: number } {
