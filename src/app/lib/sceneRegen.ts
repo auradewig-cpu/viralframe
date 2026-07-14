@@ -3,7 +3,7 @@ import { getLipsyncSpec } from './lipsync';
 import { AI_TOOLS, NICHE_DATA, AI_TOOL_FORMAT } from './maps';
 import { CONTENT_STYLES } from './contentStyles';
 import { NEGATIVE_PROMPT_BLOCK, CAMERA_REF_RULE, SPOKEN_NUMBER_RULE } from './negativePrompt';
-import { countWords, ValidationResult } from './jsonParser';
+import { countWords, ValidationResult, hasDialogueTag } from './jsonParser';
 import { parseJsonResponse } from './registry/shared';
 import {
   getValidLocationRefs, getSceneLocationRef, buildReferenceImageJson, buildBindingSentence, buildPromptHintsSentence,
@@ -142,7 +142,7 @@ GUARDRAIL: scene_number, duration_seconds, dan max_words TIDAK BOLEH berubah dar
 Output JSON murni, mulai {, akhiri }.`;
 }
 
-export function validateSceneData(scene: SceneData, expectation: SceneRegenExpectation): ValidationResult {
+export function validateSceneData(scene: SceneData, expectation: SceneRegenExpectation, hookType?: string): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -170,6 +170,15 @@ export function validateSceneData(scene: SceneData, expectation: SceneRegenExpec
     }
     if (expectation.characterRefFileName && !scene.ai_ready_prompt.includes(expectation.characterRefFileName)) {
       warnings.push(`ai_ready_prompt tidak menyebut nama file foto karakter "${expectation.characterRefFileName}" — foto karakter mungkin diabaikan AI video tool.`);
+    }
+    if (!hasDialogueTag(scene.ai_ready_prompt)) {
+      const isVisualShockNoNarration =
+        hookType === 'visual_shock' &&
+        expectation.sceneNumber === 1 &&
+        (!scene.script_narration || countWords(scene.script_narration) <= 5);
+      if (!isVisualShockNoNarration) {
+        warnings.push('ai_ready_prompt tidak menyertakan tag [DIALOGUE: ...] — AI video tool kemungkinan akan menghasilkan dialog berbahasa Inggris alih-alih bahasa yang diminta.');
+      }
     }
   }
 

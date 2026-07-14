@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseAiResponse, countWords, validateVideoJSON } from '../jsonParser';
+import { parseAiResponse, countWords, validateVideoJSON, hasDialogueTag } from '../jsonParser';
 import type { VideoJSON, FormData } from '../../types';
 import { DEFAULT_FORM } from '../../types';
 
@@ -157,6 +157,26 @@ describe('countWords', () => {
   });
 });
 
+// ── hasDialogueTag ─────────────────────────────────────────────
+
+describe('hasDialogueTag', () => {
+  it('returns true when [DIALOGUE: is present', () => {
+    expect(hasDialogueTag('... [DIALOGUE: Bahasa Indonesia]')).toBe(true);
+  });
+
+  it('returns true for tag with different language', () => {
+    expect(hasDialogueTag('... [DIALOGUE: English]')).toBe(true);
+  });
+
+  it('returns false when tag is missing', () => {
+    expect(hasDialogueTag('A woman applying skincare in a bright bathroom.')).toBe(false);
+  });
+
+  it('returns false for empty string', () => {
+    expect(hasDialogueTag('')).toBe(false);
+  });
+});
+
 // ── validateVideoJSON ──────────────────────────────────────────
 
 describe('validateVideoJSON', () => {
@@ -306,5 +326,54 @@ describe('validateVideoJSON', () => {
     });
     const result = validateVideoJSON(json, 1, 1, 'veo3');
     expect(result.warnings.some(w => w.includes('CHARACTER ANCHOR'))).toBe(true);
+  });
+
+  // ── Dialogue tag [DIALOGUE: ...] ─────────────────────────
+
+  it('warns when ai_ready_prompt lacks [DIALOGUE: ...] tag', () => {
+    const json = makeMinimalVideoJSON({
+      scenes: [makeScene({ ai_ready_prompt: 'A woman applying skincare in a bright bathroom.' })],
+    });
+    const result = validateVideoJSON(json, 1, 1, 'veo3');
+    expect(result.warnings.some(w => w.includes('[DIALOGUE:'))).toBe(true);
+  });
+
+  it('does not warn when [DIALOGUE: ...] tag is present', () => {
+    const json = makeMinimalVideoJSON({
+      scenes: [makeScene({ ai_ready_prompt: 'A woman applying skincare in a bright bathroom. [DIALOGUE: Bahasa Indonesia]' })],
+    });
+    const result = validateVideoJSON(json, 1, 1, 'veo3');
+    expect(result.warnings.some(w => w.includes('[DIALOGUE:'))).toBe(false);
+  });
+
+  it('does not warn for visual_shock scene 1 with empty narration', () => {
+    const json = makeMinimalVideoJSON({
+      video_metadata: {
+        ...makeMinimalVideoJSON().video_metadata,
+        hook_type: 'visual_shock',
+      },
+      scenes: [makeScene({
+        ai_ready_prompt: 'Explosion and bright flash fill the screen.',
+        script_narration: '',
+        max_words: 15,
+      })],
+    });
+    const result = validateVideoJSON(json, 1, 1, 'veo3');
+    expect(result.warnings.some(w => w.includes('[DIALOGUE:'))).toBe(false);
+  });
+
+  it('warns for visual_shock scene 2 (not first scene) despite empty narration', () => {
+    const json = makeMinimalVideoJSON({
+      video_metadata: {
+        ...makeMinimalVideoJSON().video_metadata,
+        hook_type: 'visual_shock',
+      },
+      scenes: [
+        makeScene({ scene_number: 1, ai_ready_prompt: 'Explosion. [DIALOGUE: Bahasa Indonesia]', script_narration: '' }),
+        makeScene({ scene_number: 2, ai_ready_prompt: 'The aftermath of the explosion.', script_narration: '' }),
+      ],
+    });
+    const result = validateVideoJSON(json, 2, 1, 'veo3');
+    expect(result.warnings.filter(w => w.includes('[DIALOGUE:'))).toHaveLength(1);
   });
 });

@@ -1,5 +1,5 @@
 import { VideoJSON, FormData } from '../types';
-import { countWords } from './jsonParser';
+import { countWords, hasDialogueTag } from './jsonParser';
 import { checkPolicyCompliance, PolicyViolation } from './policyCheck';
 import { getValidLocationRefs, getSceneLocationRef, getCharacterRefFileName } from './locationRefs';
 
@@ -39,6 +39,15 @@ export function getSceneIssuesMap(json: VideoJSON, form: FormData): Record<numbe
     }
     if (characterRefFileName && !(scene.ai_ready_prompt || '').includes(characterRefFileName)) {
       addIssue(scene.scene_number, `ai_ready_prompt tidak menyebut nama file foto karakter "${characterRefFileName}" — foto karakter mungkin diabaikan AI video tool.`);
+    }
+    if (scene.ai_ready_prompt && !hasDialogueTag(scene.ai_ready_prompt)) {
+      const isVisualShockNoNarration =
+        form.hookType === 'visual_shock' &&
+        scene.scene_number === 1 &&
+        (!scene.script_narration || countWords(scene.script_narration) <= 5);
+      if (!isVisualShockNoNarration) {
+        addIssue(scene.scene_number, 'ai_ready_prompt tidak menyertakan tag [DIALOGUE: ...] — AI video tool kemungkinan akan menghasilkan dialog berbahasa Inggris alih-alih bahasa yang diminta.');
+      }
     }
     if (scene.script_narration && SPOKEN_NUMBER_ISSUE_PATTERN.test(scene.script_narration)) {
       addIssue(scene.scene_number, `Sebutan angka "X koma Y" sulit diucapkan — gunakan bentuk lisan (mis. "empat setengah miliar").`);

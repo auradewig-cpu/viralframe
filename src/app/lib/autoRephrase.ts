@@ -55,7 +55,7 @@ GUARDRAIL: Output HANYA satu objek JSON scene tunggal, struktur identik dengan i
 }
 
 export function validateSceneRephrase(scene: SceneData, expectation: SceneRegenExpectation, videoJSON: VideoJSON, form: FormData): ValidationResult {
-  const base = validateSceneData(scene, expectation);
+  const base = validateSceneData(scene, expectation, form.hookType);
   // Re-scan scene HASIL rephrase untuk pelanggaran yang tersisa — bungkus dalam videoJSON tiruan
   // beranggotakan satu scene supaya bisa pakai checkPolicyCompliance apa adanya (tanpa duplikasi logic).
   const remaining = checkPolicyCompliance({ ...videoJSON, scenes: [scene] } as VideoJSON, form.contentGoal)

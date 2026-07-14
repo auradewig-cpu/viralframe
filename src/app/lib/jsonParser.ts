@@ -30,6 +30,10 @@ export function countWords(text: string | null | undefined): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
+export function hasDialogueTag(aiReadyPrompt: string): boolean {
+  return aiReadyPrompt.includes('[DIALOGUE:');
+}
+
 export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number, expectedCaptionCount: number = 1, expectedAiTool?: string, expectHasRefImage: boolean = false, form?: FormData): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -79,6 +83,15 @@ export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number, e
       // reference_image bersifat opsional/nullable — tidak ada di project lama, jangan jadikan error.
       if (expectHasRefImage && !scene.reference_image) {
         warnings.push(`Scene ${i + 1}: field "reference_image" kosong padahal ada foto referensi diupload — engine AI video terstruktur mungkin mengabaikan foto referensi.`);
+      }
+      if (scene.ai_ready_prompt && !hasDialogueTag(scene.ai_ready_prompt)) {
+        const isVisualShockNoNarration =
+          json.video_metadata?.hook_type === 'visual_shock' &&
+          scene.scene_number === 1 &&
+          (!scene.script_narration || countWords(scene.script_narration) <= 5);
+        if (!isVisualShockNoNarration) {
+          warnings.push(`Scene ${i + 1}: ai_ready_prompt tidak menyertakan tag [DIALOGUE: ...] — AI video tool kemungkinan akan menghasilkan dialog berbahasa Inggris alih-alih bahasa yang diminta.`);
+        }
       }
       if (validLocationRefs.length > 0) {
         const expectedRef = getSceneLocationRef(validLocationRefs, scene.scene_number);

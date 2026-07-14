@@ -347,7 +347,7 @@ Each caption_text must be adapted to ${targetPlatform} audience and format. Tota
 
       const prompt = buildSceneRegenPrompt(json, sceneIndex, form, narrationWPM);
       let scene = await generateWithFallback(prompt, keys, parseSceneResponse, () => {}, undefined, geminiModel);
-      let validation = validateSceneData(scene, expectation);
+      let validation = validateSceneData(scene, expectation, form.hookType);
 
       // Repair loop 1x — pola sama dengan repair loop full-video di Home.tsx.
       if (!validation.valid || validation.warnings.length > 0) {
@@ -355,7 +355,7 @@ Each caption_text must be adapted to ${targetPlatform} audience and format. Tota
         try {
           const repairPrompt = buildSceneRegenRepairPrompt(scene, problems, expectation);
           const repaired = await generateWithFallback(repairPrompt, keys, parseSceneResponse, () => {}, undefined, geminiModel);
-          const revalidation = validateSceneData(repaired, expectation);
+          const revalidation = validateSceneData(repaired, expectation, form.hookType);
           if (revalidation.valid) {
             scene = repaired;
             validation = revalidation;
