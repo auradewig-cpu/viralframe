@@ -192,9 +192,18 @@ export const useAppStore = create<AppState>()(
       }),
       onRehydrateStorage: () => () => {
         const s = useAppStore.getState();
+        const patch: Partial<typeof DEFAULT_SETTINGS> = {};
         if (s.settings?.geminiImageModel === 'gemini-2.0-flash-exp-image-generation') {
-          s.setSettings({ geminiImageModel: DEFAULT_SETTINGS.geminiImageModel });
+          patch.geminiImageModel = DEFAULT_SETTINGS.geminiImageModel;
         }
+        const order = s.settings?.providerOrder;
+        if (order && !(order.length === 3 && order.includes('gemini') && order.includes('groq') && order.includes('openrouter'))) {
+          patch.providerOrder = DEFAULT_SETTINGS.providerOrder;
+        }
+        if (order === undefined) {
+          patch.providerOrder = DEFAULT_SETTINGS.providerOrder;
+        }
+        if (Object.keys(patch).length > 0) s.setSettings(patch);
       },
     }
   )

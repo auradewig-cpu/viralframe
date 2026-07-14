@@ -222,6 +222,7 @@ export interface AppSettings {
   narrationWPM: number;
   puterEnabled: boolean;
   geminiImageModel: string;
+  providerOrder: ('gemini' | 'groq' | 'openrouter')[];
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -237,6 +238,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   narrationWPM: 165,
   puterEnabled: true,
   geminiImageModel: 'gemini-3.1-flash-image',
+  providerOrder: ['gemini', 'groq', 'openrouter'],
 };
 
 export const DEFAULT_FORM: FormData = {

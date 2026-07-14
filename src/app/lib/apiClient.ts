@@ -149,6 +149,23 @@ export interface ApiKeys {
 
 export type ProgressCallback = (msg: string) => void;
 
+// Pure function: filter providers by key availability, apply custom order.
+// Diekspor untuk unit test.
+export function getOrderedProviders(
+  keys: ApiKeys,
+  providerOrder: ('gemini' | 'groq' | 'openrouter')[]
+): ('gemini' | 'groq' | 'openrouter')[] {
+  const validOrder = providerOrder.filter(p => p === 'gemini' || p === 'groq' || p === 'openrouter');
+  if (validOrder.length !== 3) return [];
+  return validOrder.filter(p => !!keys[p]);
+}
+
+const PROVIDER_LABELS: Record<string, string> = {
+  gemini: 'Gemini Flash',
+  groq: 'Groq Llama 3.3 70B',
+  openrouter: 'OpenRouter',
+};
+
 // apiClient generik terhadap content type — tidak tahu bentuk JSON output.
 // Parsing teks mentah -> struktur data didelegasikan ke pemanggil (registry content type).
 export async function generateWithFallback<T>(
@@ -157,24 +174,33 @@ export async function generateWithFallback<T>(
   parseOutput: (text: string) => T | null,
   onProgress: ProgressCallback,
   onGroqQuota?: (percent: number | null) => void,
-  geminiModel: string = 'gemini-3.5-flash'
+  geminiModel: string = 'gemini-3.5-flash',
+  providerOrder?: ('gemini' | 'groq' | 'openrouter')[]
 ): Promise<T> {
   const TIMEOUT = 90_000;
   let lastError: ApiCallError | null = null;
 
-  if (keys.gemini) {
+  const order = getOrderedProviders(keys, providerOrder || ['gemini', 'groq', 'openrouter']);
+
+  for (const provider of order) {
     try {
-      onProgress('Memanggil Gemini Flash API...');
-      const text = await callWithTimeout((signal) => callGemini(keys.gemini, prompt, geminiModel, signal), TIMEOUT);
-      onProgress('Mengurai JSON dari respons Gemini...');
+      onProgress(`Memanggil ${PROVIDER_LABELS[provider]} API...`);
+      let text: string;
+      if (provider === 'gemini') {
+        text = await callWithTimeout((signal) => callGemini(keys.gemini, prompt, geminiModel, signal), TIMEOUT);
+      } else if (provider === 'groq') {
+        text = await callWithTimeout((signal) => callGroq(keys.groq, prompt, signal, onGroqQuota), TIMEOUT);
+      } else {
+        text = await callWithTimeout((signal) => callOpenRouter(keys.openrouter, prompt, signal), TIMEOUT);
+      }
+      onProgress(`Mengurai JSON dari respons ${PROVIDER_LABELS[provider]}...`);
       const json = parseOutput(text);
       if (json) { onProgress('Menyiapkan Scene Cards...'); return json; }
-      throw new ApiCallError('JSON_PARSE_ERROR', 'JSON tidak valid dari Gemini.');
+      throw new ApiCallError('JSON_PARSE_ERROR', `JSON tidak valid dari ${PROVIDER_LABELS[provider]}.`);
     } catch (e: unknown) {
       const err = e instanceof ApiCallError ? e : new ApiCallError('UNKNOWN', String(e));
       lastError = err;
-      // Retry hanya untuk error transient — key invalid / quota habis tidak akan sembuh dengan retry.
-      if (!NON_TRANSIENT.includes(err.code)) {
+      if (provider === 'gemini' && !NON_TRANSIENT.includes(err.code)) {
         onProgress(`Gemini gagal (${err.code}), mencoba ulang...`);
         try {
           const text = await callWithTimeout((signal) => callGemini(keys.gemini, prompt, geminiModel, signal), TIMEOUT);
@@ -184,36 +210,9 @@ export async function generateWithFallback<T>(
           lastError = e2 instanceof ApiCallError ? e2 : lastError;
         }
       } else {
-        onProgress(`Gemini gagal (${err.code}).`);
+        onProgress(`${PROVIDER_LABELS[provider]} gagal (${err.code}).`);
       }
-    }
-  }
-
-  if (keys.groq) {
-    try {
-      onProgress('Beralih ke Groq Llama 3.3 70B...');
-      const text = await callWithTimeout((signal) => callGroq(keys.groq, prompt, signal, onGroqQuota), TIMEOUT);
-      onProgress('Mengurai JSON dari respons Groq...');
-      const json = parseOutput(text);
-      if (json) { onProgress('Menyiapkan Scene Cards...'); return json; }
-      throw new ApiCallError('JSON_PARSE_ERROR', 'JSON tidak valid dari Groq.');
-    } catch (e: unknown) {
-      const err = e instanceof ApiCallError ? e : new ApiCallError('UNKNOWN', String(e));
-      lastError = err;
-      onProgress(`Groq gagal (${err.code}), mencoba OpenRouter...`);
-    }
-  }
-
-  if (keys.openrouter) {
-    try {
-      onProgress('Memanggil OpenRouter API...');
-      const text = await callWithTimeout((signal) => callOpenRouter(keys.openrouter, prompt, signal), TIMEOUT);
-      onProgress('Mengurai JSON dari respons OpenRouter...');
-      const json = parseOutput(text);
-      if (json) { onProgress('Menyiapkan Scene Cards...'); return json; }
-      throw new ApiCallError('JSON_PARSE_ERROR', 'JSON tidak valid dari OpenRouter.');
-    } catch (e: unknown) {
-      lastError = e instanceof ApiCallError ? e : new ApiCallError('UNKNOWN', String(e));
+      if (NON_TRANSIENT.includes(err.code)) break;
     }
   }
 

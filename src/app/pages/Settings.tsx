@@ -288,6 +288,46 @@ export function Settings() {
           <div className="p-3 rounded-lg text-xs" style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--vf-text-secondary)' }}>
             🔒 API key kamu disimpan hanya di browser ini (localStorage). Tidak pernah dikirim ke server ViralFrame. Hanya dikirim langsung ke Google/Groq saat generate.
           </div>
+
+          {/* Provider Order */}
+          <div className="p-3 rounded-lg" style={{ background: 'var(--vf-bg-elevated)', border: '1px solid var(--vf-border)' }}>
+            <p className="text-xs font-medium mb-2" style={{ color: 'var(--vf-text-primary)' }}>Urutan Fallback Provider</p>
+            <p className="text-xs mb-2" style={{ color: 'var(--vf-text-muted)' }}>Atur prioritas provider — ▲ naikkan prioritas, ▼ turunkan. Provider tanpa API key otomatis dilewati.</p>
+            <div className="space-y-1">
+              {(() => {
+                const currentOrder = settings.providerOrder || ['gemini', 'groq', 'openrouter'];
+                return currentOrder.map((p, i) => (
+                  <div key={p} className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: 'var(--vf-bg-secondary)' }}>
+                    <span className="text-xs font-mono flex-1" style={{ color: 'var(--vf-text-primary)' }}>
+                      {i + 1}. {p === 'gemini' ? 'Gemini Flash' : p === 'groq' ? 'Groq Llama 3.3' : 'OpenRouter'}
+                    </span>
+                    <div className="flex gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const order = [...currentOrder];
+                          if (i > 0) { [order[i - 1], order[i]] = [order[i], order[i - 1]]; setSettings({ providerOrder: order }); }
+                        }}
+                        disabled={i === 0}
+                        className="px-1.5 py-0.5 rounded text-xs disabled:opacity-30"
+                        style={{ color: 'var(--vf-text-secondary)', border: '1px solid var(--vf-border)' }}
+                      >▲</button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const order = [...currentOrder];
+                          if (i < order.length - 1) { [order[i], order[i + 1]] = [order[i + 1], order[i]]; setSettings({ providerOrder: order }); }
+                        }}
+                        disabled={i === currentOrder.length - 1}
+                        className="px-1.5 py-0.5 rounded text-xs disabled:opacity-30"
+                        style={{ color: 'var(--vf-text-secondary)', border: '1px solid var(--vf-border)' }}
+                      >▼</button>
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
         </div>
       </section>
 
