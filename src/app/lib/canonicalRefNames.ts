@@ -42,13 +42,17 @@ function buildIdentitySlug(ref: { identity: string; keterangan: string }): strin
 // Aturan penamaan kanonik — lihat komentar TUGAS 2 di riwayat commit untuk detail per kasus:
 // karakter -> karakter.<ext>; lokasi ber-scene -> scene<N>_<slug>.<ext>; "Semua scene" (product) ->
 // produk_<slug>.<ext> atau produk.<ext> kalau slug kosong.
+// PENGECUALIAN: kalau slug sudah diawali "produk" (identity='produk' atau keterangan diawali "Produk"),
+// JANGAN tambah prefix "produk_" lagi (hindari "produk_produk_....webp").
 export function buildCanonicalName(ref: CanonicalNameInput, ext: string): string {
   const cleanExt = (ext || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
   if (ref.kind === 'character') return `karakter.${cleanExt}`;
 
   const slug = buildIdentitySlug(ref);
   if (ref.sceneNumber !== null) return `scene${ref.sceneNumber}_${slug}.${cleanExt}`;
-  return slug && slug !== 'ref' ? `produk_${slug}.${cleanExt}` : `produk.${cleanExt}`;
+  if (!slug || slug === 'ref') return `produk.${cleanExt}`;
+  if (slug.startsWith('produk')) return `${slug}.${cleanExt}`;
+  return `produk_${slug}.${cleanExt}`;
 }
 
 // Anti-tabrakan: kalau nama yang diinginkan sudah dipakai entry lain, suffix _2, _3, dst sebelum

@@ -27,13 +27,17 @@ export function sanitizeRefText(text: string): string {
 }
 
 // role di-DERIVE dari sceneNumber: sceneNumber !== null (ditugaskan ke scene spesifik) → environment,
-// null ("Semua scene") → product.
+// null ("Semua scene") → product. PENGECUALIAN: identity 'produk' selalu role='product' terlepas dari
+// sceneNumber — foto produk yang ditugaskan ke scene spesifik tidak boleh dianggap lokasi/ruangan.
 export function getEffectiveLocationRefs(form: FormData): ResolvedLocationRef[] {
   const raw: LocationRef[] = form.locationRefs;
 
   return raw
     .filter(r => r.file.trim())
-    .map(r => ({ ...r, role: (r.sceneNumber !== null ? 'environment' : 'product') as LocationRefRole }));
+    .map(r => ({
+      ...r,
+      role: (r.identity === 'produk' || r.sceneNumber === null ? 'product' : 'environment') as LocationRefRole,
+    }));
 }
 
 // Baris dengan sceneNumber melebihi sceneCount saat ini — invalid untuk compile prompt, tapi TIDAK

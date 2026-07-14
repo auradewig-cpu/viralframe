@@ -13,7 +13,14 @@ export interface RoomIdentity {
   promptHints: RoomIdentityHints;
 }
 
-export const ROOM_IDENTITIES: RoomIdentity[] = [
+// Identitas universal — berlaku untuk SEMUA niche.
+export const UNIVERSAL_IDENTITIES: RoomIdentity[] = [
+  { value: 'produk', label: '🛍️ Produk', promptHints: {} },
+  { value: 'custom', label: '✏️ Ketik manual', promptHints: {} },
+];
+
+// Identitas ruangan properti — HANYA ditampilkan untuk niche real_estate.
+export const PROPERTY_ROOM_IDENTITIES: RoomIdentity[] = [
   { value: 'fasad', label: 'Fasad / Tampak Depan', promptHints: { camera: 'slow push-in / gentle orbit establishing shot, DILARANG whip-pan/fast reveal', lighting: 'natural daylight' } },
   { value: 'foyer', label: 'Foyer / Pintu Masuk', promptHints: {} },
   { value: 'void', label: 'Void', promptHints: {} },
@@ -32,7 +39,13 @@ export const ROOM_IDENTITIES: RoomIdentity[] = [
   { value: 'mushola', label: 'Mushola', promptHints: {} },
   { value: 'ruang_kerja', label: 'Ruang Kerja', promptHints: {} },
   { value: 'gudang', label: 'Gudang', promptHints: {} },
-  { value: 'custom', label: '✏️ Ketik manual', promptHints: {} },
+];
+
+// Gabungan penuh — dipakai getRoomIdentity() untuk lookup lintas fungsi.
+// Urutan: universal dulu (produk, custom), baru preset ruangan properti.
+export const ROOM_IDENTITIES: RoomIdentity[] = [
+  ...UNIVERSAL_IDENTITIES,
+  ...PROPERTY_ROOM_IDENTITIES,
 ];
 
 export function getRoomIdentity(value: string): RoomIdentity | undefined {
