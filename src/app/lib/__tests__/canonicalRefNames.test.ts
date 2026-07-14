@@ -102,6 +102,28 @@ describe('buildCanonicalName', () => {
     expect(buildCanonicalName({ kind: 'location', identity: 'custom', keterangan: long, sceneNumber: 5 }, 'jpg'))
       .toBe('scene5_abcdefghijklmnopqrst.jpg');
   });
+
+  // ── identity=produk — avoid double prefix ────────────────────
+
+  it('identity=produk with sceneNumber=null returns produk.<ext> (bukan produk_produk)', () => {
+    expect(buildCanonicalName({ kind: 'location', identity: 'produk', keterangan: '', sceneNumber: null }, 'webp'))
+      .toBe('produk.webp');
+  });
+
+  it('identity=produk with sceneNumber=2 returns scene2_produk.<ext>', () => {
+    expect(buildCanonicalName({ kind: 'location', identity: 'produk', keterangan: '', sceneNumber: 2 }, 'webp'))
+      .toBe('scene2_produk.webp');
+  });
+
+  it('identity=custom with keterangan "Produk Smartwatch Hitam" sceneNumber=null does not double prefix', () => {
+    expect(buildCanonicalName({ kind: 'location', identity: 'custom', keterangan: 'Produk Smartwatch Hitam', sceneNumber: null }, 'webp'))
+      .toBe('produk_smartwatch_hi.webp');
+  });
+
+  it('identity=custom with keterangan not starting with produk still gets produk_ prefix', () => {
+    expect(buildCanonicalName({ kind: 'location', identity: 'custom', keterangan: 'Sepatu Lari', sceneNumber: null }, 'jpg'))
+      .toBe('produk_sepatu_lari.jpg');
+  });
 });
 
 describe('resolveUniqueCanonicalName', () => {

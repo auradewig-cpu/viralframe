@@ -6,6 +6,7 @@ import {
   getSceneLocationRef,
   sanitizeRefText,
   buildBindingSentence,
+  buildReferenceImageInstruction,
   buildCharacterBindingSentence,
   getCharacterRefFileName,
 } from '../locationRefs';
@@ -73,6 +74,55 @@ describe('getEffectiveLocationRefs', () => {
     const refs = getEffectiveLocationRefs(form);
     expect(refs.find(r => r.sceneNumber === 1)!.role).toBe('environment');
     expect(refs.find(r => r.sceneNumber === null)!.role).toBe('product');
+  });
+});
+
+describe('getEffectiveLocationRefs role override', () => {
+  it('identity=produk always gets role=product regardless of sceneNumber', () => {
+    const form = makeForm({
+      locationRefs: [
+        { file: 'smartwatch.jpg', identity: 'produk', keterangan: 'Smartwatch hitam', sceneNumber: 1 },
+      ],
+    });
+    const result = getEffectiveLocationRefs(form);
+    expect(result[0].role).toBe('product');
+  });
+
+  it('identity=fasad with sceneNumber=1 still gets role=environment', () => {
+    const form = makeForm({
+      locationRefs: [
+        { file: 'fasad.jpg', identity: 'fasad', keterangan: 'Tampak depan', sceneNumber: 1 },
+      ],
+    });
+    const result = getEffectiveLocationRefs(form);
+    expect(result[0].role).toBe('environment');
+  });
+
+  it('identity=custom with sceneNumber=null gets role=product (backward compat)', () => {
+    const form = makeForm({
+      locationRefs: [
+        { file: 'semua.jpg', identity: 'custom', keterangan: 'Semua scene', sceneNumber: null },
+      ],
+    });
+    const result = getEffectiveLocationRefs(form);
+    expect(result[0].role).toBe('product');
+  });
+});
+
+describe('buildReferenceImageInstruction', () => {
+  it('product role returns product wording even with sceneNumber', () => {
+    const ref = { file: 'smartwatch.jpg', identity: 'produk', keterangan: 'Smartwatch hitam', sceneNumber: 1, role: 'product' as const };
+    const result = buildReferenceImageInstruction(ref);
+    expect(result).toContain('Match the attached reference image');
+    expect(result).not.toContain('architecture');
+    expect(result).not.toContain('building');
+  });
+
+  it('environment role returns architecture/building wording', () => {
+    const ref = { file: 'fasad.jpg', identity: 'fasad', keterangan: 'Tampak depan', sceneNumber: 1, role: 'environment' as const };
+    const result = buildReferenceImageInstruction(ref);
+    expect(result).toContain('architecture');
+    expect(result).toContain('building');
   });
 });
 
