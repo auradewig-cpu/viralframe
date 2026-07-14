@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react';
-import { Upload, X, ImageOff, Plus, Download, Loader2 } from 'lucide-react';
-import JSZip from 'jszip';
+import { Upload, X, ImageOff, Plus } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { NICHES, TARGET_AUDIENCES, PLATFORMS, CONTENT_GOALS, GROWTH_ALLOWED_CTAS } from '../../lib/maps';
 import { CONTENT_STYLES } from '../../lib/contentStyles';
@@ -8,7 +7,6 @@ import { ROOM_IDENTITIES } from '../../lib/roomIdentities';
 import { getContentType, DEFAULT_CONTENT_TYPE_ID } from '../../lib/registry';
 import { LocationRef } from '../../types';
 import { buildCanonicalName, inferExtension, resolveUniqueCanonicalName, CanonicalNameInput } from '../../lib/canonicalRefNames';
-import { getReferenceEntries, addReferenceSectionToZip } from '../../lib/referenceZip';
 import { putImage, deleteImage } from '../../lib/refImageDB';
 import { FieldLabel, FormCard, SelectField, TextareaField, InputField } from './FormFields';
 import { RoomIdentityCombobox, ComboboxOption } from './RoomIdentityCombobox';
@@ -36,7 +34,6 @@ export function Step1Business() {
   const [dragOver, setDragOver] = useState(false);
   const [uploadNotice, setUploadNotice] = useState<string | null>(null);
   const [swapNotice, setSwapNotice] = useState<string | null>(null);
-  const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
 
   const toggleAudience = (val: string) => {
     const curr = formData.targetAudience;
@@ -293,24 +290,6 @@ export function Step1Business() {
 
   const hasVisualRefs = formData.characterRefFile.trim() || formData.locationRefs.length > 0;
 
-  // === Download Bahan (ZIP) — Tugas 4 ===
-  const downloadableCount = getReferenceEntries(formData).filter(e => getBlob(e.sourceName)).length;
-
-  const downloadBahan = async () => {
-    if (downloadableCount === 0) return;
-    const zip = new JSZip();
-    addReferenceSectionToZip(zip, formData, getBlob);
-    const blob = await zip.generateAsync({ type: 'blob' });
-    const dateStr = new Date().toISOString().slice(0, 10);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `viralframe_bahan_${dateStr}.zip`; a.click();
-    URL.revokeObjectURL(url);
-
-    setDownloadNotice('Lampirkan isi ZIP ini di AI video tool — nama file sudah cocok dengan prompt.');
-    setTimeout(() => setDownloadNotice(null), 6000);
-  };
-
   const clearPipeline = () => setFormData({ pipelineBrief: '', pipelineSource: '' });
   const [briefOpen, setBriefOpen] = useState(false);
 
@@ -430,8 +409,8 @@ export function Step1Business() {
           <p className="text-xs mb-2" style={{ color: 'var(--vf-text-muted)' }}>
             Foto TIDAK dikirim ke AI — upload di sini hanya untuk identifikasi otomatis nama file + mapping
             per scene. Nama file upload BEBAS; setelah kamu identifikasi (identitas + scene), sistem menamai
-            ulang otomatis (nama kanonik) dan itulah yang disebut di prompt. Download ZIP-nya lewat tombol
-            "Download Bahan" di bawah, lalu lampirkan isinya langsung di AI video tool (mis. Google Flow).
+            ulang otomatis (nama kanonik) dan itulah yang disebut di prompt. Setelah generate, unduh semua
+            bahan (foto + prompt) sekaligus lewat tombol Download Bahan Lengkap di halaman hasil.
             Maks {MAX_REFS} file, format jpg/png/webp, maks 5MB per file.
           </p>
           <input
@@ -501,7 +480,7 @@ export function Step1Business() {
                         <RoomIdentityCombobox value={CHARACTER_IDENTITY} options={IDENTITY_OPTIONS} onSelect={selectCharacterCardIdentity} />
                         {!hasBlob && (
                           <p className="text-[11px]" style={{ color: 'var(--vf-text-muted)' }}>
-                            {formData.characterRefSourceName ? 'Preview tidak tersimpan & tidak ikut Download Bahan (tanpa file di sesi ini).' : 'Referensi manual — tidak ikut Download Bahan.'}
+                            {formData.characterRefSourceName ? 'Preview tidak tersimpan & tidak ikut download bahan lengkap (tanpa file di sesi ini).' : 'Referensi manual — tidak ikut download bahan lengkap.'}
                           </p>
                         )}
                       </div>
@@ -592,7 +571,7 @@ export function Step1Business() {
                         </div>
                         {!hasBlob && (
                           <p className="text-[11px]" style={{ color: 'var(--vf-text-muted)' }}>
-                            {isUploaded ? 'Preview tidak tersimpan & tidak ikut Download Bahan (tanpa file di sesi ini).' : 'Referensi manual — tidak ikut Download Bahan.'}
+                            {isUploaded ? 'Preview tidak tersimpan & tidak ikut download bahan lengkap (tanpa file di sesi ini).' : 'Referensi manual — tidak ikut download bahan lengkap.'}
                           </p>
                         )}
                       </div>
@@ -631,21 +610,7 @@ export function Step1Business() {
             >
               <Plus size={14} /> Tambah referensi manual (tanpa upload)
             </button>
-            <button
-              type="button"
-              onClick={downloadBahan}
-              disabled={downloadableCount === 0 || referenceHydrating}
-              title={referenceHydrating ? 'Memulihkan foto referensi tersimpan...' : (downloadableCount === 0 ? 'Upload & identifikasi foto dulu — preview foto hanya hidup selama sesi.' : undefined)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ background: 'var(--vf-accent-primary)', color: 'white' }}
-            >
-              {referenceHydrating ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-              {referenceHydrating ? ' Memulihkan foto...' : ` ⬇️ Download Bahan (ZIP)${downloadableCount > 0 ? ` (${downloadableCount})` : ''}`}
-            </button>
           </div>
-          {downloadNotice && (
-            <p className="text-xs mt-2" style={{ color: 'var(--vf-accent-success)' }}>✅ {downloadNotice}</p>
-          )}
 
           {unidentifiedCount > 0 && (
             <p className="text-xs mt-2" style={{ color: 'var(--vf-accent-warning)' }}>
