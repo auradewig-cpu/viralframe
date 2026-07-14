@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildShortVideoPrefillFromCalendarPost, buildThumbnailPrefillFromYoutube } from '../pipeline';
+import { buildShortVideoPrefillFromCalendarPost, buildCarouselPrefillFromCalendarPost, buildThumbnailPrefillFromYoutube } from '../pipeline';
 import type { FormData } from '../../types';
 import { DEFAULT_FORM } from '../../types';
 import type { CalendarPost } from '../registry/contentCalendar';
@@ -102,6 +102,41 @@ describe('buildShortVideoPrefillFromCalendarPost', () => {
     expect(result.niche).toBe('real_estate');
     expect(result.productDescription).toBe('Rumah di BSD');
     expect(result.contentGoal).toBe('conversion');
+  });
+});
+
+describe('buildCarouselPrefillFromCalendarPost', () => {
+  it('mengisi carouselTopic dari post.topic dan ratio default 4:5', () => {
+    const form = makeForm({ niche: 'fashion_beauty', contentGoal: 'conversion' });
+    const post = makeCalendarPost({ topic: 'Mix and Match OOTD', ratio: '1:1' });
+    const result = buildCarouselPrefillFromCalendarPost(form, post, 'instagram', 3);
+    expect(result.carouselTopic).toBe('Mix and Match OOTD');
+    expect(result.carouselRatio).toBe('1:1');
+    expect(result.pipelineSource).toContain('Hari 3');
+    expect(result.niche).toBe('fashion_beauty');
+  });
+
+  it('ratio tak valid fallback ke 4:5', () => {
+    const form = makeForm();
+    const post = makeCalendarPost({ ratio: '16:9' });
+    const result = buildCarouselPrefillFromCalendarPost(form, post, 'instagram', 1);
+    expect(result.carouselRatio).toBe('4:5');
+  });
+
+  it('membawa contentGoal dan niche dari form', () => {
+    const form = makeForm({ niche: 'food_beverage', contentGoal: 'growth' });
+    const post = makeCalendarPost({ topic: 'Resep Mudah' });
+    const result = buildCarouselPrefillFromCalendarPost(form, post, 'instagram', 2);
+    expect(result.contentGoal).toBe('growth');
+    expect(result.niche).toBe('food_beverage');
+  });
+
+  it('field lain tidak tersentuh', () => {
+    const form = makeForm({ talentStyle: 'visible_character', sceneCount: 5 });
+    const post = makeCalendarPost();
+    const result = buildCarouselPrefillFromCalendarPost(form, post, 'instagram', 1);
+    expect(result.talentStyle).toBeUndefined();
+    expect(result.sceneCount).toBeUndefined();
   });
 });
 

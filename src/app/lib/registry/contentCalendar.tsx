@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Download, Video } from 'lucide-react';
+import { ChevronDown, ChevronUp, Download, Video, Image } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { FormData } from '../../types';
 import { NICHES, CONTENT_GOALS } from '../maps';
-import { buildShortVideoPrefillFromCalendarPost } from '../../lib/pipeline';
+import { buildShortVideoPrefillFromCalendarPost, buildCarouselPrefillFromCalendarPost } from '../../lib/pipeline';
 import { FieldLabel, FormCard, SelectField, TextareaField, NumberInput } from '../../components/form/FormFields';
 import { parseJsonResponse, scanTextsForPolicyViolations, POLICY_COMPLIANCE_BLOCK, contentGoalInstructionBlock } from './shared';
 import { OutputToolbar, GenericManualPanel, CopyButton } from './sharedUI';
@@ -271,6 +271,16 @@ function PostCard({ post, calendarPlatform, dayNumber, onPipeline }: {
           <Video size={12} /> 🎬 Buat video ini
         </button>
       )}
+      {(post.format === 'carousel' || post.format === 'image') && onPipeline && (
+        <button
+          type="button"
+          onClick={() => onPipeline(post, dayNumber || 0)}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs mt-1 transition-all hover:opacity-90"
+          style={{ background: 'rgba(16,185,129,0.1)', color: 'var(--vf-accent-success)', border: '1px solid var(--vf-accent-success)' }}
+        >
+          <Image size={12} /> 🖼️ Buat carousel ini
+        </button>
+      )}
     </div>
   );
 }
@@ -341,23 +351,31 @@ function ContentCalendarDirectRenderer({ data, form, onRegenerate, onEdit }: Dir
   const confirmPipeline = () => {
     if (!confirmPost) return;
     const { post, dayNumber } = confirmPost;
-    const prefill = buildShortVideoPrefillFromCalendarPost(form, post, form.calendarPlatform, dayNumber);
-    loadFormData({ ...form, ...prefill });
-    setActiveContentTypeId('short_video');
+    if (post.format === 'video') {
+      const prefill = buildShortVideoPrefillFromCalendarPost(form, post, form.calendarPlatform, dayNumber);
+      loadFormData({ ...form, ...prefill });
+      setActiveContentTypeId('short_video');
+    } else {
+      const prefill = buildCarouselPrefillFromCalendarPost(form, post, form.calendarPlatform, dayNumber);
+      loadFormData({ ...form, ...prefill });
+      setActiveContentTypeId('carousel_ig');
+    }
     setCurrentStep(1);
   };
+
+  const pipelineLabel = confirmPost?.post?.format === 'video' ? 'Short Video' : 'Carousel IG';
 
   return (
     <div className="space-y-4">
       {confirmPost && (
         <div className="p-4 rounded-xl" style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid var(--vf-accent-primary)' }}>
-          <p className="text-sm font-medium mb-2" style={{ color: 'var(--vf-text-primary)' }}>Pipeline ke Short Video</p>
+          <p className="text-sm font-medium mb-2" style={{ color: 'var(--vf-text-primary)' }}>Pipeline ke {pipelineLabel}</p>
           <p className="text-xs mb-3" style={{ color: 'var(--vf-text-secondary)' }}>
-            Form Short Video akan diisi dari slot ini — isian form sebelumnya akan tertimpa. Lanjut?
+            Form {pipelineLabel} akan diisi dari slot ini — isian form sebelumnya akan tertimpa. Lanjut?
           </p>
           <div className="flex gap-2">
             <button onClick={confirmPipeline} className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: 'var(--vf-accent-primary)', color: 'white' }}>
-              ✅ Lanjut ke Short Video
+              ✅ Lanjut ke {pipelineLabel}
             </button>
             <button onClick={() => setConfirmPost(null)} className="px-3 py-1.5 rounded-lg text-xs" style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-text-secondary)', border: '1px solid var(--vf-border)' }}>
               Batal

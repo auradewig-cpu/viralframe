@@ -50,6 +50,31 @@ export function buildShortVideoPrefillFromCalendarPost(
   };
 }
 
+export function buildCarouselPrefillFromCalendarPost(
+  form: FormData,
+  post: CalendarPost,
+  calendarPlatform: string,
+  dayNumber: number,
+): Partial<FormData> {
+  const validRatios = ['4:5', '1:1'];
+  const carouselRatio = validRatios.includes(post.ratio) ? post.ratio as '4:5' | '1:1' : '4:5';
+  const pipelineBrief = [
+    `TOPIC: ${post.topic}`,
+    `HOOK IDEA: ${post.hook_idea}`,
+    `CAPTION DRAFT: ${post.caption_draft}`,
+    `FORMAT/RATIO: ${post.format} / ${post.ratio}`,
+    `TIME SUGGESTION: ${post.time_suggestion}`,
+  ].join('\n');
+  return {
+    carouselTopic: post.topic,
+    carouselRatio,
+    pipelineBrief,
+    pipelineSource: `Kalender Konten — Hari ${dayNumber}: ${post.topic}`,
+    niche: form.niche,
+    contentGoal: form.contentGoal,
+  };
+}
+
 export function buildThumbnailPrefillFromYoutube(
   form: FormData,
   videoJSON: YoutubeLongJSON,
