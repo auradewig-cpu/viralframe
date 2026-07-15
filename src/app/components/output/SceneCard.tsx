@@ -1,7 +1,10 @@
 import { useState } from 'react';
-import { Copy, Check, ChevronDown, ChevronUp, RefreshCw, Loader2, AlertCircle, Sparkles } from 'lucide-react';
+import { ChevronDown, ChevronUp, RefreshCw, Loader2, AlertCircle, Sparkles } from 'lucide-react';
 import { SceneData } from '../../types';
 import { AI_TOOLS } from '../../lib/maps';
+import { CopyButton } from './CopyButton';
+import { RefFrameGuide } from './RefFrameGuide';
+import { SceneVisualBrief } from './SceneVisualBrief';
 
 interface SceneCardProps {
   scene: SceneData;
@@ -10,91 +13,16 @@ interface SceneCardProps {
   isLast?: boolean;
   characterAnchor?: string;
   referencePhotos?: string[];
-  // Regenerate per-scene (Tugas 1) — opsional, hanya tersedia saat SceneCard dirender dari
-  // DirectPanel (context videoJSON + form lengkap tersedia). ManualPanel/History tidak mengisi ini.
   onRegenerateScene?: () => void;
   regenLoading?: boolean;
   regenError?: string | null;
   justRegenerated?: boolean;
-  // Status badge (Tugas 2) — derived dari lib/sceneStatus.ts, TIDAK disimpan di JSON output.
   issues?: string[];
-  // Auto-rephrase (Tugas 3) — hanya tampil kalau scene flagged KARENA pelanggaran policy.
   hasPolicyIssue?: boolean;
   onAutoFixScene?: () => void;
   autoFixLoading?: boolean;
   autoFixError?: string | null;
   autoFixRemainingWarning?: string | null;
-}
-
-function CopyButton({ text, label = 'Copy' }: { text: string; label?: string }) {
-  const [copied, setCopied] = useState(false);
-  const handleCopy = () => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-  return (
-    <button
-      onClick={handleCopy}
-      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-all"
-      style={{ background: copied ? 'var(--vf-accent-success)' : 'var(--vf-bg-elevated)', color: copied ? 'white' : 'var(--vf-text-secondary)', border: `1px solid ${copied ? 'var(--vf-accent-success)' : 'var(--vf-border)'}` }}
-    >
-      {copied ? <Check size={12} /> : <Copy size={12} />}
-      {copied ? 'Copied! ✓' : label}
-    </button>
-  );
-}
-
-function RefGuide({ aiTool, sceneNumber, isFirst }: { aiTool: string; sceneNumber: number; isFirst: boolean }) {
-  const tool = AI_TOOLS.find(t => t.value === aiTool);
-  const toolName = tool?.label || aiTool;
-  const supportsRef = tool?.supportsRef || false;
-
-  if (isFirst) {
-    return (
-      <div className="p-3 rounded-lg text-sm" style={{ background: 'var(--vf-bg-secondary)', color: 'var(--vf-text-secondary)' }}>
-        <p>Scene pertama — tidak perlu referensi dari scene sebelumnya.</p>
-        <p className="mt-1">Setelah generate Scene 1: simpan frame terbaik sebagai referensi untuk Scene 2.</p>
-        {!supportsRef && <p className="mt-2 text-xs" style={{ color: 'var(--vf-text-muted)' }}>Tool: {toolName} tidak mendukung reference image. Konsistensi dijaga melalui deskripsi karakter identik di setiap prompt.</p>}
-      </div>
-    );
-  }
-
-  const prev = sceneNumber - 1;
-  if (!supportsRef) {
-    return (
-      <div className="p-3 rounded-lg text-sm space-y-1" style={{ background: 'var(--vf-bg-secondary)', color: 'var(--vf-text-secondary)' }}>
-        <p><strong>{toolName}</strong> tidak mendukung reference image.</p>
-        <p>Konsistensi dijaga melalui deskripsi teks yang identik. Prompt setiap scene sudah menyertakan deskripsi karakter lengkap dan identik. Generate semua scene dengan prompt yang disediakan.</p>
-      </div>
-    );
-  }
-
-  const steps: Record<string, string[]> = {
-    kling_ai: [`Generate Scene ${prev} terlebih dahulu`, 'Pilih frame terbaik → klik "..." → "Save Frame"', 'Di halaman baru: klik "Image to Video"', `Upload frame Scene ${prev} sebagai "Start Frame"`, `Paste prompt Scene ${sceneNumber} di kolom teks`, 'Klik Generate'],
-    runway_gen4: [`Generate Scene ${prev}, download hasilnya`, 'Di Runway: pilih "Gen-4" → klik "Reference Image"', `Upload frame dari Scene ${prev}`, `Paste prompt Scene ${sceneNumber} di kolom teks`, 'Generate'],
-    luma_dream: [`Generate Scene ${prev}, ambil frame terakhirnya`, 'Di Luma: klik "Keyframe" atau "Image to Video"', `Upload frame Scene ${prev} sebagai "Start Frame"`, `Paste prompt Scene ${sceneNumber}`, 'Generate'],
-    minimax_hailuo: [`Generate Scene ${prev}, simpan frame terakhir`, 'Di Minimax: pilih "Subject Reference" atau "Image to Video"', 'Upload frame sebagai referensi', `Paste prompt Scene ${sceneNumber}`, 'Generate'],
-    pika_labs: [`Generate Scene ${prev}, download frame terbaik`, 'Di Pika: klik "+" → "Upload Image"', `Upload frame Scene ${prev}`, `Paste prompt Scene ${sceneNumber} di kolom teks`, 'Generate'],
-    bytedance_jianying: [`Generate Scene ${prev} di Jianying, simpan frame`, 'Pilih "AI Video" → "Image/Video to Video"', `Upload frame Scene ${prev}`, `Masukkan prompt Scene ${sceneNumber}`, 'Generate'],
-    wan21: [`Generate Scene ${prev}, simpan frame terbaik`, 'Di Wan: pilih mode "Image to Video"', `Upload frame Scene ${prev}`, `Paste prompt Scene ${sceneNumber}`, 'Generate'],
-  };
-
-  const guideSteps = steps[aiTool] || [`Upload frame Scene ${prev} sebagai referensi di ${toolName}`, `Paste prompt Scene ${sceneNumber}`, 'Generate'];
-
-  return (
-    <div className="p-3 rounded-lg text-sm" style={{ background: 'var(--vf-bg-secondary)', color: 'var(--vf-text-secondary)' }}>
-      <p className="font-medium mb-2" style={{ color: 'var(--vf-text-primary)' }}>Tool: {toolName}</p>
-      <ol className="space-y-1">
-        {guideSteps.map((step, i) => (
-          <li key={i} className="flex gap-2">
-            <span className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: 'var(--vf-accent-primary)', color: 'white' }}>{i + 1}</span>
-            <span>{step}</span>
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
 }
 
 export function SceneCard({
@@ -103,7 +31,6 @@ export function SceneCard({
   hasPolicyIssue = false, onAutoFixScene, autoFixLoading = false, autoFixError = null, autoFixRemainingWarning = null,
 }: SceneCardProps) {
   const [refOpen, setRefOpen] = useState(false);
-  const [briefOpen, setBriefOpen] = useState(false);
   const [issuesOpen, setIssuesOpen] = useState(false);
   const isFlagged = issues.length > 0;
 
@@ -112,7 +39,6 @@ export function SceneCard({
   const promptLen = scene.ai_ready_prompt?.length || 0;
   const promptOver = promptLen > charLimit;
 
-  // Warna berdasarkan posisi (bukan slug) agar 8 gaya konten dengan role berbeda tetap terbaca benar.
   const sceneColor = isFirst
     ? 'var(--vf-accent-warning)'
     : isLast
@@ -120,7 +46,6 @@ export function SceneCard({
       : 'var(--vf-accent-secondary)';
 
   const sceneEmoji = isFirst ? '🎣' : isLast ? '📣' : '📖';
-  // Label dari slug scene_type, mis. "hook_masalah" → "HOOK MASALAH".
   const sceneLabel = (scene.scene_type || 'scene').replace(/_/g, ' ').toUpperCase();
 
   return (
@@ -298,28 +223,7 @@ export function SceneCard({
         )}
 
         {/* Visual Brief (collapsible) */}
-        <div>
-          <button
-            onClick={() => setBriefOpen(!briefOpen)}
-            className="flex items-center gap-2 w-full text-left text-xs font-semibold py-2"
-            style={{ color: 'var(--vf-text-secondary)' }}
-          >
-            🎬 VISUAL BRIEF
-            {briefOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-          </button>
-          {briefOpen && (
-            <div className="space-y-2 mt-1">
-              <div className="p-3 rounded-lg text-sm" style={{ background: 'var(--vf-bg-elevated)', color: 'var(--vf-text-secondary)' }}>
-                <p>{scene.visual_description}</p>
-                {scene.camera_direction && <p className="mt-2"><span className="font-medium">📐 Kamera:</span> {scene.camera_direction}</p>}
-                {scene.sound_design && <p className="mt-1"><span className="font-medium">🔊 Audio:</span> {scene.sound_design}</p>}
-                {scene.transition_to_next && <p className="mt-1"><span className="font-medium">➡️ Transisi:</span> {scene.transition_to_next}</p>}
-                {scene.viral_element_in_scene && <p className="mt-1"><span className="font-medium">⚡ Viral:</span> {scene.viral_element_in_scene}</p>}
-                {scene.text_overlay && scene.text_overlay !== 'none' && <p className="mt-1"><span className="font-medium">✏️ Overlay:</span> {scene.text_overlay}</p>}
-              </div>
-            </div>
-          )}
-        </div>
+        <SceneVisualBrief scene={scene} />
 
         {/* Reference Frame Guide (collapsible) */}
         <div>
@@ -332,7 +236,7 @@ export function SceneCard({
             {refOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           </button>
           {refOpen && (
-            <RefGuide aiTool={aiTool} sceneNumber={scene.scene_number} isFirst={isFirst} />
+            <RefFrameGuide aiTool={aiTool} sceneNumber={scene.scene_number} isFirst={isFirst} />
           )}
         </div>
       </div>
