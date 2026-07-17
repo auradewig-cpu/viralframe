@@ -1,7 +1,8 @@
 import { VideoJSON, FormData } from '../types';
-import { countWords, hasDialogueTag, hasValidDialogueTagContent, hasEmbeddedDialogue, hasTimingInTextOverlay, MIN_NARRATION_RATIO } from './jsonParser';
+import { checkScene } from './sceneChecks';
 import { checkPolicyCompliance, PolicyViolation } from './policyCheck';
 import { getValidLocationRefs, getSceneLocationRef, getCharacterRefFileName } from './locationRefs';
+import { AI_TOOLS } from './maps';
 
 // "X koma Y" (mis. "empat koma lima miliar") adalah bentuk tulisan, belibet diucapkan — lihat
 // SPOKEN_NUMBER_RULE di lib/negativePrompt.ts untuk aturan penuh yang dikirim ke AI. Deteksi ringan
@@ -21,43 +22,22 @@ export function getSceneIssuesMap(json: VideoJSON, form: FormData): Record<numbe
 
   const validLocationRefs = getValidLocationRefs(form);
   const characterRefFileName = getCharacterRefFileName(form);
+  const charLimit = AI_TOOLS.find(t => t.value === form.aiTool)?.charLimit || 400;
+  const anchor = json.character_sheet?.used ? (json.character_sheet.description || '').trim() : '';
 
   (json.scenes || []).forEach(scene => {
-    if (scene.script_narration && scene.max_words > 0) {
-      const actual = countWords(scene.script_narration);
-      if (actual > scene.max_words) {
-        addIssue(scene.scene_number, `Narasi ${actual} kata, melebihi batas lipsync ${scene.max_words} kata.`);
-      } else if (actual < Math.ceil(scene.max_words * MIN_NARRATION_RATIO)) {
-        addIssue(scene.scene_number, `Narasi ${actual} kata, jauh di bawah target 85% dari ${scene.max_words} kata.`);
-      }
-    }
-    if (validLocationRefs.length > 0) {
-      const expectedRef = getSceneLocationRef(validLocationRefs, scene.scene_number);
-      if (expectedRef && scene.reference_image?.file?.trim() !== expectedRef.file.trim()) {
-        addIssue(scene.scene_number, `reference_image.file seharusnya "${expectedRef.file.trim()}" (ditugaskan via Referensi Lokasi/Produk), tapi hasilnya "${scene.reference_image?.file || '(kosong)'}".`);
-      }
-    }
-    if (characterRefFileName && !(scene.ai_ready_prompt || '').includes(characterRefFileName)) {
-      addIssue(scene.scene_number, `ai_ready_prompt tidak menyebut nama file foto karakter "${characterRefFileName}" — foto karakter mungkin diabaikan AI video tool.`);
-    }
-    if (scene.ai_ready_prompt && (form.aiTool === 'google_flow' || form.aiTool === 'veo3')) {
-      if (!hasEmbeddedDialogue(scene.ai_ready_prompt, scene.script_narration)) {
-        addIssue(scene.scene_number, 'ai_ready_prompt tidak menyisipkan dialog terkutip dari script_narration — Veo3/Flow tidak akan tahu harus mengucapkan apa, berisiko default ke Bahasa Inggris atau dialog karangan sendiri.');
-      }
-    } else if (scene.ai_ready_prompt && !hasDialogueTag(scene.ai_ready_prompt)) {
-      const isVisualShockNoNarration =
-        form.hookType === 'visual_shock' &&
-        scene.scene_number === 1 &&
-        (!scene.script_narration || countWords(scene.script_narration) <= 5);
-      if (!isVisualShockNoNarration) {
-        addIssue(scene.scene_number, 'ai_ready_prompt tidak menyertakan tag [DIALOGUE: ...] — AI video tool kemungkinan akan menghasilkan dialog berbahasa Inggris alih-alih bahasa yang diminta.');
-      }
-    } else if (scene.ai_ready_prompt && !hasValidDialogueTagContent(scene.ai_ready_prompt)) {
-      addIssue(scene.scene_number, 'Tag [DIALOGUE: ...] berisi kalimat penuh, bukan nama bahasa saja — WAJIB hanya nama bahasa (mis. "Bahasa Indonesia"). Berisiko membuat dialog video berulang/rusak di AI video tool.');
-    }
-    if (hasTimingInTextOverlay(scene.text_overlay)) {
-      addIssue(scene.scene_number, 'text_overlay mengandung timing/timestamp (mis. "(5s)") — akan ikut tercetak sebagai teks kalau di-burn ke video. Durasi sudah tercakup di duration_seconds.');
-    }
+    const expectedRef = validLocationRefs.length > 0 ? getSceneLocationRef(validLocationRefs, scene.scene_number) : null;
+    // Cek kualitas terpusat — badge Flagged kini mencakup persis hal yang sama dengan
+    // warning generate (termasuk charLimit & character anchor yang dulu tidak dicek di sini).
+    checkScene(scene, {
+      aiTool: form.aiTool,
+      charLimit,
+      characterAnchor: anchor,
+      characterRefFileName,
+      expectedLocationRefFile: expectedRef ? expectedRef.file.trim() : undefined,
+      hookType: form.hookType,
+    }).forEach(msg => addIssue(scene.scene_number, msg));
+
     if (scene.script_narration && SPOKEN_NUMBER_ISSUE_PATTERN.test(scene.script_narration)) {
       addIssue(scene.scene_number, `Sebutan angka "X koma Y" sulit diucapkan — gunakan bentuk lisan (mis. "empat setengah miliar").`);
     }

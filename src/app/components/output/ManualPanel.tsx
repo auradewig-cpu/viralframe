@@ -61,8 +61,10 @@ export function ManualPanel({ masterPrompt, sceneCount, aiTool, contentStyle = '
     if (json.scenes && Array.isArray(json.scenes)) {
       applySceneTypeSlugs(json.scenes, contentStyle, form);
     }
-    const result = validateVideoJSON(json, sceneCount, captionVariationCount, aiTool);
-    const policyMsgs = formatPolicyViolations(checkPolicyCompliance(json));
+    // form diteruskan supaya Manual mode memvalidasi hal yang sama dengan Direct mode
+    // (reference_image per scene, nama file foto karakter, dst) — dulu di-skip.
+    const result = validateVideoJSON(json, sceneCount, captionVariationCount, aiTool, (form?.referencePhotos?.length ?? 0) > 0, form);
+    const policyMsgs = formatPolicyViolations(checkPolicyCompliance(json, form?.contentGoal));
     setValidationResult({ ...result, warnings: [...result.warnings, ...policyMsgs], json: result.valid ? json : null });
     if (result.valid) onJsonValidated(json);
   };

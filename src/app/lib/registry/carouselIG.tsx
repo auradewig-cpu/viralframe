@@ -446,6 +446,13 @@ export const carouselIGContentType: ContentTypeDefinition<CarouselJSON> = {
   description: 'Carousel Instagram slide-by-slide — cover hook, konten edukatif, CTA + prompt gambar siap generate.',
   formSections: [],
   FormComponent: CarouselForm,
+  validateForm: (form) => {
+    const errors: string[] = [];
+    if (!form.niche) errors.push('Pilih jenis bisnis / niche.');
+    if (!form.carouselTopic.trim()) errors.push('Isi topik carousel terlebih dulu.');
+    return errors;
+  },
+  getHistoryLabel: (form) => form.carouselTopic.slice(0, 50),
   buildMasterPrompt: (form) => buildCarouselPrompt(form),
   parseOutput: (rawText) => parseJsonResponse<CarouselJSON>(rawText),
   validateOutput: (json, form) => validateCarousel(json, form),

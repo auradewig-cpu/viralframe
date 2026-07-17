@@ -36,7 +36,9 @@ export function useHydrateReferenceFiles() {
       if (!cancelled) setReferenceHydrating(false);
     })();
 
-    return () => { cancelled = true; };
+    // Reset flag juga di cleanup — tanpa ini, unmount di tengah hidrasi meninggalkan
+    // referenceHydrating nyangkut true (tombol Download Bahan disabled permanen).
+    return () => { cancelled = true; setReferenceHydrating(false); };
     // referenceFiles sengaja tidak dimasukkan ke deps — hanya locationRefs/characterRefSourceName
     // yang menentukan sourceName mana yang WAJIB ada, supaya effect tidak re-run tiap kali
     // setReferenceFile dipanggil (yang justru mengubah referenceFiles itu sendiri).

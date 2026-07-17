@@ -32,7 +32,8 @@ function ModeSelector({ onSelect }: { onSelect: (mode: 'direct' | 'manual') => v
   const settings = useAppStore(s => s.settings);
   const hasGemini = !!settings.geminiApiKey;
   const hasGroq = !!settings.groqApiKey;
-  const hasApiKey = hasGemini || hasGroq;
+  const hasOpenRouter = !!settings.openrouterApiKey;
+  const hasApiKey = hasGemini || hasGroq || hasOpenRouter;
 
   return (
     <div className="max-w-2xl mx-auto py-8 px-4">
@@ -54,7 +55,7 @@ function ModeSelector({ onSelect }: { onSelect: (mode: 'direct' | 'manual') => v
           <div className="space-y-1">
             {hasApiKey ? (
               <span className="text-xs px-2 py-1 rounded" style={{ background: 'rgba(16,185,129,0.15)', color: 'var(--vf-accent-success)' }}>
-                ✅ API Terkonfigurasi — {hasGemini ? 'Gemini Flash' : 'Groq Llama 3.3'}
+                ✅ API Terkonfigurasi — {hasGemini ? 'Gemini Flash' : hasGroq ? 'Groq Llama 3.3' : 'OpenRouter'}
               </span>
             ) : (
               <span className="text-xs px-2 py-1 rounded" style={{ background: 'rgba(245,158,11,0.15)', color: 'var(--vf-accent-warning)' }}>
@@ -272,6 +273,17 @@ export function Home() {
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
           <FormComponent />
+
+          {formErrors.length > 0 && (
+            <div className="mt-4 p-4 rounded-xl" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid var(--vf-accent-danger)' }}>
+              {formErrors.map((e, i) => (
+                <div key={i} className="flex items-start gap-2 text-sm" style={{ color: 'var(--vf-accent-danger)' }}>
+                  <AlertCircle size={14} className="mt-0.5 shrink-0" />
+                  {e}
+                </div>
+              ))}
+            </div>
+          )}
 
           {formWarnings.length > 0 && (
             <div className="mt-4 p-4 rounded-xl" style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid var(--vf-accent-warning)' }}>

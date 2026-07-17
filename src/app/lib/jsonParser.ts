@@ -4,6 +4,14 @@ import {
   getValidLocationRefs, getSceneLocationRef, buildReferenceImageJson, buildBindingSentence, buildPromptHintsSentence,
   getCharacterRefFileName,
 } from './locationRefs';
+import { checkScene } from './sceneChecks';
+
+// Primitif cek per-scene pindah ke lib/sceneChecks.ts (satu sumber untuk jsonParser/sceneRegen/
+// sceneStatus) — re-export di sini supaya importer lama tetap jalan.
+export {
+  MIN_NARRATION_RATIO, countWords, hasTimingInTextOverlay,
+  hasDialogueTag, hasValidDialogueTagContent, hasEmbeddedDialogue,
+} from './sceneChecks';
 
 export function parseAiResponse(rawText: string): VideoJSON | null {
   // Step 1: try direct parse
@@ -25,47 +33,6 @@ export interface ValidationResult {
   warnings: string[];
 }
 
-// Ambang minimum rasio script_narration terhadap max_words — samakan dengan target 85%-100%
-// yang dijanjikan di instruksi GAYA BICARA & ARTIKULASI master prompt. Satu sumber kebenaran
-// dipakai lintas jsonParser/sceneRegen/sceneStatus supaya tidak drift jadi angka berbeda-beda.
-export const MIN_NARRATION_RATIO = 0.85;
-
-export function countWords(text: string | null | undefined): number {
-  if (!text) return 0;
-  return text.trim().split(/\s+/).filter(Boolean).length;
-}
-
-// Cek apakah text_overlay mengandung pola timing seperti "(5s)" atau "(0:01-0:05)".
-export function hasTimingInTextOverlay(text: string | null | undefined): boolean {
-  if (!text) return false;
-  return /\(\s*\d+s\s*\)|\(\s*\d+:\d+/.test(text);
-}
-
-export function hasDialogueTag(aiReadyPrompt: string): boolean {
-  return aiReadyPrompt.includes('[DIALOGUE:');
-}
-
-// Cek apakah isi tag [DIALOGUE: ...] berupa nama bahasa (valid) atau kalimat penuh (invalid).
-// Kalau tidak ada tag sama sekali → return true (bukan urusan fungsi ini, serahkan ke hasDialogueTag).
-// Invalid: isi > 30 karakter ATAU mengandung tanda '?'/'!' (ciri kalimat, bukan nama bahasa).
-export function hasValidDialogueTagContent(aiReadyPrompt: string): boolean {
-  const match = /\[DIALOGUE:\s*([^\]]*)\]/.exec(aiReadyPrompt);
-  if (!match) return true;
-  const content = match[1].trim();
-  if (content.length > 30) return false;
-  if (/[?!]/.test(content)) return false;
-  return true;
-}
-
-// Untuk google_flow/veo3 — cek apakah script_narration disisipkan verbatim sebagai dialog
-// terkutip di ai_ready_prompt (konvensi resmi Veo3), bukan lewat tag [DIALOGUE: ...].
-export function hasEmbeddedDialogue(aiReadyPrompt: string, scriptNarration: string | null | undefined): boolean {
-  if (!scriptNarration || !scriptNarration.trim()) return true;
-  const firstFourWords = scriptNarration.trim().split(/\s+/).slice(0, 4).join(' ');
-  if (!firstFourWords) return true;
-  return aiReadyPrompt.includes(firstFourWords);
-}
-
 export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number, expectedCaptionCount: number = 1, expectedAiTool?: string, expectHasRefImage: boolean = false, form?: FormData): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -74,7 +41,8 @@ export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number, e
   const aiTool = expectedAiTool || json.video_metadata?.ai_video_tool || '';
   const toolInfo = AI_TOOLS.find(t => t.value === aiTool);
   const charLimit = toolInfo?.charLimit || 400;
-  // form opsional (ManualPanel belum melewatkan form penuh) — kalau tidak ada, cek locationRefs di-skip.
+  // form opsional (konsumen lama/eksternal mungkin tanpa form) — kalau tidak ada, cek locationRefs di-skip.
+  // Direct mode DAN Manual mode (ManualPanel) sama-sama meneruskan form penuh.
   const validLocationRefs = form ? getValidLocationRefs(form) : [];
   const characterRefFileName = form ? getCharacterRefFileName(form) : '';
 
@@ -90,56 +58,20 @@ export function validateVideoJSON(json: VideoJSON, expectedSceneCount: number, e
     const anchor = json.character_sheet?.used ? (json.character_sheet.description || '').trim() : '';
     json.scenes.forEach((scene, i) => {
       if (!scene.ai_ready_prompt) errors.push(`Scene ${i + 1}: field "ai_ready_prompt" kosong.`);
-      else {
-        if (scene.ai_ready_prompt.length > charLimit) {
-          warnings.push(`Scene ${i + 1}: panjang prompt (${scene.ai_ready_prompt.length} chars) melebihi batas tool ${charLimit} chars.`);
-        }
-        if (anchor && !scene.ai_ready_prompt.startsWith(anchor)) {
-          warnings.push(`Scene ${i + 1}: ai_ready_prompt tidak diawali CHARACTER ANCHOR verbatim — konsistensi karakter antar scene berisiko rusak.`);
-        }
-        if (characterRefFileName && !scene.ai_ready_prompt.includes(characterRefFileName)) {
-          warnings.push(`Scene ${i + 1}: ai_ready_prompt tidak menyebut nama file foto karakter "${characterRefFileName}" — foto karakter mungkin diabaikan AI video tool.`);
-        }
-      }
-      if (!scene.script_narration) {
-        warnings.push(`Scene ${i + 1}: "script_narration" kosong.`);
-      } else if (scene.max_words > 0) {
-        // Hitung kata AKTUAL, jangan percaya script_word_count yang dilaporkan AI sendiri.
-        const actual = countWords(scene.script_narration);
-        if (actual > scene.max_words) {
-          warnings.push(`Scene ${i + 1}: narasi aktual ${actual} kata, melebihi batas lipsync ${scene.max_words} kata — talent tidak akan sempat mengucapkannya.`);
-        } else if (actual < Math.ceil(scene.max_words * MIN_NARRATION_RATIO)) {
-          warnings.push(`Scene ${i + 1}: narasi aktual ${actual} kata, jauh di bawah target 85% dari ${scene.max_words} kata — pacing akan terasa kosong.`);
-        }
-      }
+      if (!scene.script_narration) warnings.push(`Scene ${i + 1}: "script_narration" kosong.`);
       // reference_image bersifat opsional/nullable — tidak ada di project lama, jangan jadikan error.
       if (expectHasRefImage && !scene.reference_image) {
         warnings.push(`Scene ${i + 1}: field "reference_image" kosong padahal ada foto referensi diupload — engine AI video terstruktur mungkin mengabaikan foto referensi.`);
       }
-      if (scene.ai_ready_prompt && (aiTool === 'google_flow' || aiTool === 'veo3')) {
-        if (!hasEmbeddedDialogue(scene.ai_ready_prompt, scene.script_narration)) {
-          warnings.push(`Scene ${i + 1}: ai_ready_prompt tidak menyisipkan dialog terkutip dari script_narration — Veo3/Flow tidak akan tahu harus mengucapkan apa, berisiko default ke Bahasa Inggris atau dialog karangan sendiri.`);
-        }
-      } else if (scene.ai_ready_prompt && !hasDialogueTag(scene.ai_ready_prompt)) {
-        const isVisualShockNoNarration =
-          json.video_metadata?.hook_type === 'visual_shock' &&
-          scene.scene_number === 1 &&
-          (!scene.script_narration || countWords(scene.script_narration) <= 5);
-        if (!isVisualShockNoNarration) {
-          warnings.push(`Scene ${i + 1}: ai_ready_prompt tidak menyertakan tag [DIALOGUE: ...] — AI video tool kemungkinan akan menghasilkan dialog berbahasa Inggris alih-alih bahasa yang diminta.`);
-        }
-      } else if (scene.ai_ready_prompt && !hasValidDialogueTagContent(scene.ai_ready_prompt)) {
-        warnings.push(`Scene ${i + 1}: tag [DIALOGUE: ...] berisi kalimat penuh, bukan nama bahasa saja — WAJIB hanya nama bahasa (mis. "Bahasa Indonesia"). Berisiko membuat dialog video berulang/rusak di AI video tool.`);
-      }
-      if (hasTimingInTextOverlay(scene.text_overlay)) {
-        warnings.push(`Scene ${i + 1}: text_overlay mengandung timing/timestamp (mis. "(5s)") — akan ikut tercetak sebagai teks kalau di-burn ke video. Durasi sudah tercakup di duration_seconds.`);
-      }
-      if (validLocationRefs.length > 0) {
-        const expectedRef = getSceneLocationRef(validLocationRefs, scene.scene_number);
-        if (expectedRef && scene.reference_image?.file?.trim() !== expectedRef.file.trim()) {
-          warnings.push(`Scene ${i + 1}: seharusnya pakai reference_image.file "${expectedRef.file.trim()}" (ditugaskan via Referensi Lokasi/Produk), tapi hasilnya "${scene.reference_image?.file || '(kosong)'}" — foto referensi mungkin diabaikan AI video tool.`);
-        }
-      }
+      const expectedRef = validLocationRefs.length > 0 ? getSceneLocationRef(validLocationRefs, scene.scene_number) : null;
+      checkScene(scene, {
+        aiTool,
+        charLimit,
+        characterAnchor: anchor,
+        characterRefFileName,
+        expectedLocationRefFile: expectedRef ? expectedRef.file.trim() : undefined,
+        hookType: json.video_metadata?.hook_type,
+      }).forEach(msg => warnings.push(`Scene ${i + 1}: ${msg}`));
     });
   }
   if (!json.production_notes) {

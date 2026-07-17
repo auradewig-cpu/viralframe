@@ -3,7 +3,8 @@ import { getLipsyncSpec } from './lipsync';
 import { AI_TOOLS, NICHE_DATA, AI_TOOL_FORMAT } from './maps';
 import { CONTENT_STYLES } from './contentStyles';
 import { NEGATIVE_PROMPT_BLOCK, CAMERA_REF_RULE, SPOKEN_NUMBER_RULE } from './negativePrompt';
-import { countWords, ValidationResult, hasDialogueTag, hasValidDialogueTagContent, hasEmbeddedDialogue, hasTimingInTextOverlay, MIN_NARRATION_RATIO } from './jsonParser';
+import { ValidationResult } from './jsonParser';
+import { checkScene } from './sceneChecks';
 import { parseJsonResponse } from './registry/shared';
 import {
   getValidLocationRefs, getSceneLocationRef, buildReferenceImageJson, buildBindingSentence, buildPromptHintsSentence,
@@ -167,53 +168,17 @@ export function validateSceneData(scene: SceneData, expectation: SceneRegenExpec
     errors.push(`max_words berubah (diharapkan ${expectation.maxWords}, dapat ${scene.max_words}).`);
   }
 
-  if (scene.ai_ready_prompt) {
-    if (scene.ai_ready_prompt.length > expectation.charLimit) {
-      warnings.push(`ai_ready_prompt (${scene.ai_ready_prompt.length} chars) melebihi batas tool ${expectation.charLimit} chars.`);
-    }
-    if (expectation.characterAnchor && !scene.ai_ready_prompt.startsWith(expectation.characterAnchor)) {
-      warnings.push('ai_ready_prompt tidak diawali CHARACTER ANCHOR verbatim — konsistensi karakter berisiko rusak.');
-    }
-    if (expectation.characterRefFileName && !scene.ai_ready_prompt.includes(expectation.characterRefFileName)) {
-      warnings.push(`ai_ready_prompt tidak menyebut nama file foto karakter "${expectation.characterRefFileName}" — foto karakter mungkin diabaikan AI video tool.`);
-    }
-    if (expectation.aiTool === 'google_flow' || expectation.aiTool === 'veo3') {
-      if (!hasEmbeddedDialogue(scene.ai_ready_prompt, scene.script_narration)) {
-        warnings.push('ai_ready_prompt tidak menyisipkan dialog terkutip dari script_narration — Veo3/Flow tidak akan tahu harus mengucapkan apa, berisiko default ke Bahasa Inggris atau dialog karangan sendiri.');
-      }
-    } else if (!hasDialogueTag(scene.ai_ready_prompt)) {
-      const isVisualShockNoNarration =
-        hookType === 'visual_shock' &&
-        expectation.sceneNumber === 1 &&
-        (!scene.script_narration || countWords(scene.script_narration) <= 5);
-      if (!isVisualShockNoNarration) {
-        warnings.push('ai_ready_prompt tidak menyertakan tag [DIALOGUE: ...] — AI video tool kemungkinan akan menghasilkan dialog berbahasa Inggris alih-alih bahasa yang diminta.');
-      }
-    } else if (!hasValidDialogueTagContent(scene.ai_ready_prompt)) {
-      warnings.push('Tag [DIALOGUE: ...] berisi kalimat penuh, bukan nama bahasa saja — WAJIB hanya nama bahasa (mis. "Bahasa Indonesia"). Berisiko membuat dialog video berulang/rusak di AI video tool.');
-    }
-  }
-
-  if (expectation.locationRef) {
-    const expectedFile = expectation.locationRef.file.trim();
-    if (scene.reference_image?.file?.trim() !== expectedFile) {
-      warnings.push(`Scene ${expectation.sceneNumber} seharusnya pakai reference_image.file "${expectedFile}" (ditugaskan via Referensi Lokasi/Produk), tapi hasilnya "${scene.reference_image?.file || '(kosong)'}" — foto referensi mungkin diabaikan AI video tool.`);
-    }
-  }
-
-  if (scene.script_narration && expectation.maxWords > 0) {
-    // Hitung kata AKTUAL, jangan percaya script_word_count yang dilaporkan AI sendiri.
-    const actual = countWords(scene.script_narration);
-    if (actual > expectation.maxWords) {
-      warnings.push(`Narasi aktual ${actual} kata, melebihi batas lipsync ${expectation.maxWords} kata.`);
-    } else if (actual < Math.ceil(expectation.maxWords * MIN_NARRATION_RATIO)) {
-      warnings.push(`Narasi aktual ${actual} kata, jauh di bawah target 85% dari ${expectation.maxWords} kata.`);
-    }
-  }
-
-  if (hasTimingInTextOverlay(scene.text_overlay)) {
-    warnings.push('text_overlay mengandung timing/timestamp (mis. "(5s)") — akan ikut tercetak sebagai teks kalau di-burn ke video. Durasi sudah tercakup di duration_seconds.');
-  }
+  // Cek kualitas terpusat — maxWords dari expectation (recompute dari durasi), BUKAN dari
+  // scene.max_words yang dilaporkan AI.
+  warnings.push(...checkScene(scene, {
+    aiTool: expectation.aiTool,
+    charLimit: expectation.charLimit,
+    characterAnchor: expectation.characterAnchor,
+    characterRefFileName: expectation.characterRefFileName,
+    expectedLocationRefFile: expectation.locationRef ? expectation.locationRef.file.trim() : undefined,
+    maxWords: expectation.maxWords,
+    hookType,
+  }));
 
   return { valid: errors.length === 0, errors, warnings };
 }

@@ -102,7 +102,16 @@ async function callPuter(prompt: string, opts: ImageGenOptions, timeoutMs: numbe
     new Promise<never>((_, reject) => setTimeout(() => reject(new ImageGenError('TIMEOUT', `Puter timeout ${Math.round(timeoutMs / 1000)}s.`)), timeoutMs)),
   ]);
   if (!result) throw new ImageGenError('UNKNOWN', 'Puter tidak mengembalikan hasil.');
-  const blob = result.result instanceof Blob ? result.result : await fetch(result.result?.source || '').then(r => r.blob());
+  let blob: Blob;
+  if (result.result instanceof Blob) {
+    blob = result.result;
+  } else {
+    // Tanpa guard ini, source kosong membuat fetch('') mengambil index.html sendiri —
+    // blob non-kosong yang lolos validasi dan dipakai sebagai "gambar".
+    const source = result.result?.source;
+    if (!source) throw new ImageGenError('UNKNOWN', 'Puter tidak mengembalikan URL gambar.');
+    blob = await fetch(source).then(r => r.blob());
+  }
   if (!blob || blob.size === 0) throw new ImageGenError('UNKNOWN', 'Puter mengembalikan gambar kosong.');
   return blob;
 }

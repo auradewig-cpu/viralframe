@@ -45,6 +45,13 @@ export interface ContentTypeDefinition<TOutput = unknown> {
   // Jika diisi, Home.tsx merender komponen form single-page ini alih-alih wizard 3 langkah
   // (dipakai content type non-short_video yang field-nya jauh lebih sedikit).
   FormComponent?: ComponentType;
+  // Validasi form ringan sebelum generate — return daftar pesan error, kosong = lolos.
+  // short_video TIDAK memakai ini (punya jalur zod sendiri di lib/validation.ts); content type
+  // single-page WAJIB mengisinya supaya generate tidak jalan dengan field inti kosong.
+  validateForm?: (form: FormData) => string[];
+  // Label record history — tanpa ini, pemanggil fallback ke productDescription (salah untuk
+  // content type yang topiknya di field lain, mis. thumbnailTopic/carouselTopic).
+  getHistoryLabel?: (form: FormData) => string;
   buildMasterPrompt: (form: FormData, narrationWPM?: number) => string;
   parseOutput: (rawText: string) => TOutput | null;
   validateOutput: (json: TOutput, form: FormData) => ValidationResult;

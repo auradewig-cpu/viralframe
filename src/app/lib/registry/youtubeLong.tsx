@@ -388,6 +388,13 @@ export const youtubeLongContentType: ContentTypeDefinition<YoutubeLongJSON> = {
   description: 'Video YouTube panjang — segmen chapter, cold open detail, b-roll prompts, SEO title & description.',
   formSections: [],
   FormComponent: YoutubeLongForm,
+  validateForm: (form) => {
+    const errors: string[] = [];
+    if (!form.niche) errors.push('Pilih jenis bisnis / niche.');
+    if (!form.productDescription.trim()) errors.push('Isi topik/produk video terlebih dulu.');
+    return errors;
+  },
+  getHistoryLabel: (form) => form.productDescription.slice(0, 50),
   buildMasterPrompt: (form) => buildYoutubeLongPrompt(form),
   parseOutput: (rawText) => parseJsonResponse<YoutubeLongJSON>(rawText),
   validateOutput: (json, form) => validateYoutubeLong(json, form),

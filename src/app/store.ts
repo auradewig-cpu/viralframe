@@ -145,6 +145,10 @@ export const useAppStore = create<AppState>()(
       addHistory: (record) => set((s) => {
         const cleanRecord = {
           ...record,
+          // masterPrompt TIDAK disimpan (bisa puluhan KB per record; 50 record realistis menembus
+          // kuota localStorage ~5MB dan membuat persist gagal diam-diam). History.tsx me-recompile
+          // dari formData saat load. Record lama yang masih punya masterPrompt tetap terbaca.
+          masterPrompt: '',
           formData: { ...record.formData, referencePhotos: [] },
         };
         const updated = [cleanRecord, ...s.history].slice(0, 50);

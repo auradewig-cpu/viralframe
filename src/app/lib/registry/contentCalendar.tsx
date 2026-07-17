@@ -411,6 +411,12 @@ export const contentCalendarContentType: ContentTypeDefinition<ContentCalendarJS
   description: 'Strategi & kalender konten harian — positioning, pilar konten, dan production prompt siap pakai per post.',
   formSections: [],
   FormComponent: ContentCalendarForm,
+  validateForm: (form) => {
+    const errors: string[] = [];
+    if (!form.niche) errors.push('Pilih jenis bisnis / niche.');
+    return errors;
+  },
+  getHistoryLabel: (form) => `Kalender ${form.calendarDays} hari × ${form.postsPerDay} post — ${form.niche}`,
   buildMasterPrompt: (form) => buildContentCalendarPrompt(form),
   parseOutput: (rawText) => parseJsonResponse<ContentCalendarJSON>(rawText),
   validateOutput: (json, form) => validateContentCalendar(json, form),

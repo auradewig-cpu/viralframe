@@ -1,23 +1,18 @@
 import { useState, useRef } from 'react';
 import { useAppStore } from '../store';
-import { generateWithFallback, ApiCallError } from '../lib/apiClient';
+import { generateWithFallback, ApiCallError, ProgressEvent } from '../lib/apiClient';
 import { validateFormData, getFormWarnings } from '../lib/validation';
 import { getContentType } from '../lib/registry';
 import { getSceneIssuesMap } from '../lib/sceneStatus';
 import { VideoJSON } from '../types';
 
-function mapProgressMessage(msg: string): { provider: 'gemini' | 'groq' | 'openrouter' | null; status: 'trying' | 'success' | 'failed' | null; percent: number | null } {
-  if (msg.startsWith('Memanggil Gemini')) return { provider: 'gemini', status: 'trying', percent: 15 };
-  if (msg.includes('Mengurai JSON dari respons Gemini')) return { provider: 'gemini', status: 'trying', percent: 40 };
-  if (msg.includes('Gemini gagal')) return { provider: 'gemini', status: 'failed', percent: 45 };
-  if (msg.startsWith('Beralih ke Groq')) return { provider: 'groq', status: 'trying', percent: 55 };
-  if (msg.includes('Mengurai JSON dari respons Groq')) return { provider: 'groq', status: 'trying', percent: 70 };
-  if (msg.includes('Groq gagal')) return { provider: 'groq', status: 'failed', percent: 75 };
-  if (msg.startsWith('Memanggil OpenRouter')) return { provider: 'openrouter', status: 'trying', percent: 80 };
-  if (msg.includes('Mengurai JSON dari respons OpenRouter')) return { provider: 'openrouter', status: 'trying', percent: 90 };
-  if (msg === 'Menyiapkan Scene Cards...') return { provider: null, status: 'success', percent: 95 };
-  return { provider: null, status: null, percent: null };
-}
+// Persentase progress per (provider, stage) — dibaca dari ProgressEvent terstruktur apiClient,
+// BUKAN dari parsing teks pesan (pola lama yang rusak diam-diam saat label provider berubah).
+const PROGRESS_PERCENT: Record<string, number> = {
+  'gemini:calling': 15, 'gemini:parsing': 40, 'gemini:retrying': 42, 'gemini:failed': 45,
+  'groq:calling': 55, 'groq:parsing': 70, 'groq:retrying': 60, 'groq:failed': 75,
+  'openrouter:calling': 80, 'openrouter:parsing': 90, 'openrouter:retrying': 85,
+};
 
 export function useGenerationPipeline() {
   const formData = useAppStore(s => s.formData);
@@ -83,16 +78,14 @@ export function useGenerationPipeline() {
         groq: settings.groqApiKey,
         openrouter: settings.openrouterApiKey,
       };
-      const onProgress = (msg: string) => {
-        setGenerateProgress(msg);
-        const mapped = mapProgressMessage(msg);
-        if (mapped.provider) {
-          currentProviderRef.current = mapped.provider;
-          setProviderStatus(mapped.provider, mapped.status || 'trying');
-        } else if (mapped.status === 'success' && currentProviderRef.current) {
-          setProviderStatus(currentProviderRef.current, 'success');
-        }
-        if (mapped.percent !== null) setGenerateProgressPercent(mapped.percent);
+      const onProgress = (ev: ProgressEvent) => {
+        setGenerateProgress(ev.message);
+        if (!ev.provider) return;
+        currentProviderRef.current = ev.provider;
+        const status = ev.stage === 'failed' ? 'failed' : ev.stage === 'success' ? 'success' : 'trying';
+        setProviderStatus(ev.provider, status);
+        const percent = ev.stage === 'success' ? 95 : PROGRESS_PERCENT[`${ev.provider}:${ev.stage}`];
+        if (percent !== undefined) setGenerateProgressPercent(percent);
       };
       let json = await generateWithFallback(prompt, keys, contentType.parseOutput, onProgress, (percent) => setGroqQuotaPercent(percent), settings.geminiModel || 'gemini-3.5-flash', settings.providerOrder);
       if (json) contentType.applyPostProcess?.(json, formData);
@@ -106,7 +99,7 @@ export function useGenerationPipeline() {
           setGenerateProgress('Memperbaiki output yang tidak sesuai aturan...');
           setGenerateProgressPercent(96);
           const repairPrompt = contentType.buildRepairPrompt(json, problems, formData);
-          const repaired = await generateWithFallback(repairPrompt, keys, contentType.parseOutput, () => {}, undefined, settings.geminiModel || 'gemini-3.5-flash');
+          const repaired = await generateWithFallback(repairPrompt, keys, contentType.parseOutput, () => {}, undefined, settings.geminiModel || 'gemini-3.5-flash', settings.providerOrder);
           if (repaired) {
             contentType.applyPostProcess?.(repaired, formData);
             const revalidation = contentType.validateOutput(repaired, formData);
@@ -133,7 +126,7 @@ export function useGenerationPipeline() {
       addHistory({
         id: Date.now().toString(),
         timestamp: Date.now(),
-        label: formData.productDescription.slice(0, 50) || 'Generate tanpa judul',
+        label: contentType.getHistoryLabel?.(formData) || formData.productDescription.slice(0, 50) || 'Generate tanpa judul',
         formData: { ...formData, mode },
         masterPrompt: prompt,
         contentTypeId: contentType.id,
@@ -168,6 +161,12 @@ export function useGenerationPipeline() {
       const hasApiKey = !!(settings.geminiApiKey || settings.groqApiKey || settings.openrouterApiKey);
       if (!hasApiKey) warningList.push('API key belum dikonfigurasi. Konfigurasi di Settings atau gunakan Manual Prompt Mode.');
       setFormWarnings(warningList);
+    } else if (contentType.validateForm) {
+      // Content type single-page: validasi field inti sebelum generate — tanpa ini, prompt
+      // ter-compile dengan topik/niche kosong dan membakar kuota untuk output tak berguna.
+      const errors = contentType.validateForm(formData);
+      setFormErrors(errors);
+      if (errors.length > 0) return;
     }
 
     const hasApiKey = !!(settings.geminiApiKey || settings.groqApiKey || settings.openrouterApiKey);
@@ -187,7 +186,7 @@ export function useGenerationPipeline() {
     addHistory({
       id: Date.now().toString(),
       timestamp: Date.now(),
-      label: formData.productDescription.slice(0, 50) || 'Generate Manual Mode',
+      label: contentType.getHistoryLabel?.(formData) || formData.productDescription.slice(0, 50) || 'Generate Manual Mode',
       formData: { ...formData },
       masterPrompt,
       contentTypeId: contentType.id,

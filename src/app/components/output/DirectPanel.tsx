@@ -241,7 +241,7 @@ export function DirectPanel({ json, form, onRegenerate, onEdit, referencePhotos 
     try {
       const narrationWPM = settings.narrationWPM || 165;
       const prompt = buildSceneRephrasePrompt(json, sceneIndex, violations, form, narrationWPM);
-      const rephrased = await generateWithFallback(prompt, apiKeys, parseSceneRephraseResponse, () => {}, undefined, geminiModel);
+      const rephrased = await generateWithFallback(prompt, apiKeys, parseSceneRephraseResponse, () => {}, undefined, geminiModel, settings.providerOrder);
       const expectation = getSceneRegenExpectation(json, sceneIndex, form, narrationWPM);
       const validation = validateSceneRephrase(rephrased, expectation, json, form);
 
@@ -277,7 +277,7 @@ export function DirectPanel({ json, form, onRegenerate, onEdit, referencePhotos 
     patchCaptionAutoFix(captionIndex, { loading: true, error: null, remainingWarning: null });
     try {
       const prompt = buildCaptionRephrasePrompt(json, captionIndex, violations, form);
-      const rephrased: CaptionVariation = await generateWithFallback(prompt, apiKeys, parseCaptionRephraseResponse, () => {}, undefined, geminiModel);
+      const rephrased: CaptionVariation = await generateWithFallback(prompt, apiKeys, parseCaptionRephraseResponse, () => {}, undefined, geminiModel, settings.providerOrder);
       const validation = validateCaptionRephrase(rephrased, cv.hashtags.length, json, captionIndex, form);
 
       if (!validation.valid) {
@@ -322,7 +322,7 @@ Each caption_text must be adapted to ${targetPlatform} audience and format. Tota
     try {
       const raw = await generateWithFallback<{ caption_variations: { caption_text: string; hashtags: string[] }[] }>(prompt, apiKeys, (t) => {
         try { const p = JSON.parse(t); return p?.caption_variations ? p : null; } catch { return null; }
-      }, () => {}, undefined, geminiModel);
+      }, () => {}, undefined, geminiModel, settings.providerOrder);
       const variations = raw?.caption_variations;
       if (variations && variations.length === existing.length) {
         setCaptionPlatformResults(prev => [...prev, { platform: PLATFORMS.find(p => p.value === targetPlatform)?.label || targetPlatform, variations }]);
@@ -346,7 +346,7 @@ Each caption_text must be adapted to ${targetPlatform} audience and format. Tota
       const geminiModel = settings.geminiModel || 'gemini-3.5-flash';
 
       const prompt = buildSceneRegenPrompt(json, sceneIndex, form, narrationWPM);
-      let scene = await generateWithFallback(prompt, keys, parseSceneResponse, () => {}, undefined, geminiModel);
+      let scene = await generateWithFallback(prompt, keys, parseSceneResponse, () => {}, undefined, geminiModel, settings.providerOrder);
       let validation = validateSceneData(scene, expectation, form.hookType);
 
       // Repair loop 1x — pola sama dengan repair loop full-video di Home.tsx.
@@ -354,7 +354,7 @@ Each caption_text must be adapted to ${targetPlatform} audience and format. Tota
         const problems = [...validation.errors, ...validation.warnings];
         try {
           const repairPrompt = buildSceneRegenRepairPrompt(scene, problems, expectation);
-          const repaired = await generateWithFallback(repairPrompt, keys, parseSceneResponse, () => {}, undefined, geminiModel);
+          const repaired = await generateWithFallback(repairPrompt, keys, parseSceneResponse, () => {}, undefined, geminiModel, settings.providerOrder);
           const revalidation = validateSceneData(repaired, expectation, form.hookType);
           if (revalidation.valid) {
             scene = repaired;

@@ -459,6 +459,13 @@ export const thumbnailPackContentType: ContentTypeDefinition<ThumbnailPackJSON> 
   description: 'Prompt JSON thumbnail catchy — 3-5 konsep siap paste ke AI image generator, lengkap alasan CTR.',
   formSections: [],
   FormComponent: ThumbnailPackForm,
+  validateForm: (form) => {
+    const errors: string[] = [];
+    if (!form.niche) errors.push('Pilih jenis bisnis / niche.');
+    if (!form.thumbnailTopic.trim()) errors.push('Isi topik/judul video untuk thumbnail terlebih dulu.');
+    return errors;
+  },
+  getHistoryLabel: (form) => form.thumbnailTopic.slice(0, 50),
   buildMasterPrompt: (form) => buildThumbnailPackPrompt(form),
   parseOutput: (rawText) => parseJsonResponse<ThumbnailPackJSON>(rawText),
   validateOutput: (json, form) => validateThumbnailPack(json, form),

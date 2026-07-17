@@ -15,6 +15,7 @@ export function History() {
   const setMasterPrompt = useAppStore(s => s.setMasterPrompt);
   const setActiveContentTypeId = useAppStore(s => s.setActiveContentTypeId);
   const setCurrentHistoryId = useAppStore(s => s.setCurrentHistoryId);
+  const settings = useAppStore(s => s.settings);
   const navigate = useNavigate();
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -28,7 +29,9 @@ export function History() {
     setActiveContentTypeId(contentTypeId);
     loadFormData(record.formData);
     setGeneratedOutput(contentTypeId, record.output);
-    setMasterPrompt(record.masterPrompt);
+    // masterPrompt tidak lagi disimpan di history (hemat kuota localStorage) — recompile dari
+    // formData. Record lama yang masih menyimpannya dipakai apa adanya.
+    setMasterPrompt(record.masterPrompt || getContentType(contentTypeId).buildMasterPrompt(record.formData, settings.narrationWPM || 165));
     setCurrentHistoryId(record.id);
     navigate('/');
   };

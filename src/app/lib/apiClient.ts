@@ -147,7 +147,19 @@ export interface ApiKeys {
   openrouter: string;
 }
 
-export type ProgressCallback = (msg: string) => void;
+export type ProviderName = 'gemini' | 'groq' | 'openrouter';
+export type ProgressStage = 'calling' | 'parsing' | 'retrying' | 'failed' | 'success';
+
+// Event progress TERSTRUKTUR — konsumen (useGenerationPipeline) membaca provider/stage langsung,
+// BUKAN mem-parse substring message. message hanya untuk tampilan teks. Dulu status provider
+// di-derive dari pencocokan string Indonesia dan diam-diam rusak saat label provider berubah.
+export interface ProgressEvent {
+  provider: ProviderName | null;
+  stage: ProgressStage;
+  message: string;
+}
+
+export type ProgressCallback = (event: ProgressEvent) => void;
 
 // Pure function: filter providers by key availability, apply custom order.
 // Diekspor untuk unit test.
@@ -183,34 +195,36 @@ export async function generateWithFallback<T>(
   const order = getOrderedProviders(keys, providerOrder || ['gemini', 'groq', 'openrouter']);
 
   for (const provider of order) {
+    const label = PROVIDER_LABELS[provider];
+    const callProvider = (signal: AbortSignal) =>
+      provider === 'gemini' ? callGemini(keys.gemini, prompt, geminiModel, signal)
+        : provider === 'groq' ? callGroq(keys.groq, prompt, signal, onGroqQuota)
+          : callOpenRouter(keys.openrouter, prompt, signal);
     try {
-      onProgress(`Memanggil ${PROVIDER_LABELS[provider]} API...`);
-      let text: string;
-      if (provider === 'gemini') {
-        text = await callWithTimeout((signal) => callGemini(keys.gemini, prompt, geminiModel, signal), TIMEOUT);
-      } else if (provider === 'groq') {
-        text = await callWithTimeout((signal) => callGroq(keys.groq, prompt, signal, onGroqQuota), TIMEOUT);
-      } else {
-        text = await callWithTimeout((signal) => callOpenRouter(keys.openrouter, prompt, signal), TIMEOUT);
-      }
-      onProgress(`Mengurai JSON dari respons ${PROVIDER_LABELS[provider]}...`);
+      onProgress({ provider, stage: 'calling', message: `Memanggil ${label} API...` });
+      const text = await callWithTimeout(callProvider, TIMEOUT);
+      onProgress({ provider, stage: 'parsing', message: `Mengurai JSON dari respons ${label}...` });
       const json = parseOutput(text);
-      if (json) { onProgress('Menyiapkan Scene Cards...'); return json; }
-      throw new ApiCallError('JSON_PARSE_ERROR', `JSON tidak valid dari ${PROVIDER_LABELS[provider]}.`);
+      if (json) { onProgress({ provider, stage: 'success', message: 'Menyiapkan Scene Cards...' }); return json; }
+      throw new ApiCallError('JSON_PARSE_ERROR', `JSON tidak valid dari ${label}.`);
     } catch (e: unknown) {
       const err = e instanceof ApiCallError ? e : new ApiCallError('UNKNOWN', String(e));
       lastError = err;
-      if (provider === 'gemini' && !NON_TRANSIENT.includes(err.code)) {
-        onProgress(`Gemini gagal (${err.code}), mencoba ulang...`);
+      // Provider PERTAMA di urutan user layak satu retry untuk error transient — dulu hardcode
+      // Gemini, sekarang mengikuti providerOrder.
+      if (provider === order[0] && !NON_TRANSIENT.includes(err.code)) {
+        onProgress({ provider, stage: 'retrying', message: `${label} gagal (${err.code}), mencoba ulang...` });
         try {
-          const text = await callWithTimeout((signal) => callGemini(keys.gemini, prompt, geminiModel, signal), TIMEOUT);
+          const text = await callWithTimeout(callProvider, TIMEOUT);
           const json = parseOutput(text);
-          if (json) { onProgress('Menyiapkan Scene Cards...'); return json; }
+          if (json) { onProgress({ provider, stage: 'success', message: 'Menyiapkan Scene Cards...' }); return json; }
+          lastError = new ApiCallError('JSON_PARSE_ERROR', `JSON tidak valid dari ${label}.`);
         } catch (e2: unknown) {
           lastError = e2 instanceof ApiCallError ? e2 : lastError;
         }
+        onProgress({ provider, stage: 'failed', message: `${label} gagal (${lastError.code}).` });
       } else {
-        onProgress(`${PROVIDER_LABELS[provider]} gagal (${err.code}).`);
+        onProgress({ provider, stage: 'failed', message: `${label} gagal (${err.code}).` });
       }
       // NON_TRANSIENT hanya berarti "jangan retry provider yang SAMA" — provider
       // BERIKUTNYA tetap dicoba (quota Gemini habis justru alasan utama fallback ke Groq).
