@@ -245,7 +245,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
   groqApiKey: '',
   openrouterApiKey: '',
   narrationWPM: 165,
-  puterEnabled: true,
+  // Default MATI: Puter.js = script pihak ketiga (js.puter.com) yang di-inject ke halaman dan
+  // berjalan dengan akses penuh ke localStorage (termasuk API key user). User yang mau memakainya
+  // mengaktifkan sadar lewat toggle Settings. Nilai persisted user lama TIDAK di-override.
+  puterEnabled: false,
   geminiImageModel: 'gemini-3.1-flash-image',
   providerOrder: ['gemini', 'groq', 'openrouter'],
 };
